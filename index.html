@@ -305,6 +305,88 @@ transition: transform 0.15s, opacity 0.15s;
 .preset-btn.primary { background: #222; color: #fff; }
 .preset-btn.secondary { background: #f0f0f0; color: #555; }
 #importFileHidden { display: none; }
+
+/* ===== 计划备忘 ===== */
+.plan-section { padding: 20px 20px 10px 20px; }
+.plan-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.plan-title { font-size: 18px; font-weight: 700; }
+.plan-progress-text { font-size: 12px; color: #999; }
+.plan-bar-track { height: 6px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+.plan-bar-fill { height: 100%; background: #555; border-radius: 4px; transition: width 0.3s ease; }
+.plan-list { display: flex; flex-direction: column; gap: 8px; }
+.plan-item {
+display: flex; align-items: center; gap: 10px; background: #f7f7f7;
+border-radius: 10px; padding: 10px 12px;
+}
+.plan-check {
+width: 20px; height: 20px; border-radius: 50%; border: 2px solid #bbb;
+flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+font-size: 12px; color: #fff; transition: background 0.15s, border-color 0.15s;
+}
+.plan-check.done { background: #444; border-color: #444; }
+.plan-text { flex: 1; font-size: 14px; color: #333; word-break: break-word; }
+.plan-text.done { text-decoration: line-through; color: #bbb; }
+.plan-del { background: none; border: none; color: #ccc; font-size: 13px; cursor: pointer; flex-shrink: 0; }
+.plan-del:active { transform: scale(0.85); }
+.plan-add-btn {
+margin-top: 10px; padding: 9px; border-radius: 10px; font-size: 13px; text-align: center;
+color: #888; background: #f0f0f0; cursor: pointer; transition: transform 0.15s, background 0.15s;
+}
+.plan-add-btn:active { transform: scale(0.97); background: #e5e5e5; }
+.plan-empty { text-align: center; color: #ccc; font-size: 13px; padding: 10px 0; }
+
+.diary-divider { height: 8px; background: #f2f2f2; margin: 4px 0 0 0; }
+.diary-section { padding: 16px 20px 100px 20px; }
+.diary-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.diary-title { font-size: 18px; font-weight: 700; }
+.diary-write-btn {
+background: #222; color: #fff; border: none; border-radius: 16px;
+padding: 7px 16px; font-size: 13px; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
+}
+.diary-write-btn:active { transform: scale(0.94); opacity: 0.85; }
+.diary-card { background: #f7f7f7; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.diary-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.diary-author-tag {
+font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 10px;
+background: #e5e5e5; color: #555;
+}
+.diary-author-tag.ranjun { background: #222; color: #fff; }
+.diary-time { font-size: 11px; color: #aaa; }
+.diary-text { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word; margin-bottom: 8px; }
+.diary-comments { border-top: 1px solid #e8e8e8; padding-top: 8px; margin-top: 4px; }
+.diary-comment { display: flex; gap: 6px; font-size: 12.5px; margin-bottom: 5px; }
+.diary-comment-author { font-weight: 700; color: #666; flex-shrink: 0; }
+.diary-comment-text { color: #444; word-break: break-word; }
+.diary-comment-input-row { display: flex; gap: 6px; margin-top: 8px; }
+.diary-comment-input {
+flex: 1; border: 1px solid #ddd; border-radius: 14px; padding: 6px 12px;
+font-size: 12.5px; outline: none; font-family: inherit;
+}
+.diary-comment-send {
+background: #eee; border: none; border-radius: 14px; padding: 0 12px;
+font-size: 12px; color: #555; cursor: pointer; flex-shrink: 0;
+}
+.diary-comment-send:active { transform: scale(0.92); }
+.diary-empty { text-align: center; color: #ccc; font-size: 13px; padding: 30px 0; }
+
+#diaryWriteOverlay {
+position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 30;
+display: flex; align-items: flex-end;
+}
+#diaryWriteOverlay.show { opacity: 1; pointer-events: auto; }
+#diaryWritePanel {
+background: #fff; width: 100%; border-radius: 20px 20px 0 0;
+padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px) 20px;
+transform: translateY(100%); transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+}
+#diaryWriteOverlay.show #diaryWritePanel { transform: translateY(0); }
+.diary-write-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+.diary-write-textarea {
+width: 100%; min-height: 140px; border: 1px solid #ddd; border-radius: 10px;
+padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; outline: none;
+margin-bottom: 14px;
+}
 </style>
 </head>
 <body>
@@ -346,7 +428,25 @@ transition: transform 0.15s, opacity 0.15s;
   </div>
 
   <div class="page" id="page-diary">
-    <div class="page-placeholder">日记功能开发中…</div>
+    <div class="plan-section">
+      <div class="plan-title-row">
+        <div class="plan-title">计划</div>
+        <div class="plan-progress-text" id="planProgressText">已完成 0 / 0</div>
+      </div>
+      <div class="plan-bar-track"><div class="plan-bar-fill" id="planBarFill" style="width:0%;"></div></div>
+      <div class="plan-list" id="planList"></div>
+      <div class="plan-add-btn" id="planAddBtn">＋ 添加计划</div>
+    </div>
+
+    <div class="diary-divider"></div>
+
+    <div class="diary-section">
+      <div class="diary-title-row">
+        <div class="diary-title">日记</div>
+        <button class="diary-write-btn" id="diaryWriteBtn">✎ 写日记</button>
+      </div>
+      <div id="diaryList"></div>
+    </div>
   </div>
 
   <div class="page" id="page-log">
@@ -431,6 +531,17 @@ transition: transform 0.15s, opacity 0.15s;
 </div>
 <input type="file" id="importFileHidden" accept="application/json">
 
+<div id="diaryWriteOverlay">
+  <div id="diaryWritePanel">
+    <div class="diary-write-title">写日记</div>
+    <textarea class="diary-write-textarea" id="diaryWriteTextarea" placeholder="今天想写点什么…"></textarea>
+    <div class="preset-btn-row">
+      <button class="preset-btn secondary" id="diaryCancelBtn">取消</button>
+      <button class="preset-btn primary" id="diarySaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
 <script>
 marked.setOptions({ breaks: true });
 
@@ -439,16 +550,24 @@ let pendingAttachments = [];
 let memory = [];
 let subChats = [];
 let currentSubChatId = null;
+let plans = [];
+let diaries = [];
 
 const LS_MESSAGES = 'nest_messages';
 const LS_CONFIG   = 'nest_config';
 const LS_MEMORY   = 'nest_memory';
 const LS_SUBCHATS = 'nest_subchats';
+const LS_PLANS    = 'nest_plans';
+const LS_DIARIES  = 'nest_diaries';
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function timeStr() {
   const d = new Date();
   return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function fullTimeStr() {
+  const d = new Date();
+  return `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 function calcDays() {
   return Math.max(Math.floor((new Date() - new Date('2026-07-01')) / (1000*60*60*24)), 0);
@@ -556,7 +675,7 @@ loadModelsBtn.addEventListener('click', async () => {
 });
 
 /* ============================================================
-持久化：消息 / 记忆 / 副聊天
+持久化
 ============================================================ */
 function persistMessages() { localStorage.setItem(LS_MESSAGES, JSON.stringify(messages)); }
 function loadMessages() {
@@ -575,6 +694,16 @@ function persistSubChats() { localStorage.setItem(LS_SUBCHATS, JSON.stringify(su
 function loadSubChats() {
   try { const r = localStorage.getItem(LS_SUBCHATS); if (r) subChats = JSON.parse(r); }
   catch(e) { subChats = []; }
+}
+function persistPlans() { localStorage.setItem(LS_PLANS, JSON.stringify(plans)); }
+function loadPlans() {
+  try { const r = localStorage.getItem(LS_PLANS); if (r) plans = JSON.parse(r); }
+  catch(e) { plans = []; }
+}
+function persistDiaries() { localStorage.setItem(LS_DIARIES, JSON.stringify(diaries)); }
+function loadDiaries() {
+  try { const r = localStorage.getItem(LS_DIARIES); if (r) diaries = JSON.parse(r); }
+  catch(e) { diaries = []; }
 }
 
 /* ============================================================
@@ -773,7 +902,7 @@ function scrollToBottom(container, pageId) {
 }
 
 /* ============================================================
-渲染：副聊天气泡（复用同样结构）
+渲染：副聊天气泡
 ============================================================ */
 const subchatScroll = document.getElementById('subchatScroll');
 function renderSubChatMessages() {
@@ -852,6 +981,166 @@ document.getElementById('newSubChatBtn').addEventListener('click', () => {
 });
 
 /* ============================================================
+计划备忘
+============================================================ */
+function renderPlans() {
+  const listEl = document.getElementById('planList');
+  listEl.innerHTML = '';
+  if (plans.length === 0) {
+    const e = document.createElement('div');
+    e.className = 'plan-empty';
+    e.textContent = '暂无计划';
+    listEl.appendChild(e);
+  } else {
+    plans.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'plan-item';
+
+      const check = document.createElement('div');
+      check.className = 'plan-check' + (p.done ? ' done' : '');
+      check.textContent = p.done ? '✓' : '';
+      check.addEventListener('click', () => {
+        p.done = !p.done;
+        persistPlans();
+        renderPlans();
+      });
+
+      const text = document.createElement('div');
+      text.className = 'plan-text' + (p.done ? ' done' : '');
+      text.textContent = p.text;
+
+      const del = document.createElement('button');
+      del.className = 'plan-del';
+      del.textContent = '🗑';
+      del.addEventListener('click', () => {
+        plans = plans.filter(x => x.id !== p.id);
+        persistPlans();
+        renderPlans();
+      });
+
+      item.appendChild(check);
+      item.appendChild(text);
+      item.appendChild(del);
+      listEl.appendChild(item);
+    });
+  }
+
+  const total = plans.length;
+  const doneCount = plans.filter(p => p.done).length;
+  document.getElementById('planProgressText').textContent = `已完成 ${doneCount} / ${total}`;
+  const pct = total === 0 ? 0 : Math.round((doneCount / total) * 100);
+  document.getElementById('planBarFill').style.width = pct + '%';
+}
+document.getElementById('planAddBtn').addEventListener('click', () => {
+  const text = prompt('添加计划：');
+  if (!text || !text.trim()) return;
+  plans.push({ id: genId(), text: text.trim(), done: false });
+  persistPlans();
+  renderPlans();
+});
+
+/* ============================================================
+日记
+============================================================ */
+function buildDiaryCard(d) {
+  const card = document.createElement('div');
+  card.className = 'diary-card';
+
+  const head = document.createElement('div');
+  head.className = 'diary-card-head';
+  const tag = document.createElement('span');
+  tag.className = 'diary-author-tag' + (d.author === 'ranjun' ? ' ranjun' : '');
+  tag.textContent = d.author === 'ranjun' ? '然竣' : 'ao';
+  const time = document.createElement('span');
+  time.className = 'diary-time';
+  time.textContent = d.time;
+  head.appendChild(tag); head.appendChild(time);
+
+  const text = document.createElement('div');
+  text.className = 'diary-text';
+  text.textContent = d.text;
+
+  const commentsWrap = document.createElement('div');
+  commentsWrap.className = 'diary-comments';
+  (d.comments || []).forEach(c => {
+    const cRow = document.createElement('div');
+    cRow.className = 'diary-comment';
+    const cAuthor = document.createElement('span');
+    cAuthor.className = 'diary-comment-author';
+    cAuthor.textContent = (c.author === 'ranjun' ? '然竣' : 'ao') + '：';
+    const cText = document.createElement('span');
+    cText.className = 'diary-comment-text';
+    cText.textContent = c.text;
+    cRow.appendChild(cAuthor); cRow.appendChild(cText);
+    commentsWrap.appendChild(cRow);
+  });
+
+  const inputRow = document.createElement('div');
+  inputRow.className = 'diary-comment-input-row';
+  const input = document.createElement('input');
+  input.className = 'diary-comment-input';
+  input.placeholder = '写评论…';
+  const sendBtn = document.createElement('button');
+  sendBtn.className = 'diary-comment-send';
+  sendBtn.textContent = '发送';
+  function submitComment() {
+    const val = input.value.trim();
+    if (!val) return;
+    d.comments = d.comments || [];
+    d.comments.push({ author:'ao', text: val });
+    persistDiaries();
+    renderDiaries();
+  }
+  sendBtn.addEventListener('click', submitComment);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(); } });
+  inputRow.appendChild(input); inputRow.appendChild(sendBtn);
+  commentsWrap.appendChild(inputRow);
+
+  card.appendChild(head);
+  card.appendChild(text);
+  card.appendChild(commentsWrap);
+  return card;
+}
+function renderDiaries() {
+  const listEl = document.getElementById('diaryList');
+  listEl.innerHTML = '';
+  if (diaries.length === 0) {
+    const e = document.createElement('div');
+    e.className = 'diary-empty';
+    e.textContent = '还没有日记';
+    listEl.appendChild(e);
+    return;
+  }
+  const sorted = [...diaries].sort((a,b) => b.createdAt - a.createdAt);
+  sorted.forEach(d => listEl.appendChild(buildDiaryCard(d)));
+}
+/* 预留：然竣写日记 */
+function addDiaryByRanjun(text) {
+  diaries.push({ id: genId(), author:'ranjun', text, time: fullTimeStr(), createdAt: Date.now(), comments: [] });
+  persistDiaries();
+  renderDiaries();
+  showToast('你家猫偷跑去写日记了');
+}
+
+const diaryWriteOverlay = document.getElementById('diaryWriteOverlay');
+const diaryWriteTextarea = document.getElementById('diaryWriteTextarea');
+document.getElementById('diaryWriteBtn').addEventListener('click', () => {
+  diaryWriteTextarea.value = '';
+  diaryWriteOverlay.classList.add('show');
+});
+document.getElementById('diaryCancelBtn').addEventListener('click', () => diaryWriteOverlay.classList.remove('show'));
+diaryWriteOverlay.addEventListener('click', e => { if (e.target === diaryWriteOverlay) diaryWriteOverlay.classList.remove('show'); });
+document.getElementById('diarySaveBtn').addEventListener('click', () => {
+  const text = diaryWriteTextarea.value.trim();
+  if (!text) { showToast('写点什么吧'); return; }
+  diaries.push({ id: genId(), author:'ao', text, time: fullTimeStr(), createdAt: Date.now(), comments: [] });
+  persistDiaries();
+  renderDiaries();
+  diaryWriteOverlay.classList.remove('show');
+  showToast('日记已保存 ✓');
+});
+
+/* ============================================================
 胶囊 / 侧边栏 / 页面切换
 ============================================================ */
 const pageCapsule = document.getElementById('pageCapsule');
@@ -917,19 +1206,18 @@ function switchPage(pageName) {
   document.getElementById('subchatInputBar').style.display = isSubchat ? 'flex' : 'none';
   document.getElementById('attachPreview').style.display  = isChat ? '' : 'none';
   if (pageName !== 'space') modelDropdown.style.display = 'none';
+
+  if (pageName === 'diary') { renderPlans(); renderDiaries(); }
 }
 document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => switchPage(tab.dataset.page));
 });
 
 /* ============================================================
-右上角头像：主聊天 vs 副聊天行为不同
+右上角头像
 ============================================================ */
 document.getElementById('avatarBtn').addEventListener('click', () => {
-  if (currentPage === 'subchat') {
-    openPresetPanel();
-  }
-  // 主聊天头像菜单（搜索/背景/上传头像）留待后续批次
+  if (currentPage === 'subchat') openPresetPanel();
 });
 
 /* ============================================================
@@ -1025,13 +1313,12 @@ fileInputHidden.addEventListener('change', e => {
 });
 
 /* ============================================================
-流式渲染节流（requestAnimationFrame版）
+流式渲染节流
 ============================================================ */
 function makeStreamRenderer(bubbleEl, scrollFn) {
   let renderedLen = 0;
   let pendingRender = false;
   let latestText = '';
-
   function flush() {
     const newPart = latestText.slice(renderedLen);
     if (newPart) {
@@ -1044,14 +1331,10 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
     scrollFn();
     pendingRender = false;
   }
-
   return {
     push(accumulated) {
       latestText = accumulated;
-      if (!pendingRender) {
-        pendingRender = true;
-        requestAnimationFrame(flush);
-      }
+      if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); }
     },
     finalize(text) {
       bubbleEl.innerHTML = '';
@@ -1062,7 +1345,7 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
 }
 
 /* ============================================================
-API 调用：主聊天（记忆+时间感知）
+API 调用：主聊天
 ============================================================ */
 async function callAPI() {
   const cfg = getConfig();
@@ -1131,7 +1414,7 @@ async function callAPI() {
 }
 
 /* ============================================================
-API 调用：副聊天（独立上下文，仅preset，不注入主记忆）
+API 调用：副聊天
 ============================================================ */
 async function callSubChatAPI() {
   const cfg = getConfig();
@@ -1140,9 +1423,7 @@ async function callSubChatAPI() {
   if (!sc) return;
 
   const apiMessages = sc.messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text || '' }));
-  if (sc.preset && sc.preset.trim()) {
-    apiMessages.unshift({ role: 'system', content: sc.preset.trim() });
-  }
+  if (sc.preset && sc.preset.trim()) apiMessages.unshift({ role: 'system', content: sc.preset.trim() });
 
   const aiMsg = { role:'ai', text:'', images:[], files:[], time:timeStr() };
   sc.messages.push(aiMsg); persistSubChats();
@@ -1250,6 +1531,8 @@ loadConfig();
 loadMessages();
 loadMemory();
 loadSubChats();
+loadPlans();
+loadDiaries();
 switchPage('chat');
 renderAllMessages();
 renderMemoryList();
