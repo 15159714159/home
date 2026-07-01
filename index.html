@@ -106,19 +106,25 @@ overflow-x: auto; font-size: 13px; max-width: 100%; white-space: pre;
 .msg-files { font-size: 12px; color: #777; margin-bottom: 4px; }
 .msg-file-chip { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; display: inline-block; }
 
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.stream-chunk { animation: fadeIn 0.3s ease; }
+
 /* ===== 记忆页(Log) ===== */
 .memory-header { padding: 20px 20px 10px 20px; }
 .memory-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
 .memory-stats { font-size: 12px; color: #999; }
+.memory-group-title { font-size: 13px; font-weight: 700; color: #888; padding: 16px 16px 6px 16px; }
 .memory-list { padding: 0 16px; }
 .memory-item {
 display: flex; align-items: flex-start; justify-content: space-between;
 background: #f7f7f7; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
 gap: 10px;
 }
-.memory-content { flex: 1; font-size: 14px; line-height: 1.5; color: #333; white-space: pre-wrap; word-break: break-word; }
+.memory-content-wrap { flex: 1; min-width: 0; }
+.memory-content { font-size: 14px; line-height: 1.5; color: #333; white-space: pre-wrap; word-break: break-word; }
+.memory-weight { font-size: 11px; color: #aaa; margin-top: 4px; }
 .memory-edit-area {
-flex: 1; font-size: 14px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
+width: 100%; font-size: 14px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
 border-radius: 8px; padding: 6px 8px; resize: vertical; min-height: 60px; outline: none;
 }
 .memory-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
@@ -127,7 +133,7 @@ background: none; border: none; font-size: 14px; color: #999; cursor: pointer; p
 transition: transform 0.15s;
 }
 .mem-btn:active { transform: scale(0.85); }
-.memory-empty { text-align: center; color: #bbb; font-size: 13px; padding: 30px 0; }
+.memory-empty { text-align: center; color: #bbb; font-size: 13px; padding: 20px 0; }
 .memory-add-btn {
 display: block; margin: 10px 16px 20px 16px; width: calc(100% - 32px);
 background: #222; color: #fff; border: none; border-radius: 10px; padding: 10px;
@@ -297,7 +303,10 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
       <div class="memory-title">记忆</div>
       <div class="memory-stats" id="memoryStats">共 0 条 · 约 0 tokens</div>
     </div>
-    <div class="memory-list" id="memoryList"></div>
+    <div class="memory-group-title">长期记忆</div>
+    <div class="memory-list" id="memoryListLong"></div>
+    <div class="memory-group-title">活跃记忆</div>
+    <div class="memory-list" id="memoryListActive"></div>
     <button class="memory-add-btn" id="memoryAddBtn">＋ 手动添加</button>
   </div>
 
@@ -474,14 +483,22 @@ function loadMessages() {
 }
 
 /* ============================================================
-持久化：记忆
+持久化：记忆（三层结构）
 ============================================================ */
 function persistMemory() {
   localStorage.setItem(LS_MEMORY, JSON.stringify(memory));
 }
 function loadMemory() {
-  try { const r = localStorage.getItem(LS_MEMORY); if (r) memory = JSON.parse(r); }
-  catch(e) { memory = []; }
+  try {
+    const r = localStorage.getItem(LS_MEMORY);
+    if (r) memory = JSON.parse(r);
+  } catch(e) { memory = []; }
+  // 兼容旧数据：没有layer字段的默认归为long
+  let migrated = false;
+  memory.forEach(m => {
+    if (!m.layer) { m.layer = 'long'; migrated = true; }
+  });
+  if (migrated) persistMemory();
 }
 
 /* ============================================================
@@ -491,82 +508,109 @@ function estimateTokens() {
   const totalChars = memory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
   return Math.round(totalChars / 4);
 }
+
+function buildMemoryItem(m) {
+  const item = document.createElement('div');
+  item.className = 'memory-item';
+
+  const contentWrap = document.createElement('div');
+  contentWrap.className = 'memory-content-wrap';
+
+  const textEl = document.createElement('div');
+  textEl.className = 'memory-content';
+  textEl.textContent = m.content;
+  contentWrap.appendChild(textEl);
+
+  if (m.layer === 'active') {
+    const wEl = document.createElement('div');
+    wEl.className = 'memory-weight';
+    wEl.textContent = '· 权重 ' + (m.weight != null ? m.weight.toFixed(2) : '1.00');
+    contentWrap.appendChild(wEl);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'memory-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'mem-btn edit-btn';
+  editBtn.textContent = '✎';
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'mem-btn';
+  delBtn.textContent = '🗑';
+
+  editBtn.addEventListener('click', () => {
+    const ta = document.createElement('textarea');
+    ta.className = 'memory-edit-area';
+    ta.value = m.content;
+    textEl.replaceWith(ta);
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    ta.addEventListener('blur', () => {
+      const val = ta.value.trim();
+      if (val === '') {
+        memory = memory.filter(x => x.id !== m.id);
+        persistMemory();
+        renderMemoryList();
+        return;
+      }
+      m.content = val;
+      persistMemory();
+      renderMemoryList();
+    });
+  });
+
+  delBtn.addEventListener('click', () => {
+    memory = memory.filter(x => x.id !== m.id);
+    persistMemory();
+    renderMemoryList();
+  });
+
+  actions.appendChild(editBtn);
+  actions.appendChild(delBtn);
+  item.appendChild(contentWrap);
+  item.appendChild(actions);
+  return item;
+}
+
 function renderMemoryList() {
   document.getElementById('memoryStats').textContent =
     `共 ${memory.length} 条 · 约 ${estimateTokens()} tokens`;
 
-  const list = document.getElementById('memoryList');
-  list.innerHTML = '';
+  const longList   = memory.filter(m => m.layer === 'long');
+  const activeList  = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
 
-  if (memory.length === 0) {
+  const longEl   = document.getElementById('memoryListLong');
+  const activeEl = document.getElementById('memoryListActive');
+  longEl.innerHTML = '';
+  activeEl.innerHTML = '';
+
+  if (longList.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'memory-empty';
-    empty.textContent = '还没有记忆';
-    list.appendChild(empty);
-    return;
+    empty.textContent = '暂无长期记忆';
+    longEl.appendChild(empty);
+  } else {
+    longList.forEach(m => longEl.appendChild(buildMemoryItem(m)));
   }
 
-  memory.forEach(m => {
-    const item = document.createElement('div');
-    item.className = 'memory-item';
-
-    const textEl = document.createElement('div');
-    textEl.className = 'memory-content';
-    textEl.textContent = m.content;
-
-    const actions = document.createElement('div');
-    actions.className = 'memory-actions';
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'mem-btn edit-btn';
-    editBtn.textContent = '✎';
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'mem-btn';
-    delBtn.textContent = '🗑';
-
-    editBtn.addEventListener('click', () => {
-      const ta = document.createElement('textarea');
-      ta.className = 'memory-edit-area';
-      ta.value = m.content;
-      textEl.replaceWith(ta);
-      ta.focus();
-      ta.setSelectionRange(ta.value.length, ta.value.length);
-      ta.addEventListener('blur', () => {
-        const val = ta.value.trim();
-        if (val === '') {
-          memory = memory.filter(x => x.id !== m.id);
-          persistMemory();
-          renderMemoryList();
-          return;
-        }
-        m.content = val;
-        persistMemory();
-        renderMemoryList();
-      });
-    });
-
-    delBtn.addEventListener('click', () => {
-      memory = memory.filter(x => x.id !== m.id);
-      persistMemory();
-      renderMemoryList();
-    });
-
-    actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
-    item.appendChild(textEl);
-    item.appendChild(actions);
-    list.appendChild(item);
-  });
+  if (activeList.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'memory-empty';
+    empty.textContent = '暂无活跃记忆';
+    activeEl.appendChild(empty);
+  } else {
+    activeList.forEach(m => activeEl.appendChild(buildMemoryItem(m)));
+  }
 }
 
 document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const id = genId();
-  memory.push({ id, content:'', time: timeStr() });
+  memory.push({ id, content:'', time: timeStr(), layer:'long' });
   persistMemory();
   renderMemoryList();
   requestAnimationFrame(() => {
-    const btn = document.querySelector('.memory-item:last-child .edit-btn');
+    const btn = document.querySelector('#memoryListLong .memory-item:last-child .edit-btn');
     if (btn) btn.click();
   });
 });
@@ -585,7 +629,6 @@ function extractMemoryMarkers(text) {
   return { cleanText, actions };
 }
 
-// 简单相似度：取两段文本前N个字符做字符重叠比例估算
 function similarity(a, b) {
   if (!a || !b) return 0;
   const shortLen = Math.min(a.length, b.length, 30);
@@ -610,17 +653,22 @@ function findBestMatchIndex(action) {
       const score = similarity(m.content, action.content);
       if (score > bestScore) { bestScore = score; bestIdx = i; }
     });
-    if (bestScore >= 0.4) return bestIdx; // 门槛，避免乱配
+    if (bestScore >= 0.4) return bestIdx;
   }
   return -1;
 }
 
 function applyMemoryUpdate(action) {
   const act = action.action;
+
   if (act === 'add') {
-    memory.push({ id: genId(), content: action.content || '', time: timeStr() });
+    const layer = action.layer === 'long' ? 'long' : 'active';
+    const entry = { id: genId(), content: action.content || '', time: timeStr(), layer };
+    if (layer === 'active') entry.weight = 1.0;
+    memory.push(entry);
     return;
   }
+
   if (act === 'edit') {
     const idx = findBestMatchIndex(action);
     if (idx === -1) {
@@ -631,9 +679,27 @@ function applyMemoryUpdate(action) {
     memory[idx].time = timeStr();
     return;
   }
+
   if (act === 'delete') {
     const idx = findBestMatchIndex(action);
     if (idx !== -1) memory.splice(idx, 1);
+    return;
+  }
+
+  if (act === 'promote') {
+    const idx = findBestMatchIndex(action);
+    if (idx === -1) { showToast('未找到要升格的记忆'); return; }
+    memory[idx].layer = 'long';
+    delete memory[idx].weight;
+    return;
+  }
+
+  if (act === 'demote') {
+    const idx = findBestMatchIndex(action);
+    if (idx === -1) { showToast('未找到要降级的记忆'); return; }
+    memory[idx].layer = 'active';
+    memory[idx].weight = 1.0;
+    return;
   }
 }
 
@@ -646,6 +712,19 @@ function processMemoryMarkers(rawText) {
     showToast('记忆已更新 🐾');
   }
   return cleanText;
+}
+
+/* 每次AI回复成功后：活跃层权重衰减，低于阈值自动移除 */
+function decayActiveMemory() {
+  let changed = false;
+  memory = memory.filter(m => {
+    if (m.layer !== 'active') return true;
+    m.weight = (m.weight != null ? m.weight : 1.0) * 0.9;
+    changed = true;
+    if (m.weight < 0.25) return false;
+    return true;
+  });
+  if (changed) { persistMemory(); renderMemoryList(); }
 }
 
 /* ============================================================
@@ -792,16 +871,21 @@ fileInputHidden.addEventListener('change', e => {
 });
 
 /* ============================================================
-API 调用（流式 + 节流渲染 + 记忆注入 + 标记解析）
+API 调用（流式增量渲染 + 记忆注入 + 标记解析 + 衰减）
 ============================================================ */
 async function callAPI() {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
 
   const apiMessages = messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text || '' }));
-  if (memory.length > 0) {
-    apiMessages.unshift({ role: 'system', content: '【长期记忆】\n' + memory.map(m => m.content).join('\n') });
-  }
+
+  const longMem   = memory.filter(m => m.layer === 'long');
+  const activeMem = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0)).slice(0, 8);
+
+  let systemContent = '';
+  if (longMem.length > 0)   systemContent += '【长期记忆】\n' + longMem.map(m => m.content).join('\n');
+  if (activeMem.length > 0) systemContent += (systemContent ? '\n\n' : '') + '【近期记忆】\n' + activeMem.map(m => m.content).join('\n');
+  if (systemContent) apiMessages.unshift({ role: 'system', content: systemContent });
 
   const aiMsg = { role:'ai', text:'', images:[], files:[], time:timeStr() };
   messages.push(aiMsg); persistMessages();
@@ -811,8 +895,20 @@ async function callAPI() {
   const sendBtn = document.getElementById('sendBtn');
   sendBtn.disabled = true;
 
-  function renderPlain(text) { aiBubble.textContent = text; scrollToBottom(); }
+  let renderedLen = 0;
+  function renderIncremental(accumulated) {
+    const newPart = accumulated.slice(renderedLen);
+    if (newPart) {
+      const span = document.createElement('span');
+      span.className = 'stream-chunk';
+      span.textContent = newPart;
+      aiBubble.appendChild(span);
+      renderedLen = accumulated.length;
+    }
+    scrollToBottom();
+  }
   function renderFinal(text) {
+    aiBubble.innerHTML = '';
     try { aiBubble.innerHTML = marked.parse(text); } catch(e) { aiBubble.textContent = text; }
     scrollToBottom();
   }
@@ -842,7 +938,7 @@ async function callAPI() {
           accumulated += delta;
           const now = Date.now();
           if (now - lastRenderTime > 80) {
-            renderPlain(accumulated);
+            renderIncremental(accumulated);
             lastRenderTime = now;
           }
         } catch(_) {}
@@ -853,6 +949,7 @@ async function callAPI() {
     messages[messages.length - 1].text = cleanText;
     persistMessages();
     renderFinal(cleanText);
+    decayActiveMemory();
 
   } catch(err) {
     console.error(err);
