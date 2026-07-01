@@ -344,14 +344,32 @@ background: #222; color: #fff; border: none; border-radius: 16px;
 padding: 7px 16px; font-size: 13px; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
 }
 .diary-write-btn:active { transform: scale(0.94); opacity: 0.85; }
-.diary-card { background: #f7f7f7; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+
+.diary-filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.diary-filter-tag {
+font-size: 12.5px; padding: 6px 14px; border-radius: 14px; background: #f0f0f0;
+color: #888; cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.diary-filter-tag:active { transform: scale(0.94); }
+.diary-filter-tag.active { background: #222; color: #fff; }
+
+.diary-card { border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; background: #f7f7f7; }
+.diary-card.author-ranjun { background: #ededed; }
 .diary-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .diary-author-tag {
 font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 10px;
 background: #e5e5e5; color: #555;
 }
 .diary-author-tag.ranjun { background: #222; color: #fff; }
-.diary-time { font-size: 11px; color: #aaa; }
+.diary-mood-badge { font-size: 14px; }
+.diary-time { font-size: 11px; color: #aaa; margin-left: auto; }
+.diary-card-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.diary-action-btn {
+background: none; border: none; font-size: 14px; cursor: pointer; padding: 3px;
+color: #bbb; transition: transform 0.15s, color 0.15s;
+}
+.diary-action-btn:active { transform: scale(0.85); }
+.diary-action-btn.fav-on { color: #f5b301; }
 .diary-text { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word; margin-bottom: 8px; }
 .diary-comments { border-top: 1px solid #e8e8e8; padding-top: 8px; margin-top: 4px; }
 .diary-comment { display: flex; gap: 6px; font-size: 12.5px; margin-bottom: 5px; }
@@ -387,6 +405,30 @@ width: 100%; min-height: 140px; border: 1px solid #ddd; border-radius: 10px;
 padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; outline: none;
 margin-bottom: 14px;
 }
+
+/* ===== emoji 面板 ===== */
+#emojiOverlay {
+position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 40;
+display: flex; align-items: center; justify-content: center;
+}
+#emojiOverlay.show { opacity: 1; pointer-events: auto; }
+#emojiPanel {
+background: #fff; border-radius: 18px; padding: 18px;
+width: 82%; max-width: 320px;
+}
+.emoji-panel-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; text-align: center; color: #555; }
+.emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 10px; }
+.emoji-option {
+font-size: 22px; text-align: center; padding: 6px 0; border-radius: 10px;
+cursor: pointer; transition: background 0.15s, transform 0.15s;
+}
+.emoji-option:active { transform: scale(0.85); background: #f0f0f0; }
+.emoji-clear-btn {
+display: block; width: 100%; margin-top: 6px; padding: 8px; border-radius: 10px;
+background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer;
+}
+.emoji-clear-btn:active { transform: scale(0.96); }
 </style>
 </head>
 <body>
@@ -444,6 +486,12 @@ margin-bottom: 14px;
       <div class="diary-title-row">
         <div class="diary-title">日记</div>
         <button class="diary-write-btn" id="diaryWriteBtn">✎ 写日记</button>
+      </div>
+      <div class="diary-filter-row" id="diaryFilterRow">
+        <div class="diary-filter-tag active" data-filter="all">全部</div>
+        <div class="diary-filter-tag" data-filter="ao">ao</div>
+        <div class="diary-filter-tag" data-filter="ranjun">然竣</div>
+        <div class="diary-filter-tag" data-filter="fav">⭐收藏</div>
       </div>
       <div id="diaryList"></div>
     </div>
@@ -542,6 +590,14 @@ margin-bottom: 14px;
   </div>
 </div>
 
+<div id="emojiOverlay">
+  <div id="emojiPanel">
+    <div class="emoji-panel-title">选一个心情章</div>
+    <div class="emoji-grid" id="emojiGrid"></div>
+    <button class="emoji-clear-btn" id="emojiClearBtn">清除心情章</button>
+  </div>
+</div>
+
 <script>
 marked.setOptions({ breaks: true });
 
@@ -552,6 +608,10 @@ let subChats = [];
 let currentSubChatId = null;
 let plans = [];
 let diaries = [];
+let diaryFilter = 'all';
+let emojiTargetDiaryId = null;
+
+const EMOJI_LIST = ['🐱','🐾','😻','😽','😹','😿','🙀','😾','😼','😺','🥺','😏','😴','✨','💔','🌙','😭','😘','😜','😇','👿','💩'];
 
 const LS_MESSAGES = 'nest_messages';
 const LS_CONFIG   = 'nest_config';
@@ -704,6 +764,12 @@ function persistDiaries() { localStorage.setItem(LS_DIARIES, JSON.stringify(diar
 function loadDiaries() {
   try { const r = localStorage.getItem(LS_DIARIES); if (r) diaries = JSON.parse(r); }
   catch(e) { diaries = []; }
+  let migrated = false;
+  diaries.forEach(d => {
+    if (d.mood === undefined) { d.mood = ''; migrated = true; }
+    if (d.fav === undefined) { d.fav = false; migrated = true; }
+  });
+  if (migrated) persistDiaries();
 }
 
 /* ============================================================
@@ -854,7 +920,7 @@ function decayActiveMemory() {
 }
 
 /* ============================================================
-渲染：主聊天气泡（增量）
+渲染：主聊天气泡
 ============================================================ */
 const chatScroll = document.getElementById('chatScroll');
 
@@ -1044,17 +1110,60 @@ document.getElementById('planAddBtn').addEventListener('click', () => {
 ============================================================ */
 function buildDiaryCard(d) {
   const card = document.createElement('div');
-  card.className = 'diary-card';
+  card.className = 'diary-card' + (d.author === 'ranjun' ? ' author-ranjun' : '');
 
   const head = document.createElement('div');
   head.className = 'diary-card-head';
+
   const tag = document.createElement('span');
   tag.className = 'diary-author-tag' + (d.author === 'ranjun' ? ' ranjun' : '');
   tag.textContent = d.author === 'ranjun' ? '然竣' : 'ao';
+  head.appendChild(tag);
+
+  if (d.mood) {
+    const moodEl = document.createElement('span');
+    moodEl.className = 'diary-mood-badge';
+    moodEl.textContent = d.mood;
+    head.appendChild(moodEl);
+  }
+
   const time = document.createElement('span');
   time.className = 'diary-time';
   time.textContent = d.time;
-  head.appendChild(tag); head.appendChild(time);
+  head.appendChild(time);
+
+  const actions = document.createElement('div');
+  actions.className = 'diary-card-actions';
+
+  const moodBtn = document.createElement('button');
+  moodBtn.className = 'diary-action-btn';
+  moodBtn.textContent = '☺';
+  moodBtn.title = '选择心情章';
+  moodBtn.addEventListener('click', () => openEmojiPanel(d.id));
+
+  const favBtn = document.createElement('button');
+  favBtn.className = 'diary-action-btn' + (d.fav ? ' fav-on' : '');
+  favBtn.textContent = d.fav ? '★' : '☆';
+  favBtn.addEventListener('click', () => {
+    d.fav = !d.fav;
+    persistDiaries();
+    renderDiaries();
+  });
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'diary-action-btn';
+  delBtn.textContent = '🗑';
+  delBtn.addEventListener('click', () => {
+    if (!confirm('删除这篇日记？此操作不可恢复。')) return;
+    diaries = diaries.filter(x => x.id !== d.id);
+    persistDiaries();
+    renderDiaries();
+  });
+
+  actions.appendChild(moodBtn);
+  actions.appendChild(favBtn);
+  actions.appendChild(delBtn);
+  head.appendChild(actions);
 
   const text = document.createElement('div');
   text.className = 'diary-text';
@@ -1104,19 +1213,35 @@ function buildDiaryCard(d) {
 function renderDiaries() {
   const listEl = document.getElementById('diaryList');
   listEl.innerHTML = '';
-  if (diaries.length === 0) {
+
+  let filtered = diaries;
+  if (diaryFilter === 'ao') filtered = diaries.filter(d => d.author === 'ao');
+  else if (diaryFilter === 'ranjun') filtered = diaries.filter(d => d.author === 'ranjun');
+  else if (diaryFilter === 'fav') filtered = diaries.filter(d => d.fav);
+
+  if (filtered.length === 0) {
     const e = document.createElement('div');
     e.className = 'diary-empty';
-    e.textContent = '还没有日记';
+    e.textContent = diaryFilter === 'fav' ? '还没有收藏的日记' : '还没有日记';
     listEl.appendChild(e);
     return;
   }
-  const sorted = [...diaries].sort((a,b) => b.createdAt - a.createdAt);
+  const sorted = [...filtered].sort((a,b) => b.createdAt - a.createdAt);
   sorted.forEach(d => listEl.appendChild(buildDiaryCard(d)));
 }
+
+document.querySelectorAll('.diary-filter-tag').forEach(tag => {
+  tag.addEventListener('click', () => {
+    diaryFilter = tag.dataset.filter;
+    document.querySelectorAll('.diary-filter-tag').forEach(t => t.classList.remove('active'));
+    tag.classList.add('active');
+    renderDiaries();
+  });
+});
+
 /* 预留：然竣写日记 */
 function addDiaryByRanjun(text) {
-  diaries.push({ id: genId(), author:'ranjun', text, time: fullTimeStr(), createdAt: Date.now(), comments: [] });
+  diaries.push({ id: genId(), author:'ranjun', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false });
   persistDiaries();
   renderDiaries();
   showToast('你家猫偷跑去写日记了');
@@ -1133,11 +1258,52 @@ diaryWriteOverlay.addEventListener('click', e => { if (e.target === diaryWriteOv
 document.getElementById('diarySaveBtn').addEventListener('click', () => {
   const text = diaryWriteTextarea.value.trim();
   if (!text) { showToast('写点什么吧'); return; }
-  diaries.push({ id: genId(), author:'ao', text, time: fullTimeStr(), createdAt: Date.now(), comments: [] });
+  diaries.push({ id: genId(), author:'ao', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false });
   persistDiaries();
   renderDiaries();
   diaryWriteOverlay.classList.remove('show');
   showToast('日记已保存 ✓');
+});
+
+/* ============================================================
+emoji 心情章面板
+============================================================ */
+const emojiOverlay = document.getElementById('emojiOverlay');
+const emojiGrid = document.getElementById('emojiGrid');
+
+EMOJI_LIST.forEach(e => {
+  const opt = document.createElement('div');
+  opt.className = 'emoji-option';
+  opt.textContent = e;
+  opt.addEventListener('click', () => {
+    const d = diaries.find(x => x.id === emojiTargetDiaryId);
+    if (d) {
+      d.mood = e;
+      persistDiaries();
+      renderDiaries();
+    }
+    closeEmojiPanel();
+  });
+  emojiGrid.appendChild(opt);
+});
+
+function openEmojiPanel(diaryId) {
+  emojiTargetDiaryId = diaryId;
+  emojiOverlay.classList.add('show');
+}
+function closeEmojiPanel() {
+  emojiOverlay.classList.remove('show');
+  emojiTargetDiaryId = null;
+}
+emojiOverlay.addEventListener('click', e => { if (e.target === emojiOverlay) closeEmojiPanel(); });
+document.getElementById('emojiClearBtn').addEventListener('click', () => {
+  const d = diaries.find(x => x.id === emojiTargetDiaryId);
+  if (d) {
+    d.mood = '';
+    persistDiaries();
+    renderDiaries();
+  }
+  closeEmojiPanel();
 });
 
 /* ============================================================
