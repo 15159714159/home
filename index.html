@@ -51,6 +51,7 @@ background: #fafafa; z-index: 21; transform: translateX(-100%);
 transition: transform 0.3s cubic-bezier(.4,0,.2,1);
 padding: calc(env(safe-area-inset-top, 20px) + 20px) 20px 20px 20px;
 display: flex; flex-direction: column; box-shadow: 2px 0 12px rgba(0,0,0,0.05);
+overflow-y: auto;
 }
 #sidebar.show { transform: translateX(0); }
 .side-profile { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
@@ -70,7 +71,26 @@ cursor: pointer; transition: background 0.15s;
 }
 .side-nav-item:active { background: #eee; }
 .side-nav-item.active { background: #ececec; font-weight: 600; }
-.side-subitem { padding: 10px 10px 10px 24px; font-size: 13px; color: #888; }
+.side-subitem {
+padding: 10px 10px 10px 24px; font-size: 13px; color: #888; cursor: pointer;
+border-radius: 8px; transition: background 0.15s;
+display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.side-subitem:active { background: #eee; }
+.side-subitem.active { background: #ececec; font-weight: 600; color: #333; }
+.side-subitem-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-subitem-del {
+flex-shrink: 0; background: none; border: none; color: #ccc; font-size: 13px;
+cursor: pointer; padding: 2px 4px; transition: color 0.15s, transform 0.15s;
+}
+.side-subitem-del:active { transform: scale(0.85); color: #999; }
+.side-subitem-empty { padding: 10px 10px 10px 24px; font-size: 13px; color: #ccc; }
+.side-new-btn {
+margin-top: 6px; padding: 10px; border-radius: 10px; font-size: 13px;
+text-align: center; color: #888; background: #f0f0f0; cursor: pointer;
+transition: transform 0.15s, background 0.15s;
+}
+.side-new-btn:active { transform: scale(0.97); background: #e5e5e5; }
 
 #content { flex: 1; overflow: hidden; position: relative; }
 .page { position: absolute; inset: 0; overflow-y: auto; display: none; -webkit-overflow-scrolling: touch; }
@@ -80,7 +100,7 @@ height: 100%; display: flex; align-items: center; justify-content: center;
 color: #bbb; font-size: 14px;
 }
 
-#chatScroll { padding: 16px 12px 12px 12px; }
+#chatScroll, .subchat-scroll { padding: 16px 12px 12px 12px; }
 .msg-row { display: flex; margin-bottom: 14px; }
 .msg-row.user { justify-content: flex-end; }
 .msg-row.ai { justify-content: flex-start; }
@@ -218,7 +238,7 @@ background: rgba(0,0,0,0.6); color: #fff; border-radius: 50%; border: none;
 font-size: 11px; line-height: 18px; text-align: center; cursor: pointer; padding: 0;
 }
 
-#inputBar {
+#inputBar, .subchat-inputbar {
 display: flex; align-items: flex-end; gap: 8px;
 padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px) 12px;
 background: #fff; border-top: 1px solid #eee;
@@ -229,18 +249,18 @@ border: none; font-size: 20px; color: #666; flex-shrink: 0; cursor: pointer;
 transition: transform 0.15s;
 }
 #plusBtn:active { transform: scale(0.88); }
-#textInput {
+#textInput, .subchat-textinput {
 flex: 1; border: 1px solid #ddd; border-radius: 18px; padding: 9px 14px;
 font-size: 15px; resize: none; max-height: 100px; font-family: inherit; outline: none;
 }
-#textInput:focus { border-color: #bbb; }
-#sendBtn {
+#textInput:focus, .subchat-textinput:focus { border-color: #bbb; }
+#sendBtn, .subchat-sendbtn {
 background: #222; color: #fff; border: none; border-radius: 18px;
 padding: 0 16px; height: 36px; font-size: 14px; cursor: pointer;
 flex-shrink: 0; transition: transform 0.15s, opacity 0.15s;
 }
-#sendBtn:active { transform: scale(0.92); }
-#sendBtn:disabled { opacity: 0.4; }
+#sendBtn:active, .subchat-sendbtn:active { transform: scale(0.92); }
+#sendBtn:disabled, .subchat-sendbtn:disabled { opacity: 0.4; }
 
 #bottomNav {
 display: flex; background: #fff; border-top: 1px solid #eee;
@@ -255,6 +275,36 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
 .nav-tab.active { color: #222; font-weight: 600; }
 .nav-icon { font-size: 18px; }
 #fileInputHidden { display: none; }
+
+/* ===== 副聊天预设弹层 ===== */
+#presetOverlay {
+position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 30;
+display: flex; align-items: flex-end;
+}
+#presetOverlay.show { opacity: 1; pointer-events: auto; }
+#presetPanel {
+background: #fff; width: 100%; border-radius: 20px 20px 0 0;
+padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px) 20px;
+transform: translateY(100%); transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+max-height: 70vh; display: flex; flex-direction: column;
+}
+#presetOverlay.show #presetPanel { transform: translateY(0); }
+.preset-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+.preset-textarea {
+width: 100%; flex: 1; min-height: 140px; border: 1px solid #ddd; border-radius: 10px;
+padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; outline: none;
+margin-bottom: 14px;
+}
+.preset-btn-row { display: flex; gap: 10px; }
+.preset-btn {
+flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; border: none; cursor: pointer;
+transition: transform 0.15s, opacity 0.15s;
+}
+.preset-btn:active { transform: scale(0.96); }
+.preset-btn.primary { background: #222; color: #fff; }
+.preset-btn.secondary { background: #f0f0f0; color: #555; }
+#importFileHidden { display: none; }
 </style>
 </head>
 <body>
@@ -285,7 +335,8 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
   <div class="side-nav-item active" data-nav="chat">主聊天</div>
   <div class="side-divider"></div>
   <div class="side-nav-item" style="color:#999; cursor:default;">副聊天</div>
-  <div class="side-subitem">（暂无副聊天）</div>
+  <div id="subChatList"></div>
+  <div class="side-new-btn" id="newSubChatBtn">＋ 新建副聊天</div>
 </div>
 
 <div id="content">
@@ -336,6 +387,10 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
     </div>
   </div>
 
+  <div class="page" id="page-subchat">
+    <div class="subchat-scroll" id="subchatScroll"></div>
+  </div>
+
 </div>
 
 <div id="attachPreview"></div>
@@ -345,6 +400,11 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
   <input type="file" id="fileInputHidden" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip">
   <textarea id="textInput" rows="1" placeholder="跟然竣说点什么…"></textarea>
   <button id="sendBtn">发送</button>
+</div>
+
+<div class="subchat-inputbar" id="subchatInputBar" style="display:none;">
+  <textarea class="subchat-textinput" id="subchatTextInput" rows="1" placeholder="说点什么…"></textarea>
+  <button class="subchat-sendbtn" id="subchatSendBtn">发送</button>
 </div>
 
 <div id="bottomNav">
@@ -358,15 +418,32 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
 
 <div id="toast"></div>
 
+<div id="presetOverlay">
+  <div id="presetPanel">
+    <div class="preset-title" id="presetTitle">副聊天设定</div>
+    <textarea class="preset-textarea" id="presetTextarea" placeholder="填写这个副聊天的角色设定 / 格式要求…"></textarea>
+    <div class="preset-btn-row">
+      <button class="preset-btn secondary" id="presetExportBtn">导出</button>
+      <button class="preset-btn secondary" id="presetImportBtn">导入</button>
+      <button class="preset-btn primary" id="presetSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="importFileHidden" accept="application/json">
+
 <script>
 marked.setOptions({ breaks: true });
 
 let messages = [];
 let pendingAttachments = [];
 let memory = [];
+let subChats = [];
+let currentSubChatId = null;
+
 const LS_MESSAGES = 'nest_messages';
 const LS_CONFIG   = 'nest_config';
 const LS_MEMORY   = 'nest_memory';
+const LS_SUBCHATS = 'nest_subchats';
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function timeStr() {
@@ -375,6 +452,13 @@ function timeStr() {
 }
 function calcDays() {
   return Math.max(Math.floor((new Date() - new Date('2026-07-01')) / (1000*60*60*24)), 0);
+}
+function currentTimeLabel() {
+  const d = new Date();
+  const weekMap = ['日','一','二','三','四','五','六'];
+  const y = d.getFullYear(), mo = d.getMonth()+1, da = d.getDate();
+  const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
+  return `${y}年${mo}月${da}日 周${weekMap[d.getDay()]} ${hh}:${mm}`;
 }
 document.getElementById('daysCount').textContent = '陪伴第 ' + calcDays() + ' 天';
 
@@ -472,33 +556,25 @@ loadModelsBtn.addEventListener('click', async () => {
 });
 
 /* ============================================================
-持久化：消息
+持久化：消息 / 记忆 / 副聊天
 ============================================================ */
-function persistMessages() {
-  localStorage.setItem(LS_MESSAGES, JSON.stringify(messages));
-}
+function persistMessages() { localStorage.setItem(LS_MESSAGES, JSON.stringify(messages)); }
 function loadMessages() {
   try { const r = localStorage.getItem(LS_MESSAGES); if (r) messages = JSON.parse(r); }
   catch(e) { messages = []; }
 }
-
-/* ============================================================
-持久化：记忆（三层结构）
-============================================================ */
-function persistMemory() {
-  localStorage.setItem(LS_MEMORY, JSON.stringify(memory));
-}
+function persistMemory() { localStorage.setItem(LS_MEMORY, JSON.stringify(memory)); }
 function loadMemory() {
-  try {
-    const r = localStorage.getItem(LS_MEMORY);
-    if (r) memory = JSON.parse(r);
-  } catch(e) { memory = []; }
-  // 兼容旧数据：没有layer字段的默认归为long
+  try { const r = localStorage.getItem(LS_MEMORY); if (r) memory = JSON.parse(r); }
+  catch(e) { memory = []; }
   let migrated = false;
-  memory.forEach(m => {
-    if (!m.layer) { m.layer = 'long'; migrated = true; }
-  });
+  memory.forEach(m => { if (!m.layer) { m.layer = 'long'; migrated = true; } });
   if (migrated) persistMemory();
+}
+function persistSubChats() { localStorage.setItem(LS_SUBCHATS, JSON.stringify(subChats)); }
+function loadSubChats() {
+  try { const r = localStorage.getItem(LS_SUBCHATS); if (r) subChats = JSON.parse(r); }
+  catch(e) { subChats = []; }
 }
 
 /* ============================================================
@@ -508,37 +584,29 @@ function estimateTokens() {
   const totalChars = memory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
   return Math.round(totalChars / 4);
 }
-
 function buildMemoryItem(m) {
   const item = document.createElement('div');
   item.className = 'memory-item';
-
   const contentWrap = document.createElement('div');
   contentWrap.className = 'memory-content-wrap';
-
   const textEl = document.createElement('div');
   textEl.className = 'memory-content';
   textEl.textContent = m.content;
   contentWrap.appendChild(textEl);
-
   if (m.layer === 'active') {
     const wEl = document.createElement('div');
     wEl.className = 'memory-weight';
     wEl.textContent = '· 权重 ' + (m.weight != null ? m.weight.toFixed(2) : '1.00');
     contentWrap.appendChild(wEl);
   }
-
   const actions = document.createElement('div');
   actions.className = 'memory-actions';
-
   const editBtn = document.createElement('button');
   editBtn.className = 'mem-btn edit-btn';
   editBtn.textContent = '✎';
-
   const delBtn = document.createElement('button');
   delBtn.className = 'mem-btn';
   delBtn.textContent = '🗑';
-
   editBtn.addEventListener('click', () => {
     const ta = document.createElement('textarea');
     ta.className = 'memory-edit-area';
@@ -548,67 +616,31 @@ function buildMemoryItem(m) {
     ta.setSelectionRange(ta.value.length, ta.value.length);
     ta.addEventListener('blur', () => {
       const val = ta.value.trim();
-      if (val === '') {
-        memory = memory.filter(x => x.id !== m.id);
-        persistMemory();
-        renderMemoryList();
-        return;
-      }
-      m.content = val;
-      persistMemory();
-      renderMemoryList();
+      if (val === '') { memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList(); return; }
+      m.content = val; persistMemory(); renderMemoryList();
     });
   });
-
-  delBtn.addEventListener('click', () => {
-    memory = memory.filter(x => x.id !== m.id);
-    persistMemory();
-    renderMemoryList();
-  });
-
-  actions.appendChild(editBtn);
-  actions.appendChild(delBtn);
-  item.appendChild(contentWrap);
-  item.appendChild(actions);
+  delBtn.addEventListener('click', () => { memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList(); });
+  actions.appendChild(editBtn); actions.appendChild(delBtn);
+  item.appendChild(contentWrap); item.appendChild(actions);
   return item;
 }
-
 function renderMemoryList() {
-  document.getElementById('memoryStats').textContent =
-    `共 ${memory.length} 条 · 约 ${estimateTokens()} tokens`;
-
+  document.getElementById('memoryStats').textContent = `共 ${memory.length} 条 · 约 ${estimateTokens()} tokens`;
   const longList   = memory.filter(m => m.layer === 'long');
-  const activeList  = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
-
-  const longEl   = document.getElementById('memoryListLong');
+  const activeList = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
+  const longEl = document.getElementById('memoryListLong');
   const activeEl = document.getElementById('memoryListActive');
-  longEl.innerHTML = '';
-  activeEl.innerHTML = '';
-
-  if (longList.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'memory-empty';
-    empty.textContent = '暂无长期记忆';
-    longEl.appendChild(empty);
-  } else {
-    longList.forEach(m => longEl.appendChild(buildMemoryItem(m)));
-  }
-
-  if (activeList.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'memory-empty';
-    empty.textContent = '暂无活跃记忆';
-    activeEl.appendChild(empty);
-  } else {
-    activeList.forEach(m => activeEl.appendChild(buildMemoryItem(m)));
-  }
+  longEl.innerHTML = ''; activeEl.innerHTML = '';
+  if (longList.length === 0) { const e = document.createElement('div'); e.className='memory-empty'; e.textContent='暂无长期记忆'; longEl.appendChild(e); }
+  else longList.forEach(m => longEl.appendChild(buildMemoryItem(m)));
+  if (activeList.length === 0) { const e = document.createElement('div'); e.className='memory-empty'; e.textContent='暂无活跃记忆'; activeEl.appendChild(e); }
+  else activeList.forEach(m => activeEl.appendChild(buildMemoryItem(m)));
 }
-
 document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const id = genId();
   memory.push({ id, content:'', time: timeStr(), layer:'long' });
-  persistMemory();
-  renderMemoryList();
+  persistMemory(); renderMemoryList();
   requestAnimationFrame(() => {
     const btn = document.querySelector('#memoryListLong .memory-item:last-child .edit-btn');
     if (btn) btn.click();
@@ -622,13 +654,11 @@ function extractMemoryMarkers(text) {
   const regex = /\[memory_update:\s*(\{[\s\S]*?\})\]/g;
   const actions = [];
   const cleanText = text.replace(regex, (match, jsonStr) => {
-    try { actions.push(JSON.parse(jsonStr)); }
-    catch(e) { console.warn('memory marker解析失败', e, jsonStr); }
+    try { actions.push(JSON.parse(jsonStr)); } catch(e) { console.warn('memory marker解析失败', e, jsonStr); }
     return '';
   }).trim();
   return { cleanText, actions };
 }
-
 function similarity(a, b) {
   if (!a || !b) return 0;
   const shortLen = Math.min(a.length, b.length, 30);
@@ -637,84 +667,51 @@ function similarity(a, b) {
   for (let i = 0; i < shortLen; i++) if (as[i] === bs[i]) match++;
   return match / shortLen;
 }
-
 function findBestMatchIndex(action) {
-  if (action.id) {
-    const idx = memory.findIndex(m => m.id === action.id);
-    if (idx !== -1) return idx;
-  }
-  if (action.target) {
-    const idx = memory.findIndex(m => m.content.includes(action.target));
-    if (idx !== -1) return idx;
-  }
+  if (action.id) { const idx = memory.findIndex(m => m.id === action.id); if (idx !== -1) return idx; }
+  if (action.target) { const idx = memory.findIndex(m => m.content.includes(action.target)); if (idx !== -1) return idx; }
   if (action.content) {
     let bestIdx = -1, bestScore = 0;
-    memory.forEach((m, i) => {
-      const score = similarity(m.content, action.content);
-      if (score > bestScore) { bestScore = score; bestIdx = i; }
-    });
+    memory.forEach((m, i) => { const score = similarity(m.content, action.content); if (score > bestScore) { bestScore = score; bestIdx = i; } });
     if (bestScore >= 0.4) return bestIdx;
   }
   return -1;
 }
-
 function applyMemoryUpdate(action) {
   const act = action.action;
-
   if (act === 'add') {
     const layer = action.layer === 'long' ? 'long' : 'active';
     const entry = { id: genId(), content: action.content || '', time: timeStr(), layer };
     if (layer === 'active') entry.weight = 1.0;
-    memory.push(entry);
-    return;
+    memory.push(entry); return;
   }
-
   if (act === 'edit') {
     const idx = findBestMatchIndex(action);
-    if (idx === -1) {
-      showToast('未找到要编辑的记忆');
-      return;
-    }
+    if (idx === -1) { showToast('未找到要编辑的记忆'); return; }
     memory[idx].content = action.content || memory[idx].content;
-    memory[idx].time = timeStr();
-    return;
+    memory[idx].time = timeStr(); return;
   }
-
-  if (act === 'delete') {
-    const idx = findBestMatchIndex(action);
-    if (idx !== -1) memory.splice(idx, 1);
-    return;
-  }
-
+  if (act === 'delete') { const idx = findBestMatchIndex(action); if (idx !== -1) memory.splice(idx, 1); return; }
   if (act === 'promote') {
     const idx = findBestMatchIndex(action);
     if (idx === -1) { showToast('未找到要升格的记忆'); return; }
-    memory[idx].layer = 'long';
-    delete memory[idx].weight;
-    return;
+    memory[idx].layer = 'long'; delete memory[idx].weight; return;
   }
-
   if (act === 'demote') {
     const idx = findBestMatchIndex(action);
     if (idx === -1) { showToast('未找到要降级的记忆'); return; }
-    memory[idx].layer = 'active';
-    memory[idx].weight = 1.0;
-    return;
+    memory[idx].layer = 'active'; memory[idx].weight = 1.0; return;
   }
 }
-
 function processMemoryMarkers(rawText) {
   const { cleanText, actions } = extractMemoryMarkers(rawText);
   if (actions.length > 0) {
     actions.forEach(a => applyMemoryUpdate(a));
-    persistMemory();
-    renderMemoryList();
+    persistMemory(); renderMemoryList();
     showToast('记忆已更新 🐾');
   }
   return cleanText;
 }
-
-/* 每次AI回复成功后：活跃层权重衰减，低于阈值自动移除 */
 function decayActiveMemory() {
   let changed = false;
   memory = memory.filter(m => {
@@ -728,20 +725,17 @@ function decayActiveMemory() {
 }
 
 /* ============================================================
-渲染：聊天气泡（增量）
+渲染：主聊天气泡（增量）
 ============================================================ */
 const chatScroll = document.getElementById('chatScroll');
 
-function buildMsgRow(msg, index) {
+function buildMsgRow(msg) {
   const row  = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai');
-  row.dataset.index = index;
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble-wrap';
-
   if (msg.images && msg.images.length > 0) {
-    const imgWrap = document.createElement('div');
-    imgWrap.className = 'msg-images';
+    const imgWrap = document.createElement('div'); imgWrap.className = 'msg-images';
     msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); });
     wrap.appendChild(imgWrap);
   }
@@ -750,43 +744,118 @@ function buildMsgRow(msg, index) {
     msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); });
     wrap.appendChild(fw);
   }
-
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   if (msg.text && msg.text.trim()) {
     try { bubble.innerHTML = marked.parse(msg.text); } catch(e) { bubble.textContent = msg.text; }
   }
   wrap.appendChild(bubble);
-
   const timeEl = document.createElement('div');
   timeEl.className = 'msg-time';
   timeEl.textContent = msg.time;
   wrap.appendChild(timeEl);
-
   row.appendChild(wrap);
   return row;
 }
-
 function renderAllMessages() {
   chatScroll.innerHTML = '';
-  messages.forEach((msg, i) => chatScroll.appendChild(buildMsgRow(msg, i)));
-  scrollToBottom();
+  messages.forEach(msg => chatScroll.appendChild(buildMsgRow(msg)));
+  scrollToBottom(chatScroll, 'page-chat');
 }
 function appendMessage(msg) {
-  const row = buildMsgRow(msg, messages.length - 1);
+  const row = buildMsgRow(msg);
   chatScroll.appendChild(row);
-  scrollToBottom();
+  scrollToBottom(chatScroll, 'page-chat');
   return row;
 }
-function scrollToBottom() {
-  requestAnimationFrame(() => { const p = document.getElementById('page-chat'); p.scrollTop = p.scrollHeight; });
+function scrollToBottom(container, pageId) {
+  requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; });
 }
+
+/* ============================================================
+渲染：副聊天气泡（复用同样结构）
+============================================================ */
+const subchatScroll = document.getElementById('subchatScroll');
+function renderSubChatMessages() {
+  subchatScroll.innerHTML = '';
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  if (!sc) return;
+  sc.messages.forEach(msg => subchatScroll.appendChild(buildMsgRow(msg)));
+  scrollToBottom(subchatScroll, 'page-subchat');
+}
+function appendSubChatMessage(msg) {
+  const row = buildMsgRow(msg);
+  subchatScroll.appendChild(row);
+  scrollToBottom(subchatScroll, 'page-subchat');
+  return row;
+}
+
+/* ============================================================
+侧边栏：副聊天列表
+============================================================ */
+function renderSubChatSidebarList() {
+  const listEl = document.getElementById('subChatList');
+  listEl.innerHTML = '';
+  if (subChats.length === 0) {
+    const e = document.createElement('div');
+    e.className = 'side-subitem-empty';
+    e.textContent = '（暂无副聊天）';
+    listEl.appendChild(e);
+    return;
+  }
+  subChats.forEach(sc => {
+    const item = document.createElement('div');
+    item.className = 'side-subitem' + (currentPage === 'subchat' && currentSubChatId === sc.id ? ' active' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'side-subitem-name';
+    nameSpan.textContent = sc.name;
+    nameSpan.addEventListener('click', () => {
+      currentSubChatId = sc.id;
+      switchPage('subchat');
+      renderSubChatSidebarList();
+      closeSidebar();
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'side-subitem-del';
+    delBtn.textContent = '🗑';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!confirm(`删除副聊天「${sc.name}」？此操作不可恢复。`)) return;
+      subChats = subChats.filter(x => x.id !== sc.id);
+      persistSubChats();
+      if (currentSubChatId === sc.id) {
+        currentSubChatId = null;
+        switchPage('chat');
+        document.querySelectorAll('.side-nav-item').forEach(i => i.classList.remove('active'));
+        document.querySelector('.side-nav-item[data-nav="chat"]').classList.add('active');
+      }
+      renderSubChatSidebarList();
+    });
+
+    item.appendChild(nameSpan);
+    item.appendChild(delBtn);
+    listEl.appendChild(item);
+  });
+}
+document.getElementById('newSubChatBtn').addEventListener('click', () => {
+  const name = prompt('给这个副聊天起个名字：');
+  if (!name || !name.trim()) return;
+  const sc = { id: genId(), name: name.trim(), preset: '', messages: [], createdAt: Date.now() };
+  subChats.push(sc);
+  persistSubChats();
+  currentSubChatId = sc.id;
+  switchPage('subchat');
+  renderSubChatSidebarList();
+  closeSidebar();
+});
 
 /* ============================================================
 胶囊 / 侧边栏 / 页面切换
 ============================================================ */
 const pageCapsule = document.getElementById('pageCapsule');
-const pageTitles  = { chat:'然竣', diary:'日记', log:'Log', space:'Space' };
+const pageTitles  = { chat:'然竣', diary:'日记', log:'Log', space:'Space', subchat:'副聊天' };
 
 pageCapsule.addEventListener('click', () => {
   if (currentPage !== 'chat') return;
@@ -815,6 +884,7 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
       switchPage('chat');
       document.querySelectorAll('.side-nav-item').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
+      renderSubChatSidebarList();
     }
     closeSidebar();
   });
@@ -825,13 +895,27 @@ function switchPage(pageName) {
   currentPage = pageName;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + pageName).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`.nav-tab[data-page="${pageName}"]`).classList.add('active');
-  pageCapsule.textContent = pageTitles[pageName];
+
   const isChat = pageName === 'chat';
-  document.getElementById('avatarBtn').style.display      = isChat ? 'flex' : 'none';
+  const isSubchat = pageName === 'subchat';
+
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  const activeTabKey = isSubchat ? 'chat' : pageName;
+  const navTab = document.querySelector(`.nav-tab[data-page="${activeTabKey}"]`);
+  if (navTab) navTab.classList.add('active');
+
+  if (isSubchat) {
+    const sc = subChats.find(s => s.id === currentSubChatId);
+    pageCapsule.textContent = sc ? sc.name : '副聊天';
+    renderSubChatMessages();
+  } else {
+    pageCapsule.textContent = pageTitles[pageName];
+  }
+
+  document.getElementById('avatarBtn').style.display      = (isChat || isSubchat) ? 'flex' : 'none';
   document.getElementById('inputBar').style.display       = isChat ? 'flex' : 'none';
-  document.getElementById('attachPreview').style.display  = isChat ? ''     : 'none';
+  document.getElementById('subchatInputBar').style.display = isSubchat ? 'flex' : 'none';
+  document.getElementById('attachPreview').style.display  = isChat ? '' : 'none';
   if (pageName !== 'space') modelDropdown.style.display = 'none';
 }
 document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -839,7 +923,77 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
 });
 
 /* ============================================================
-附件
+右上角头像：主聊天 vs 副聊天行为不同
+============================================================ */
+document.getElementById('avatarBtn').addEventListener('click', () => {
+  if (currentPage === 'subchat') {
+    openPresetPanel();
+  }
+  // 主聊天头像菜单（搜索/背景/上传头像）留待后续批次
+});
+
+/* ============================================================
+副聊天预设面板
+============================================================ */
+const presetOverlay  = document.getElementById('presetOverlay');
+const presetTextarea = document.getElementById('presetTextarea');
+const presetTitle    = document.getElementById('presetTitle');
+
+function openPresetPanel() {
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  if (!sc) return;
+  presetTitle.textContent = sc.name + ' · 设定';
+  presetTextarea.value = sc.preset || '';
+  presetOverlay.classList.add('show');
+}
+function closePresetPanel() { presetOverlay.classList.remove('show'); }
+presetOverlay.addEventListener('click', e => { if (e.target === presetOverlay) closePresetPanel(); });
+
+document.getElementById('presetSaveBtn').addEventListener('click', () => {
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  if (!sc) return;
+  sc.preset = presetTextarea.value;
+  persistSubChats();
+  showToast('设定已保存 ✓');
+  closePresetPanel();
+});
+
+document.getElementById('presetExportBtn').addEventListener('click', () => {
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  if (!sc) return;
+  const blob = new Blob([JSON.stringify(sc, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `subchat_${sc.name}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出 ✓');
+});
+
+const importFileHidden = document.getElementById('importFileHidden');
+document.getElementById('presetImportBtn').addEventListener('click', () => importFileHidden.click());
+importFileHidden.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      const sc = subChats.find(s => s.id === currentSubChatId);
+      if (!sc) return;
+      if (data.messages) sc.messages = data.messages;
+      if (data.preset != null) { sc.preset = data.preset; presetTextarea.value = sc.preset; }
+      persistSubChats();
+      renderSubChatMessages();
+      showToast('已导入 ✓');
+    } catch(err) { showToast('导入失败：文件格式不对', 3000); }
+  };
+  reader.readAsText(file);
+  importFileHidden.value = '';
+});
+
+/* ============================================================
+附件（仅主聊天）
 ============================================================ */
 const attachPreview   = document.getElementById('attachPreview');
 const fileInputHidden = document.getElementById('fileInputHidden');
@@ -871,7 +1025,44 @@ fileInputHidden.addEventListener('change', e => {
 });
 
 /* ============================================================
-API 调用（流式增量渲染 + 记忆注入 + 标记解析 + 衰减）
+流式渲染节流（requestAnimationFrame版）
+============================================================ */
+function makeStreamRenderer(bubbleEl, scrollFn) {
+  let renderedLen = 0;
+  let pendingRender = false;
+  let latestText = '';
+
+  function flush() {
+    const newPart = latestText.slice(renderedLen);
+    if (newPart) {
+      const span = document.createElement('span');
+      span.className = 'stream-chunk';
+      span.textContent = newPart;
+      bubbleEl.appendChild(span);
+      renderedLen = latestText.length;
+    }
+    scrollFn();
+    pendingRender = false;
+  }
+
+  return {
+    push(accumulated) {
+      latestText = accumulated;
+      if (!pendingRender) {
+        pendingRender = true;
+        requestAnimationFrame(flush);
+      }
+    },
+    finalize(text) {
+      bubbleEl.innerHTML = '';
+      try { bubbleEl.innerHTML = marked.parse(text); } catch(e) { bubbleEl.textContent = text; }
+      scrollFn();
+    }
+  };
+}
+
+/* ============================================================
+API 调用：主聊天（记忆+时间感知）
 ============================================================ */
 async function callAPI() {
   const cfg = getConfig();
@@ -882,10 +1073,10 @@ async function callAPI() {
   const longMem   = memory.filter(m => m.layer === 'long');
   const activeMem = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0)).slice(0, 8);
 
-  let systemContent = '';
-  if (longMem.length > 0)   systemContent += '【长期记忆】\n' + longMem.map(m => m.content).join('\n');
-  if (activeMem.length > 0) systemContent += (systemContent ? '\n\n' : '') + '【近期记忆】\n' + activeMem.map(m => m.content).join('\n');
-  if (systemContent) apiMessages.unshift({ role: 'system', content: systemContent });
+  let systemContent = '【当前时间】' + currentTimeLabel();
+  if (longMem.length > 0)   systemContent += '\n\n【长期记忆】\n' + longMem.map(m => m.content).join('\n');
+  if (activeMem.length > 0) systemContent += '\n\n【近期记忆】\n' + activeMem.map(m => m.content).join('\n');
+  apiMessages.unshift({ role: 'system', content: systemContent });
 
   const aiMsg = { role:'ai', text:'', images:[], files:[], time:timeStr() };
   messages.push(aiMsg); persistMessages();
@@ -895,23 +1086,7 @@ async function callAPI() {
   const sendBtn = document.getElementById('sendBtn');
   sendBtn.disabled = true;
 
-  let renderedLen = 0;
-  function renderIncremental(accumulated) {
-    const newPart = accumulated.slice(renderedLen);
-    if (newPart) {
-      const span = document.createElement('span');
-      span.className = 'stream-chunk';
-      span.textContent = newPart;
-      aiBubble.appendChild(span);
-      renderedLen = accumulated.length;
-    }
-    scrollToBottom();
-  }
-  function renderFinal(text) {
-    aiBubble.innerHTML = '';
-    try { aiBubble.innerHTML = marked.parse(text); } catch(e) { aiBubble.textContent = text; }
-    scrollToBottom();
-  }
+  const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(chatScroll, 'page-chat'));
 
   try {
     const res = await fetch(cfg.endpoint + '/chat/completions', {
@@ -924,7 +1099,6 @@ async function callAPI() {
     const reader  = res.body.getReader();
     const decoder = new TextDecoder();
     let accumulated = '';
-    let lastRenderTime = 0;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -936,11 +1110,7 @@ async function callAPI() {
         try {
           const delta = JSON.parse(data).choices?.[0]?.delta?.content || '';
           accumulated += delta;
-          const now = Date.now();
-          if (now - lastRenderTime > 80) {
-            renderIncremental(accumulated);
-            lastRenderTime = now;
-          }
+          renderer.push(accumulated);
         } catch(_) {}
       }
     }
@@ -948,7 +1118,7 @@ async function callAPI() {
     const cleanText = processMemoryMarkers(accumulated);
     messages[messages.length - 1].text = cleanText;
     persistMessages();
-    renderFinal(cleanText);
+    renderer.finalize(cleanText);
     decayActiveMemory();
 
   } catch(err) {
@@ -961,7 +1131,71 @@ async function callAPI() {
 }
 
 /* ============================================================
-发送
+API 调用：副聊天（独立上下文，仅preset，不注入主记忆）
+============================================================ */
+async function callSubChatAPI() {
+  const cfg = getConfig();
+  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  if (!sc) return;
+
+  const apiMessages = sc.messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text || '' }));
+  if (sc.preset && sc.preset.trim()) {
+    apiMessages.unshift({ role: 'system', content: sc.preset.trim() });
+  }
+
+  const aiMsg = { role:'ai', text:'', images:[], files:[], time:timeStr() };
+  sc.messages.push(aiMsg); persistSubChats();
+  const aiRow = appendSubChatMessage(aiMsg);
+  const aiBubble = aiRow.querySelector('.msg-bubble');
+
+  const sendBtn = document.getElementById('subchatSendBtn');
+  sendBtn.disabled = true;
+
+  const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(subchatScroll, 'page-subchat'));
+
+  try {
+    const res = await fetch(cfg.endpoint + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
+      body: JSON.stringify({ model:cfg.model, stream:true, messages:apiMessages })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of decoder.decode(value, { stream:true }).split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const delta = JSON.parse(data).choices?.[0]?.delta?.content || '';
+          accumulated += delta;
+          renderer.push(accumulated);
+        } catch(_) {}
+      }
+    }
+
+    sc.messages[sc.messages.length - 1].text = accumulated;
+    persistSubChats();
+    renderer.finalize(accumulated);
+
+  } catch(err) {
+    console.error(err);
+    sc.messages.pop(); subchatScroll.lastElementChild?.remove(); persistSubChats();
+    showToast('发送失败：' + err.message, 4000);
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+/* ============================================================
+发送：主聊天
 ============================================================ */
 const textInput = document.getElementById('textInput');
 const sendBtn   = document.getElementById('sendBtn');
@@ -982,9 +1216,32 @@ async function sendMessage() {
   pendingAttachments = []; renderAttachPreview();
   await callAPI();
 }
-
 sendBtn.addEventListener('click', sendMessage);
 textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+/* ============================================================
+发送：副聊天
+============================================================ */
+const subchatTextInput = document.getElementById('subchatTextInput');
+const subchatSendBtn   = document.getElementById('subchatSendBtn');
+
+subchatTextInput.addEventListener('input', () => {
+  subchatTextInput.style.height = 'auto';
+  subchatTextInput.style.height = Math.min(subchatTextInput.scrollHeight, 100) + 'px';
+});
+
+async function sendSubChatMessage() {
+  const text = subchatTextInput.value.trim();
+  if (!text) return;
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  if (!sc) return;
+  const userMsg = { role:'user', text, images:[], files:[], time:timeStr() };
+  sc.messages.push(userMsg); persistSubChats(); appendSubChatMessage(userMsg);
+  subchatTextInput.value = ''; subchatTextInput.style.height = 'auto';
+  await callSubChatAPI();
+}
+subchatSendBtn.addEventListener('click', sendSubChatMessage);
+subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSubChatMessage(); } });
 
 /* ============================================================
 初始化
@@ -992,9 +1249,11 @@ textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey)
 loadConfig();
 loadMessages();
 loadMemory();
+loadSubChats();
 switchPage('chat');
 renderAllMessages();
 renderMemoryList();
+renderSubChatSidebarList();
 </script>
 
 </body>
