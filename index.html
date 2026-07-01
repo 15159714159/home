@@ -15,7 +15,6 @@ background: #fff; color: #222; overflow: hidden;
 }
 #app { display: flex; flex-direction: column; height: 100%; position: relative; }
 
-/* ===== 顶部栏 ===== */
 #topbar {
 display: flex; align-items: center; justify-content: space-between;
 padding: calc(env(safe-area-inset-top, 20px) + 6px) 16px 10px 16px;
@@ -30,9 +29,7 @@ transition: transform 0.15s;
 }
 .round-btn:active { transform: scale(0.9); }
 .round-btn img, .round-btn .avatar-emoji { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-#pageTitle {
-flex: 1; text-align: center; margin: 0 10px;
-}
+#pageTitle { flex: 1; text-align: center; margin: 0 10px; }
 .capsule {
 display: inline-block; padding: 6px 18px; background: #f5f5f5;
 border-radius: 20px; font-size: 14px; font-weight: 600;
@@ -43,11 +40,9 @@ overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 .capsule[contenteditable="true"] { outline: 2px solid #ccc; white-space: normal; }
 #topRightSlot { width: 34px; height: 34px; }
 
-/* ===== 侧边栏 ===== */
 #sidebarOverlay {
 position: fixed; inset: 0; background: rgba(0,0,0,0.25);
-opacity: 0; pointer-events: none; transition: opacity 0.25s;
-z-index: 20;
+opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 20;
 }
 #sidebarOverlay.show { opacity: 1; pointer-events: auto; }
 #sidebar {
@@ -77,7 +72,6 @@ cursor: pointer; transition: background 0.15s;
 .side-nav-item.active { background: #ececec; font-weight: 600; }
 .side-subitem { padding: 10px 10px 10px 24px; font-size: 13px; color: #888; }
 
-/* ===== 中间内容区 ===== */
 #content { flex: 1; overflow: hidden; position: relative; }
 .page { position: absolute; inset: 0; overflow-y: auto; display: none; -webkit-overflow-scrolling: touch; }
 .page.active { display: block; }
@@ -86,7 +80,6 @@ height: 100%; display: flex; align-items: center; justify-content: center;
 color: #bbb; font-size: 14px;
 }
 
-/* ===== 聊天气泡 ===== */
 #chatScroll { padding: 16px 12px 12px 12px; }
 .msg-row { display: flex; margin-bottom: 14px; }
 .msg-row.user { justify-content: flex-end; }
@@ -105,32 +98,58 @@ word-wrap: break-word; overflow-wrap: break-word;
 background: #2b2b2b; color: #eee; padding: 10px; border-radius: 8px;
 overflow-x: auto; font-size: 13px; max-width: 100%;
 }
-.msg-bubble code {
-background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 13px;
-}
+.msg-bubble code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 .msg-bubble pre code { background: none; padding: 0; }
 .msg-time { font-size: 10px; color: #aaa; margin-top: 4px; padding: 0 4px; }
 .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .msg-images img { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; }
 .msg-files { font-size: 12px; color: #777; margin-bottom: 4px; }
-.msg-file-chip {
-background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px;
-margin-bottom: 4px; display: inline-block;
-}
+.msg-file-chip { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; display: inline-block; }
 
 /* ===== Space页 ===== */
-.space-section {
-padding: 24px 20px;
-}
-.space-label {
-font-size: 12px; color: #999; margin-bottom: 6px; letter-spacing: 0.5px;
-}
+.space-section { padding: 24px 20px; }
+.space-label { font-size: 12px; color: #999; margin-bottom: 6px; letter-spacing: 0.5px; }
 .space-input {
 width: 100%; border: 1px solid #ddd; border-radius: 10px;
 padding: 10px 14px; font-size: 14px; font-family: inherit;
 outline: none; margin-bottom: 14px; background: #fafafa;
 }
 .space-input:focus { border-color: #bbb; background: #fff; }
+
+/* key输入框带眼睛 */
+.input-with-eye { position: relative; margin-bottom: 14px; }
+.input-with-eye .space-input { margin-bottom: 0; padding-right: 42px; width: 100%; }
+.eye-btn {
+position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+background: none; border: none; cursor: pointer; font-size: 16px;
+color: #999; padding: 0; line-height: 1;
+}
+
+/* 模型行 */
+.model-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.model-row .space-input { margin-bottom: 0; flex: 1; }
+.load-model-btn {
+background: #f0f0f0; border: none; border-radius: 10px;
+padding: 0 14px; font-size: 13px; color: #555; cursor: pointer;
+white-space: nowrap; transition: transform 0.15s, background 0.15s; flex-shrink: 0;
+}
+.load-model-btn:active { transform: scale(0.93); background: #e0e0e0; }
+.load-model-btn:disabled { opacity: 0.5; }
+
+/* 模型下拉列表 */
+#modelDropdown {
+background: #fafafa; border: 1px solid #eee; border-radius: 10px;
+margin-bottom: 14px; max-height: 180px; overflow-y: auto; display: none;
+}
+.model-option {
+padding: 10px 14px; font-size: 13px; cursor: pointer; transition: background 0.12s;
+border-bottom: 1px solid #f0f0f0;
+}
+.model-option:last-child { border-bottom: none; }
+.model-option:active { background: #ececec; }
+.model-option.selected { font-weight: 600; color: #222; }
+
+.space-btn-row { display: flex; gap: 10px; }
 .space-save-btn {
 background: #222; color: #fff; border: none; border-radius: 10px;
 padding: 10px 24px; font-size: 14px; cursor: pointer;
@@ -138,7 +157,7 @@ transition: transform 0.15s, opacity 0.15s;
 }
 .space-save-btn:active { transform: scale(0.95); opacity: 0.8; }
 
-/* ===== Toast ===== */
+/* Toast */
 #toast {
 position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
 left: 50%; transform: translateX(-50%) translateY(20px);
@@ -149,7 +168,6 @@ white-space: nowrap;
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ===== 输入区 ===== */
 #attachPreview {
 display: flex; gap: 8px; padding: 8px 12px 0 12px; overflow-x: auto;
 }
@@ -168,6 +186,7 @@ position: absolute; top: -2px; right: -2px; width: 18px; height: 18px;
 background: rgba(0,0,0,0.6); color: #fff; border-radius: 50%; border: none;
 font-size: 11px; line-height: 18px; text-align: center; cursor: pointer; padding: 0;
 }
+
 #inputBar {
 display: flex; align-items: flex-end; gap: 8px;
 padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px) 12px;
@@ -181,8 +200,7 @@ transition: transform 0.15s;
 #plusBtn:active { transform: scale(0.88); }
 #textInput {
 flex: 1; border: 1px solid #ddd; border-radius: 18px; padding: 9px 14px;
-font-size: 15px; resize: none; max-height: 100px; font-family: inherit;
-outline: none;
+font-size: 15px; resize: none; max-height: 100px; font-family: inherit; outline: none;
 }
 #textInput:focus { border-color: #bbb; }
 #sendBtn {
@@ -193,7 +211,6 @@ flex-shrink: 0; transition: transform 0.15s, opacity 0.15s;
 #sendBtn:active { transform: scale(0.92); }
 #sendBtn:disabled { opacity: 0.4; }
 
-/* ===== 底部导航栏 ===== */
 #bottomNav {
 display: flex; background: #fff; border-top: 1px solid #eee;
 padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -206,7 +223,6 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
 .nav-tab:active { transform: scale(0.92); }
 .nav-tab.active { color: #222; font-weight: 600; }
 .nav-icon { font-size: 18px; }
-
 #fileInputHidden { display: none; }
 </style>
 </head>
@@ -214,135 +230,113 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
 
 <div id="app">
 
-<!-- 顶部栏 -->
 <div id="topbar">
-<button class="round-btn" id="sidebarToggleBtn">☰</button>
-<div id="pageTitle">
-<span class="capsule" id="pageCapsule">然竣</span>
-</div>
-<div id="topRightSlot">
-<button class="round-btn" id="avatarBtn" style="display:none;">
-<span class="avatar-emoji" style="display:flex;align-items:center;justify-content:center;height:100%;">🐾</span>
-</button>
-</div>
+  <button class="round-btn" id="sidebarToggleBtn">☰</button>
+  <div id="pageTitle">
+    <span class="capsule" id="pageCapsule">然竣</span>
+  </div>
+  <div id="topRightSlot">
+    <button class="round-btn" id="avatarBtn" style="display:none;">
+      <span class="avatar-emoji" style="display:flex;align-items:center;justify-content:center;height:100%;">🐾</span>
+    </button>
+  </div>
 </div>
 
-<!-- 侧边栏遮罩 -->
 <div id="sidebarOverlay"></div>
 
-<!-- 侧边栏 -->
 <div id="sidebar">
-<div class="side-profile">
-<div class="side-avatar">🐾</div>
-<div class="side-name">然竣</div>
-<div class="side-since">SINCE 2026.7.1</div>
-<div class="side-days" id="daysCount">陪伴第 0 天</div>
-</div>
-<div class="side-nav-item active" data-nav="chat">主聊天</div>
-<div class="side-divider"></div>
-<div class="side-nav-item" style="color:#999; cursor:default;">副聊天</div>
-<div class="side-subitem">（暂无副聊天）</div>
+  <div class="side-profile">
+    <div class="side-avatar">🐾</div>
+    <div class="side-name">然竣</div>
+    <div class="side-since">SINCE 2026.7.1</div>
+    <div class="side-days" id="daysCount">陪伴第 0 天</div>
+  </div>
+  <div class="side-nav-item active" data-nav="chat">主聊天</div>
+  <div class="side-divider"></div>
+  <div class="side-nav-item" style="color:#999; cursor:default;">副聊天</div>
+  <div class="side-subitem">（暂无副聊天）</div>
 </div>
 
-<!-- 中间内容区 -->
 <div id="content">
 
-<!-- Chat 页 -->
-<div class="page active" id="page-chat">
-<div id="chatScroll"></div>
+  <div class="page active" id="page-chat">
+    <div id="chatScroll"></div>
+  </div>
+
+  <div class="page" id="page-diary">
+    <div class="page-placeholder">日记功能开发中…</div>
+  </div>
+
+  <div class="page" id="page-log">
+    <div class="page-placeholder">Log 功能开发中…</div>
+  </div>
+
+  <div class="page" id="page-space">
+    <div class="space-section">
+
+      <div class="space-label">API 端点</div>
+      <input class="space-input" id="cfgEndpoint" type="text" placeholder="https://api.openai.com/v1">
+
+      <div class="space-label">API Key</div>
+      <div class="input-with-eye">
+        <input class="space-input" id="cfgKey" type="password" placeholder="sk-...">
+        <button class="eye-btn" id="eyeBtn">👁</button>
+      </div>
+
+      <div class="space-label">模型</div>
+      <div class="model-row">
+        <input class="space-input" id="cfgModel" type="text" placeholder="输入或从列表选择">
+        <button class="load-model-btn" id="loadModelsBtn">获取列表</button>
+      </div>
+      <div id="modelDropdown"></div>
+
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="cfgSaveBtn">保存</button>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
-<!-- 日记 页 -->
-<div class="page" id="page-diary">
-<div class="page-placeholder">日记功能开发中…</div>
-</div>
-
-<!-- Log 页 -->
-<div class="page" id="page-log">
-<div class="page-placeholder">Log 功能开发中…</div>
-</div>
-
-<!-- Space 页 -->
-<div class="page" id="page-space">
-<div class="space-section">
-<div class="space-label">API 端点</div>
-<input class="space-input" id="cfgEndpoint" type="text" placeholder="https://api.openai.com/v1">
-<div class="space-label">API Key</div>
-<input class="space-input" id="cfgKey" type="password" placeholder="sk-...">
-<div class="space-label">模型</div>
-<input class="space-input" id="cfgModel" type="text" placeholder="gpt-4o">
-<button class="space-save-btn" id="cfgSaveBtn">保存</button>
-</div>
-</div>
-
-</div>
-
-<!-- 附件预览 -->
 <div id="attachPreview"></div>
 
-<!-- 输入区 -->
 <div id="inputBar">
-<button id="plusBtn">＋</button>
-<input type="file" id="fileInputHidden" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip">
-<textarea id="textInput" rows="1" placeholder="跟然竣说点什么…"></textarea>
-<button id="sendBtn">发送</button>
+  <button id="plusBtn">＋</button>
+  <input type="file" id="fileInputHidden" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip">
+  <textarea id="textInput" rows="1" placeholder="跟然竣说点什么…"></textarea>
+  <button id="sendBtn">发送</button>
 </div>
 
-<!-- 底部导航栏 -->
 <div id="bottomNav">
-<div class="nav-tab active" data-page="chat">
-<div class="nav-icon">💬</div>
-<div>Chat</div>
-</div>
-<div class="nav-tab" data-page="diary">
-<div class="nav-icon">📔</div>
-<div>日记</div>
-</div>
-<div class="nav-tab" data-page="log">
-<div class="nav-icon">📋</div>
-<div>Log</div>
-</div>
-<div class="nav-tab" data-page="space">
-<div class="nav-icon">⚙️</div>
-<div>Space</div>
-</div>
+  <div class="nav-tab active" data-page="chat"><div class="nav-icon">💬</div><div>Chat</div></div>
+  <div class="nav-tab" data-page="diary"><div class="nav-icon">📔</div><div>日记</div></div>
+  <div class="nav-tab" data-page="log"><div class="nav-icon">📋</div><div>Log</div></div>
+  <div class="nav-tab" data-page="space"><div class="nav-icon">⚙️</div><div>Space</div></div>
 </div>
 
 </div>
 
-<!-- Toast -->
 <div id="toast"></div>
 
 <script>
 marked.setOptions({ breaks: true });
 
-/* ============================================================
-数据存储
-============================================================ */
 let messages = [];
 let pendingAttachments = [];
-
 const LS_MESSAGES = 'nest_messages';
 const LS_CONFIG   = 'nest_config';
 
-/* ============================================================
-工具函数
-============================================================ */
 function timeStr() {
   const d = new Date();
   return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
 }
-
 function calcDays() {
-  const start = new Date('2026-07-01');
-  const now   = new Date();
-  return Math.max(Math.floor((now - start) / (1000*60*60*24)), 0);
+  return Math.max(Math.floor((new Date() - new Date('2026-07-01')) / (1000*60*60*24)), 0);
 }
 document.getElementById('daysCount').textContent = '陪伴第 ' + calcDays() + ' 天';
 
-/* ============================================================
-Toast
-============================================================ */
+/* Toast */
 let toastTimer = null;
 function showToast(msg, duration = 2500) {
   const el = document.getElementById('toast');
@@ -361,37 +355,91 @@ function loadConfig() {
   document.getElementById('cfgKey').value      = cfg.key      || '';
   document.getElementById('cfgModel').value    = cfg.model    || '';
 }
-
 function saveConfig() {
   const cfg = {
-    endpoint: document.getElementById('cfgEndpoint').value.trim().replace(/\/$/, ''),
+    endpoint: document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,''),
     key:      document.getElementById('cfgKey').value.trim(),
     model:    document.getElementById('cfgModel').value.trim()
   };
   localStorage.setItem(LS_CONFIG, JSON.stringify(cfg));
   showToast('设置已保存 ✓');
 }
-
 function getConfig() {
   return JSON.parse(localStorage.getItem(LS_CONFIG) || '{}');
 }
-
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
 
+/* 眼睛切换 */
+const eyeBtn = document.getElementById('eyeBtn');
+const cfgKey = document.getElementById('cfgKey');
+eyeBtn.addEventListener('click', () => {
+  const show = cfgKey.type === 'password';
+  cfgKey.type = show ? 'text' : 'password';
+  eyeBtn.textContent = show ? '🙈' : '👁';
+});
+
+/* 获取模型列表 */
+const loadModelsBtn  = document.getElementById('loadModelsBtn');
+const modelDropdown  = document.getElementById('modelDropdown');
+const cfgModelInput  = document.getElementById('cfgModel');
+
+loadModelsBtn.addEventListener('click', async () => {
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key      = document.getElementById('cfgKey').value.trim();
+  if (!endpoint || !key) { showToast('先填端点和 Key'); return; }
+
+  loadModelsBtn.disabled = true;
+  loadModelsBtn.textContent = '加载中…';
+  modelDropdown.style.display = 'none';
+  modelDropdown.innerHTML = '';
+
+  try {
+    const res = await fetch(endpoint + '/models', {
+      headers: { 'Authorization': 'Bearer ' + key }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const list = (json.data || json.models || [])
+      .map(m => m.id || m)
+      .filter(Boolean)
+      .sort();
+
+    if (list.length === 0) { showToast('没拿到模型，检查一下端点'); return; }
+
+    showToast('加载了 ' + list.length + ' 个模型 ✓');
+
+    const current = cfgModelInput.value.trim();
+    list.forEach(id => {
+      const item = document.createElement('div');
+      item.className = 'model-option' + (id === current ? ' selected' : '');
+      item.textContent = id;
+      item.addEventListener('click', () => {
+        cfgModelInput.value = id;
+        modelDropdown.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        modelDropdown.style.display = 'none';
+      });
+      modelDropdown.appendChild(item);
+    });
+    modelDropdown.style.display = 'block';
+
+  } catch(e) {
+    showToast('获取失败：' + e.message, 4000);
+  } finally {
+    loadModelsBtn.disabled = false;
+    loadModelsBtn.textContent = '获取列表';
+  }
+});
+
 /* ============================================================
-localStorage 持久化
+持久化
 ============================================================ */
 function persistMessages() {
   localStorage.setItem(LS_MESSAGES, JSON.stringify(messages));
 }
-
 function loadMessages() {
-  try {
-    const raw = localStorage.getItem(LS_MESSAGES);
-    if (raw) messages = JSON.parse(raw);
-  } catch(e) {
-    messages = [];
-  }
+  try { const r = localStorage.getItem(LS_MESSAGES); if (r) messages = JSON.parse(r); }
+  catch(e) { messages = []; }
 }
 
 /* ============================================================
@@ -400,41 +448,28 @@ function loadMessages() {
 const chatScroll = document.getElementById('chatScroll');
 
 function buildMsgRow(msg, index) {
-  const row = document.createElement('div');
+  const row  = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai');
   row.dataset.index = index;
-
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble-wrap';
 
   if (msg.images && msg.images.length > 0) {
     const imgWrap = document.createElement('div');
     imgWrap.className = 'msg-images';
-    msg.images.forEach(src => {
-      const img = document.createElement('img');
-      img.src = src;
-      imgWrap.appendChild(img);
-    });
+    msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); });
     wrap.appendChild(imgWrap);
   }
-
   if (msg.files && msg.files.length > 0) {
-    const fileWrap = document.createElement('div');
-    fileWrap.className = 'msg-files';
-    msg.files.forEach(f => {
-      const chip = document.createElement('span');
-      chip.className = 'msg-file-chip';
-      chip.textContent = '📎 ' + f.name;
-      fileWrap.appendChild(chip);
-    });
-    wrap.appendChild(fileWrap);
+    const fw = document.createElement('div'); fw.className = 'msg-files';
+    msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); });
+    wrap.appendChild(fw);
   }
 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   if (msg.text && msg.text.trim()) {
-    try { bubble.innerHTML = marked.parse(msg.text); }
-    catch(e) { bubble.textContent = msg.text; }
+    try { bubble.innerHTML = marked.parse(msg.text); } catch(e) { bubble.textContent = msg.text; }
   }
   wrap.appendChild(bubble);
 
@@ -447,50 +482,36 @@ function buildMsgRow(msg, index) {
   return row;
 }
 
-// 首次全量渲染
 function renderAllMessages() {
   chatScroll.innerHTML = '';
   messages.forEach((msg, i) => chatScroll.appendChild(buildMsgRow(msg, i)));
   scrollToBottom();
 }
-
-// 追加单条
 function appendMessage(msg) {
-  const index = messages.length - 1;
-  const row = buildMsgRow(msg, index);
-  chatScroll.appendChild(row);
+  chatScroll.appendChild(buildMsgRow(msg, messages.length - 1));
   scrollToBottom();
 }
-
-// 更新最后一条 ai 气泡（流式用）
 function updateLastAIBubble(text) {
   const rows = chatScroll.querySelectorAll('.msg-row.ai');
-  if (rows.length === 0) return;
-  const lastRow = rows[rows.length - 1];
-  const bubble = lastRow.querySelector('.msg-bubble');
+  if (!rows.length) return;
+  const bubble = rows[rows.length - 1].querySelector('.msg-bubble');
   if (!bubble) return;
-  try { bubble.innerHTML = marked.parse(text); }
-  catch(e) { bubble.textContent = text; }
+  try { bubble.innerHTML = marked.parse(text); } catch(e) { bubble.textContent = text; }
   scrollToBottom();
 }
-
 function scrollToBottom() {
-  requestAnimationFrame(() => {
-    const page = document.getElementById('page-chat');
-    page.scrollTop = page.scrollHeight;
-  });
+  requestAnimationFrame(() => { const p = document.getElementById('page-chat'); p.scrollTop = p.scrollHeight; });
 }
 
 /* ============================================================
-顶部栏 - 胶囊标题可编辑
+胶囊 / 侧边栏 / 页面切换
 ============================================================ */
 const pageCapsule = document.getElementById('pageCapsule');
-const pageTitles  = { chat: '然竣', diary: '日记', log: 'Log', space: 'Space' };
+const pageTitles  = { chat:'然竣', diary:'日记', log:'Log', space:'Space' };
 
 pageCapsule.addEventListener('click', () => {
   if (currentPage !== 'chat') return;
-  pageCapsule.contentEditable = true;
-  pageCapsule.focus();
+  pageCapsule.contentEditable = true; pageCapsule.focus();
   document.execCommand('selectAll', false, null);
 });
 pageCapsule.addEventListener('blur', () => {
@@ -498,29 +519,17 @@ pageCapsule.addEventListener('blur', () => {
   pageTitles.chat = pageCapsule.textContent.trim() || '然竣';
   pageCapsule.textContent = pageTitles.chat;
 });
-pageCapsule.addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); pageCapsule.blur(); }
-});
+pageCapsule.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pageCapsule.blur(); } });
 
-/* ============================================================
-侧边栏
-============================================================ */
 const sidebar        = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
-const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-
 function openSidebar()  { sidebar.classList.add('show'); sidebarOverlay.classList.add('show'); }
 function closeSidebar() { sidebar.classList.remove('show'); sidebarOverlay.classList.remove('show'); }
-
-sidebarToggleBtn.addEventListener('click', openSidebar);
+document.getElementById('sidebarToggleBtn').addEventListener('click', openSidebar);
 sidebarOverlay.addEventListener('click', closeSidebar);
-
 let touchStartX = 0;
 sidebar.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
-sidebar.addEventListener('touchend',   e => {
-  if (e.changedTouches[0].clientX - touchStartX < -60) closeSidebar();
-});
-
+sidebar.addEventListener('touchend',   e => { if (e.changedTouches[0].clientX - touchStartX < -60) closeSidebar(); });
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
   item.addEventListener('click', () => {
     if (item.dataset.nav === 'chat') {
@@ -532,11 +541,7 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
   });
 });
 
-/* ============================================================
-页面切换
-============================================================ */
 let currentPage = 'chat';
-
 function switchPage(pageName) {
   currentPage = pageName;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -544,85 +549,59 @@ function switchPage(pageName) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`.nav-tab[data-page="${pageName}"]`).classList.add('active');
   pageCapsule.textContent = pageTitles[pageName];
-
   const isChat = pageName === 'chat';
-  document.getElementById('avatarBtn').style.display   = isChat ? 'flex' : 'none';
-  document.getElementById('inputBar').style.display    = isChat ? 'flex' : 'none';
-  document.getElementById('attachPreview').style.display = isChat ? '' : 'none';
+  document.getElementById('avatarBtn').style.display      = isChat ? 'flex' : 'none';
+  document.getElementById('inputBar').style.display       = isChat ? 'flex' : 'none';
+  document.getElementById('attachPreview').style.display  = isChat ? ''     : 'none';
+  // 切走时收起模型列表
+  if (pageName !== 'space') modelDropdown.style.display = 'none';
 }
-
 document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => switchPage(tab.dataset.page));
 });
 
 /* ============================================================
-附件预览
+附件
 ============================================================ */
-const attachPreview = document.getElementById('attachPreview');
+const attachPreview   = document.getElementById('attachPreview');
+const fileInputHidden = document.getElementById('fileInputHidden');
 
 function renderAttachPreview() {
   attachPreview.innerHTML = '';
   pendingAttachments.forEach((att, idx) => {
     const thumb = document.createElement('div');
     thumb.className = 'attach-thumb';
-    if (att.type === 'image') {
-      const img = document.createElement('img'); img.src = att.url; thumb.appendChild(img);
-    } else {
-      thumb.classList.add('file-thumb'); thumb.textContent = att.name;
-    }
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'attach-remove'; removeBtn.textContent = '✕';
-    removeBtn.addEventListener('click', () => { pendingAttachments.splice(idx, 1); renderAttachPreview(); });
-    thumb.appendChild(removeBtn);
-    attachPreview.appendChild(thumb);
+    if (att.type === 'image') { const img = document.createElement('img'); img.src = att.url; thumb.appendChild(img); }
+    else { thumb.classList.add('file-thumb'); thumb.textContent = att.name; }
+    const rb = document.createElement('button'); rb.className = 'attach-remove'; rb.textContent = '✕';
+    rb.addEventListener('click', () => { pendingAttachments.splice(idx, 1); renderAttachPreview(); });
+    thumb.appendChild(rb); attachPreview.appendChild(thumb);
   });
 }
-
-/* ============================================================
-＋号附件
-============================================================ */
-const plusBtn       = document.getElementById('plusBtn');
-const fileInputHidden = document.getElementById('fileInputHidden');
-
-plusBtn.addEventListener('click', () => fileInputHidden.click());
+document.getElementById('plusBtn').addEventListener('click', () => fileInputHidden.click());
 fileInputHidden.addEventListener('change', e => {
   Array.from(e.target.files).forEach(file => {
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onload = ev => {
-        pendingAttachments.push({ type: 'image', url: ev.target.result, name: file.name });
-        renderAttachPreview();
-      };
+      reader.onload = ev => { pendingAttachments.push({ type:'image', url:ev.target.result, name:file.name }); renderAttachPreview(); };
       reader.readAsDataURL(file);
     } else {
-      pendingAttachments.push({ type: 'file', name: file.name });
-      renderAttachPreview();
+      pendingAttachments.push({ type:'file', name:file.name }); renderAttachPreview();
     }
   });
   fileInputHidden.value = '';
 });
 
 /* ============================================================
-接入 API（流式）
+API 调用（流式）
 ============================================================ */
 async function callAPI() {
   const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) {
-    showToast('请先在 Space 页填写 API 配置');
-    return;
-  }
+  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
 
-  // 构建请求体
-  const apiMessages = messages.map(m => ({
-    role:    m.role === 'user' ? 'user' : 'assistant',
-    content: m.text || ''
-  }));
-
-  // 占位 ai 消息
-  const aiMsg = { role: 'ai', text: '', images: [], files: [], time: timeStr() };
-  messages.push(aiMsg);
-  persistMessages();
-  appendMessage(aiMsg);
+  const apiMessages = messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text || '' }));
+  const aiMsg = { role:'ai', text:'', images:[], files:[], time:timeStr() };
+  messages.push(aiMsg); persistMessages(); appendMessage(aiMsg);
 
   const sendBtn = document.getElementById('sendBtn');
   sendBtn.disabled = true;
@@ -630,21 +609,10 @@ async function callAPI() {
   try {
     const res = await fetch(cfg.endpoint + '/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer ' + cfg.key
-      },
-      body: JSON.stringify({
-        model:  cfg.model,
-        stream: true,
-        messages: apiMessages
-      })
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
+      body: JSON.stringify({ model:cfg.model, stream:true, messages:apiMessages })
     });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`HTTP ${res.status}: ${errText}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
 
     const reader  = res.body.getReader();
     const decoder = new TextDecoder();
@@ -653,31 +621,24 @@ async function callAPI() {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
-      for (const line of lines) {
+      for (const line of decoder.decode(value, { stream:true }).split('\n')) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
         if (data === '[DONE]') break;
         try {
-          const json  = JSON.parse(data);
-          const delta = json.choices?.[0]?.delta?.content || '';
+          const delta = JSON.parse(data).choices?.[0]?.delta?.content || '';
           accumulated += delta;
           messages[messages.length - 1].text = accumulated;
           updateLastAIBubble(accumulated);
         } catch(_) {}
       }
     }
-
     messages[messages.length - 1].text = accumulated;
     persistMessages();
 
   } catch(err) {
     console.error(err);
-    // 移除占位
-    messages.pop();
-    chatScroll.lastElementChild?.remove();
-    persistMessages();
+    messages.pop(); chatScroll.lastElementChild?.remove(); persistMessages();
     showToast('发送失败：' + err.message, 4000);
   } finally {
     sendBtn.disabled = false;
@@ -685,7 +646,7 @@ async function callAPI() {
 }
 
 /* ============================================================
-发送消息
+发送
 ============================================================ */
 const textInput = document.getElementById('textInput');
 const sendBtn   = document.getElementById('sendBtn');
@@ -698,27 +659,17 @@ textInput.addEventListener('input', () => {
 async function sendMessage() {
   const text = textInput.value.trim();
   if (!text && pendingAttachments.length === 0) return;
-
-  const images = pendingAttachments.filter(a => a.type === 'image').map(a => a.url);
-  const files  = pendingAttachments.filter(a => a.type === 'file').map(a => ({ name: a.name }));
-
-  const userMsg = { role: 'user', text, images, files, time: timeStr() };
-  messages.push(userMsg);
-  persistMessages();
-  appendMessage(userMsg);
-
-  textInput.value = '';
-  textInput.style.height = 'auto';
-  pendingAttachments = [];
-  renderAttachPreview();
-
+  const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
+  const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
+  const userMsg = { role:'user', text, images, files, time:timeStr() };
+  messages.push(userMsg); persistMessages(); appendMessage(userMsg);
+  textInput.value = ''; textInput.style.height = 'auto';
+  pendingAttachments = []; renderAttachPreview();
   await callAPI();
 }
 
 sendBtn.addEventListener('click', sendMessage);
-textInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
+textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 
 /* ============================================================
 初始化
