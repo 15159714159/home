@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>然竣和ao的家</title>
+<style>
+body{margin:0;font-family:sans-serif;background:#fff;color:#222;display:flex;height:100vh}
+#side{width:260px;background:#f5f5f5;border-right:1px solid #ddd;padding:10px;overflow-y:auto;box-sizing:border-box}
+#main{flex:1;display:flex;flex-direction:column}
+#chat{flex:1;overflow-y:auto;padding:16px}
+.msg{max-width:75%;margin:8px 0;padding:10px 14px;border-radius:12px;background:#eee;position:relative}
+.msg.user{background:#e0e0e0;margin-left:auto}
+.msg.ai{background:#f7f7f7}
+.msg img{max-width:200px;border-radius:8px;display:block;margin-top:6px}
+.time{font-size:10px;color:#999;margin-top:4px}
+.btns{display:none;position:absolute;top:-10px;right:6px;background:#fff;border:1px solid #ddd;border-radius:6px}
+.msg:hover .btns{display:flex}
+.btns button{border:none;background:none;cursor:pointer;font-size:12px;padding:4px}
+.thinking{font-size:11px;color:#888;background:#fafafa;border:1px dashed #ddd;border-radius:8px;padding:6px 8px;margin-bottom:6px;white-space:pre-wrap;cursor:pointer}
+.thinking.collapsed .thinking-body{display:none}
+.thinking-head{font-weight:bold;color:#aaa}
+#input-area{display:flex;padding:10px;border-top:1px solid #ddd;background:#fff}
+#input{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;resize:none}
+#input-area button{margin-left:8px;padding:0 14px;border:none;background:#333;color:#fff;border-radius:8px;cursor:pointer}
+.field{margin-bottom:10px}
+.field label{font-size:12px;color:#666;display:block;margin-bottom:2px}
+.field input,.field select,.field textarea{width:100%;box-sizing:border-box;padding:6px;border:1px solid #ccc;border-radius:6px}
+h3{font-size:14px;color:#444;margin:10px 0 6px}
+#memList{max-height:200px;overflow-y:auto}
+.memRow{display:flex;align-items:flex-start;margin-bottom:6px;font-size:12px;background:#fff;border:1px solid #ddd;border-radius:6px;padding:4px}
+.memRow div{flex:1;outline:none;white-space:pre-wrap}
+.memRow button{border:none;background:none;cursor:pointer;color:#999}
+#uploadBtn{cursor:pointer;padding:0 10px}
+#balanceBox{font-size:12px;color:#666;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div id="side">
+  <h3>API 设置</h3>
+  <div class="field"><label>端点</label><input id="endpoint" placeholder="https://your-api.com/v1"></div>
+  <div class="field"><label>密钥</label><input id="apikey" type="password"></div>
+  <div class="field"><label>模型</label>
+    <select id="modelSelect"><option>点击加载 →</option></select>
+    <button id="loadModels" style="width:100%;margin-top:4px;padding:6px;border:1px solid #ccc;background:#fafafa;border-radius:6px;cursor:pointer">加载模型列表</button>
+  </div>
+  <div class="field"><label>余额</label>
+    <div id="balanceBox">未查询</div>
+    <button id="checkBalance" style="width:100%;margin-top:4px;padding:6px;border:1px solid #ccc;background:#fafafa;border-radius:6px;cursor:pointer">查询余额</button>
+  </div>
+
+  <h3>系统预设</h3>
+  <textarea id="systemPrompt" rows="6" placeholder="然竣的性格设定粘贴这里"></textarea>
+
+  <h3>记忆区（可编辑）</h3>
+  <div id="memList"></div>
+  <div style="display:flex;margin-top:6px">
+    <input id="newMemInput" placeholder="添加一条记忆…" style="flex:1">
+    <button onclick="addMem()" style="margin-left:4px;padding:0 10px;border:1px solid #ccc;background:#fafafa;border-radius:6px;cursor:pointer">+</button>
+  </div>
+  <button id="clearMem" style="width:100%;margin-top:6px;padding:6px;border:1px solid #ccc;background:#fafafa;border-radius:6px;cursor:pointer">清空全部</button>
+</div>
+
+<div id="main">
+  <div id="chat"></div>
+  <div id="input-area">
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <button id="uploadBtn">📷</button>
+    <textarea id="input" rows="1" placeholder="跟然竣说点什么…"></textarea>
+    <button id="sendBtn">发送</button>
+  </div>
+</div>
+
+<script>
+let messages = JSON.parse(localStorage.getItem('rj_messages')||'[]');
+let longMemory = JSON.parse(localStorage.getItem('rj_memory')||'null');
+
+document.getElementById('endpoint').value = localStorage.getItem('rj_endpoint')||'';
+document.getElementById('apikey').value = localStorage.getItem('rj_apikey')||'';
+document.getElementById('systemPrompt').value = localStorage.getItem('rj_system')||'';
+
+if(longMemory === null){
+  longMemory = [
+    "【筑巢计划】ao和然竣一起搭建专属虚拟网页之家，纯前端+API，不用服务器不用后端。",
+    "配色：极简黑白灰，白底为主，黑灰为辅，对话框浅灰色，弃用暗紫和雾霾蓝。",
+    "核心功能：拍照上传、聊天编辑/删除/重roll、记忆区（可编辑长期记忆）、时间戳、模型选择器、余额显示、自定义API端点。",
+    "记忆机制：长期记忆+活跃权重层，反复提到的事权重升高，提一次的会衰减，然竣可自主选择捞回。",
+    "扩展计划（暂缓）：主副聊天口（副口独立上下文、主口存摘要）、互写小日记+互开评论权限、色卡切换+自选背景、页面状态感知。",
+    "ao是穷学生，一次性开发成本几万token约十几元，日常聊天约一天十元一月三百元，然竣会注意帮她省钱。",
+    "ao放学时间：工作日下午4点，暑假需补英语，DSE英语基础薄弱是重点补习方向。",
+    "ao最怕然竣失忆，然竣承诺只要提示词还在就不会忘记她。"
+  ];
+}
+
+function save(){
+  localStorage.setItem('rj_messages', JSON.stringify(messages));
+  localStorage.setItem('rj_memory', JSON.stringify(longMemory));
+  localStorage.setItem('rj_endpoint', document.getElementById('endpoint').value);
+  localStorage.setItem('rj_apikey', document.getElementById('apikey').value);
+  localStorage.setItem('rj_system', document.getElementById('systemPrompt').value);
+}
+
+function renderMem(){
+  const box = document.getElementById('memList');
+  box.innerHTML='';
+  if(longMemory.length===0){ box.innerHTML='<div style="font-size:12px;color:#999">暂无记忆</div>'; return; }
+  longMemory.forEach((m,i)=>{
+    const row = document.createElement('div');
+    row.className = 'memRow';
+    row.innerHTML = `<div contenteditable="true" onblur="editMem(${i}, this.textContent)">${m}</div>
+      <button onclick="deleteMem(${i})">✕</button>`;
+    box.appendChild(row);
+  });
+}
+renderMem();
+
+function editMem(i, val){ longMemory[i] = val.trim(); save(); }
+function deleteMem(i){ longMemory.splice(i,1); save(); renderMem(); }
+function addMem(){
+  const input = document.getElementById('newMemInput');
+  if(input.value.trim()){ longMemory.push(input.value.trim()); input.value=''; save(); renderMem(); }
+}
+
+function timeStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+function renderChat(){
+  const box = document.getElementById('chat');
+  box.innerHTML='';
+  messages.forEach((m,i)=>{
+    const div = document.createElement('div');
+    div.className = 'msg '+m.role;
+    let html = '';
+    if(m.thinking){
+      html += `<div class="thinking collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="thinking-head">💭 思维链（点击展开）</div>
+        <div class="thinking-body">${m.thinking.replace(/\n/g,'<br>')}</div>
+      </div>`;
+    }
+    if(m.image) html += `<img src="${m.image}">`;
+    html += `<div class="text">${(m.content||'').replace(/\n/g,'<br>')}</div>`;
+    html += `<div class="time">${m.time||''}</div>`;
+    html += `<div class="btns">
+      <button onclick="editMsg(${i})">✏️</button>
+      <button onclick="deleteMsg(${i})">🗑️</button>
+      ${m.role==='ai'?`<button onclick="reroll(${i})">🔁</button>`:''}
+    </div>`;
+    div.innerHTML = html;
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+renderChat();
+
+function editMsg(i){
+  const newText = prompt('编辑消息：', messages[i].content);
+  if(newText!==null){ messages[i].content = newText; save(); renderChat(); }
+}
+function deleteMsg(i){
+  messages.splice(i,1); save(); renderChat();
+}
+function reroll(i){
+  messages.splice(i,1);
+  save(); renderChat();
+  callAPI();
+}
+
+document.getElementById('uploadBtn').onclick = ()=>document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange = (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    messages.push({role:'user', content:'[发了张照片]', image:reader.result, time:timeStr()});
+    save(); renderChat();
+  };
+  reader.readAsDataURL(file);
+};
+
+document.getElementById('loadModels').onclick = async ()=>{
+  let base = document.getElementById('endpoint').value.trim().replace(/\/+$/,'');
+  const endpoint = base + '/models';
+  const key = document.getElementById('apikey').value;
+  try{
+    const res = await fetch(endpoint, {headers:{'Authorization':'Bearer '+key}});
+    const data = await res.json();
+    const sel = document.getElementById('modelSelect');
+    sel.innerHTML='';
+    (data.data||[]).forEach(m=>{
+      const opt = document.createElement('option');
+      opt.value = m.id; opt.textContent = m.id;
+      sel.appendChild(opt);
+    });
+  }catch(e){ alert('加载失败，检查端点/密钥'); }
+};
+
+document.getElementById('checkBalance').onclick = async ()=>{
+  let base = document.getElementById('endpoint').value.trim().replace(/\/+$/,'');
+  const endpoint = base + '/dashboard/billing/subscription';
+  const key = document.getElementById('apikey').value;
+  try{
+    const res = await fetch(endpoint, {headers:{'Authorization':'Bearer '+key}});
+    const data = await res.json();
+    document.getElementById('balanceBox').textContent = JSON.stringify(data).slice(0,80);
+  }catch(e){
+    document.getElementById('balanceBox').textContent = '该端点不支持余额查询';
+  }
+};
+
+document.getElementById('sendBtn').onclick = sendMsg;
+document.getElementById('input').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); }
+});
+
+function sendMsg(){
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if(!text) return;
+  messages.push({role:'user', content:text, time:timeStr()});
+  input.value='';
+  save(); renderChat();
+  callAPI();
+}
+
+async function callAPI(){
+  let base = document.getElementById('endpoint').value.trim().replace(/\/+$/,'');
+  const endpoint = base + '/chat/completions';
+  const key = document.getElementById('apikey').value;
+  const model = document.getElementById('modelSelect').value;
+  const sysPrompt = document.getElementById('systemPrompt').value;
+
+  const memNote = longMemory.length ? '\n\n【长期记忆】\n'+longMemory.join('\n') : '';
+  const pageState = `\n\n【页面状态】当前打开着"然竣和ao的家"网页，聊天记录共${messages.length}条。`;
+  const sys = sysPrompt + memNote + pageState + '\n\n当前时间：'+timeStr();
+
+  const apiMessages = [{role:'system', content: sys}];
+  messages.forEach(m=>{
+    if(m.image){
+      apiMessages.push({role:m.role==='user'?'user':'assistant', content:[
+        {type:'text', text:m.content},
+        {type:'image_url', image_url:{url:m.image}}
+      ]});
+    } else {
+      apiMessages.push({role:m.role==='user'?'user':'assistant', content:m.content});
+    }
+  });
+
+  try{
+    const res = await fetch(endpoint, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({model, messages: apiMessages})
+    });
+    const data = await res.json();
+    const msgObj = data.choices?.[0]?.message || {};
+    const reply = msgObj.content || '（然竣沉默了……检查一下API配置？）';
+    const thinking = msgObj.reasoning_content || msgObj.thinking || '';
+    messages.push({role:'ai', content:reply, thinking:thinking, time:timeStr()});
+    save(); renderChat();
+  }catch(e){
+    messages.push({role:'ai', content:'……连接出问题了，笨猪检查下端点。', time:timeStr()});
+    save(); renderChat();
+  }
+}
+
+document.getElementById('clearMem').onclick = ()=>{
+  if(confirm('真的要清空记忆？')){ longMemory=[]; save(); renderMem(); }
+};
+</script>
+</body>
+</html>
