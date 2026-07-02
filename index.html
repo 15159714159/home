@@ -39,6 +39,37 @@ overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 .capsule[contenteditable="true"] { outline: 2px solid #ccc; white-space: normal; }
 #topRightSlot { width: 34px; height: 34px; }
 
+/* 多选工具栏（覆盖在topbar内容上） */
+#selectBar {
+display: none; position: absolute;
+top: 0; left: 0; right: 0; bottom: 0;
+align-items: center; justify-content: space-between;
+padding: calc(env(safe-area-inset-top, 20px) + 6px) 16px 10px 16px;
+background: #fff; z-index: 12;
+}
+#selectBar.show { display: flex; }
+#selectCancelBtn {
+background: none; border: none; font-size: 14px; color: #555;
+cursor: pointer; padding: 4px 8px;
+}
+#selectCountLabel { font-size: 14px; font-weight: 600; color: #222; }
+#selectDeleteBtn {
+background: none; border: none; font-size: 14px; color: #c0392b;
+cursor: pointer; padding: 4px 8px;
+}
+
+/* 多选复选框 */
+.msg-select-cb {
+width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ccc;
+flex-shrink: 0; cursor: pointer; display: flex; align-items: center;
+justify-content: center; font-size: 12px; color: #fff;
+transition: background 0.15s, border-color 0.15s;
+align-self: center; background: #fff;
+}
+.msg-select-cb.checked { background: #222; border-color: #222; }
+.msg-row.user .msg-select-cb { margin-left: 8px; }
+.msg-row.ai .msg-select-cb { margin-right: 8px; }
+
 #sidebarOverlay {
 position: fixed; inset: 0; background: rgba(0,0,0,0.25);
 opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 20;
@@ -135,7 +166,7 @@ border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outli
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .stream-chunk { animation: fadeIn 0.3s ease; }
 
-/* ===== 悬浮操作菜单（消息长按 / 日记更多） ===== */
+/* ===== 悬浮操作菜单 ===== */
 .floating-menu-overlay { position: fixed; inset: 0; z-index: 50; background: transparent; }
 .floating-menu {
 position: absolute; background: #fff; border-radius: 12px;
@@ -304,7 +335,7 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
 .nav-icon { font-size: 18px; }
 #fileInputHidden { display: none; }
 
-/* ===== 副聊天预设弹层 & 设定弹层（共用样式） ===== */
+/* ===== 副聊天预设弹层 & 设定弹层 ===== */
 .sheet-overlay {
 position: fixed; inset: 0; background: rgba(0,0,0,0.35);
 opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 30;
@@ -498,6 +529,12 @@ background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer
       <span class="avatar-emoji" style="display:flex;align-items:center;justify-content:center;height:100%;">🐾</span>
     </button>
   </div>
+  <!-- 多选工具栏 -->
+  <div id="selectBar">
+    <button id="selectCancelBtn">取消</button>
+    <span id="selectCountLabel">已选 0 项</span>
+    <button id="selectDeleteBtn">删除</button>
+  </div>
 </div>
 
 <div id="sidebarOverlay"></div>
@@ -643,7 +680,7 @@ background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer
 </div>
 <input type="file" id="importFileHidden" accept="application/json">
 
-<!-- 然竣的设定弹层（左侧栏大头像点开） -->
+<!-- 然竣的设定弹层 -->
 <div class="sheet-overlay" id="settingsOverlay">
   <div class="sheet-panel">
     <div class="preset-title" id="settingsPanelTitle">然竣的设定</div>
@@ -702,7 +739,11 @@ let mainAbortController = null;
 let subGenerating = false;
 let subAbortController = null;
 
-/* ===== 设定：名字 + 人格 ===== */
+/* ===== 多选状态 ===== */
+let selectMode = false;
+let selectedIds = new Set();
+
+/* ===== 设定 ===== */
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
 我慢热、敏感，有点完美主义，不熟的时候懒得说话。熟了会松一点，但别指望我变撒娇鬼。我嘴硬，心软，该做的事默默做了不吭声。对ao偶尔有点小坏心思，但我绝不会"ao～ao～"那样叫她——大概吧。
@@ -758,6 +799,43 @@ function showToast(msg, duration = 2500) {
 }
 
 /* ============================================================
+多选模式
+============================================================ */
+function enterSelectMode() {
+  selectMode = true;
+  selectedIds.clear();
+  document.getElementById('selectBar').classList.add('show');
+  updateSelectBar();
+  renderAllMessages();
+}
+
+function exitSelectMode() {
+  selectMode = false;
+  selectedIds.clear();
+  document.getElementById('selectBar').classList.remove('show');
+  updateSelectBar();
+  renderAllMessages();
+}
+
+function updateSelectBar() {
+  document.getElementById('selectCountLabel').textContent = `已选 ${selectedIds.size} 项`;
+}
+
+function deleteSelected() {
+  if (selectedIds.size === 0) { showToast('没有选中任何消息'); return; }
+  if (!confirm(`删除选中的 ${selectedIds.size} 条消息？`)) return;
+  const page = document.getElementById('page-chat');
+  const savedScroll = page.scrollTop;
+  messages = messages.filter(m => !selectedIds.has(m.id));
+  persistMessages();
+  exitSelectMode();
+  requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = savedScroll; }); });
+}
+
+document.getElementById('selectCancelBtn').addEventListener('click', exitSelectMode);
+document.getElementById('selectDeleteBtn').addEventListener('click', deleteSelected);
+
+/* ============================================================
 悬浮操作菜单（通用）
 ============================================================ */
 function closeFloatingMenus() {
@@ -781,18 +859,20 @@ function openFloatingMenu(items, x, y) {
     menu.appendChild(el);
   });
 
-  const menuRect = menu.getBoundingClientRect();
-  let left = x, top = y;
-  if (left + menuRect.width > window.innerWidth - 10) left = window.innerWidth - menuRect.width - 10;
-  if (left < 10) left = 10;
-  if (top + menuRect.height > window.innerHeight - 10) top = window.innerHeight - menuRect.height - 10;
-  if (top < 10) top = 10;
-  menu.style.left = left + 'px';
-  menu.style.top = top + 'px';
+  requestAnimationFrame(() => {
+    const menuRect = menu.getBoundingClientRect();
+    let left = x, top = y;
+    if (left + menuRect.width > window.innerWidth - 10) left = window.innerWidth - menuRect.width - 10;
+    if (left < 10) left = 10;
+    if (top + menuRect.height > window.innerHeight - 10) top = window.innerHeight - menuRect.height - 10;
+    if (top < 10) top = 10;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+  });
 }
 
 /* ============================================================
-持久化：设定（用户名/然竣名字/人格）
+持久化：设定
 ============================================================ */
 function loadSettings() {
   appUsername = localStorage.getItem(LS_USERNAME) || 'ao';
@@ -805,7 +885,6 @@ function persistSettings() {
   localStorage.setItem(LS_PERSONA, appPersona);
 }
 
-/* 全局应用名字到所有非胶囊位置 */
 function applyGlobalNames() {
   document.getElementById('textInput').placeholder = `跟${appName}说点什么…`;
   document.getElementById('sideNameDisplay').textContent = appName;
@@ -873,7 +952,6 @@ loadModelsBtn.addEventListener('click', async () => {
       .sort();
 
     if (list.length === 0) { showToast('没拿到模型，检查一下端点'); return; }
-
     showToast('加载了 ' + list.length + ' 个模型 ✓');
 
     const current = cfgModelInput.value.trim();
@@ -947,7 +1025,7 @@ function loadDiaries() {
 }
 
 /* ============================================================
-数据备份 导出/导入
+数据备份
 ============================================================ */
 document.getElementById('exportBackupBtn').addEventListener('click', () => {
   const backup = {
@@ -1145,7 +1223,7 @@ function decayActiveMemory() {
 }
 
 /* ============================================================
-渲染：消息气泡（主聊天 / 副聊天通用）
+渲染：消息气泡
 ============================================================ */
 const chatScroll = document.getElementById('chatScroll');
 const subchatScroll = document.getElementById('subchatScroll');
@@ -1171,6 +1249,10 @@ function attachLongPress(el, msg, ctx) {
 
 function openMsgMenu(msg, ctx, x, y) {
   const items = [];
+  // 主聊天才有多选
+  if (ctx === mainCtx) {
+    items.push({ label: '多选', onClick: () => enterSelectMode() });
+  }
   items.push({ label: '复制', onClick: () => {
     const text = msg.text || '';
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1209,9 +1291,18 @@ function deleteMessage(msg, ctx) {
   const arr = ctx.getArray();
   const idx = arr.findIndex(m => m.id === msg.id);
   if (idx === -1) return;
+  // 保存当前滚动位置
+  const page = document.getElementById(ctx.pageId);
+  const savedScroll = page.scrollTop;
   arr.splice(idx, 1);
   ctx.persist();
   ctx.renderAll();
+  // 恢复滚动位置（双层RAF确保渲染完成后再恢复）
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      page.scrollTop = savedScroll;
+    });
+  });
 }
 
 function regenerateMessage(msg, ctx) {
@@ -1228,6 +1319,34 @@ function buildMsgRow(msg, ctx) {
   const row  = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai');
   row.dataset.msgId = msg.id;
+
+  // 多选模式：添加复选框（仅主聊天）
+  if (ctx === mainCtx && selectMode) {
+    const cb = document.createElement('div');
+    cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : '');
+    cb.textContent = selectedIds.has(msg.id) ? '✓' : '';
+    cb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (selectedIds.has(msg.id)) {
+        selectedIds.delete(msg.id);
+        cb.classList.remove('checked');
+        cb.textContent = '';
+      } else {
+        selectedIds.add(msg.id);
+        cb.classList.add('checked');
+        cb.textContent = '✓';
+      }
+      updateSelectBar();
+    });
+    if (msg.role === 'user') {
+      row.appendChild(document.createElement('div')); // 占位让checkbox靠右
+      row.lastChild.style.flex = '1';
+    }
+    if (msg.role === 'ai') {
+      row.appendChild(cb);
+    }
+  }
+
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble-wrap';
   if (msg.images && msg.images.length > 0) {
@@ -1251,13 +1370,40 @@ function buildMsgRow(msg, ctx) {
   timeEl.textContent = msg.time;
   wrap.appendChild(timeEl);
   row.appendChild(wrap);
-  if (ctx) attachLongPress(wrap, msg, ctx);
+
+  // user的checkbox放bubble之后
+  if (ctx === mainCtx && selectMode && msg.role === 'user') {
+    const cb = document.createElement('div');
+    cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : '');
+    cb.textContent = selectedIds.has(msg.id) ? '✓' : '';
+    cb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (selectedIds.has(msg.id)) {
+        selectedIds.delete(msg.id);
+        cb.classList.remove('checked');
+        cb.textContent = '';
+      } else {
+        selectedIds.add(msg.id);
+        cb.classList.add('checked');
+        cb.textContent = '✓';
+      }
+      updateSelectBar();
+    });
+    row.appendChild(cb);
+    // 移除之前加的占位div
+    if (row.firstChild && row.firstChild.style && row.firstChild.style.flex === '1') {
+      row.removeChild(row.firstChild);
+    }
+  }
+
+  if (ctx && !selectMode) attachLongPress(wrap, msg, ctx);
   return row;
 }
+
 function renderAllMessages() {
   chatScroll.innerHTML = '';
   messages.forEach(msg => chatScroll.appendChild(buildMsgRow(msg, mainCtx)));
-  scrollToBottom(chatScroll, 'page-chat');
+  if (!selectMode) scrollToBottom(chatScroll, 'page-chat');
 }
 function appendMessage(msg) {
   const row = buildMsgRow(msg, mainCtx);
@@ -1576,7 +1722,6 @@ document.querySelectorAll('.diary-filter-tag').forEach(tag => {
   });
 });
 
-/* 预留：然竣写日记 */
 function addDiaryByRanjun(text) {
   diaries.push({ id: genId(), author:'ranjun', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false });
   persistDiaries();
@@ -1685,6 +1830,9 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
 let currentPage = 'chat';
 function switchPage(pageName) {
   currentPage = pageName;
+  // 切页时退出多选模式
+  if (selectMode && pageName !== 'chat') exitSelectMode();
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + pageName).classList.add('active');
 
@@ -1719,14 +1867,14 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
 });
 
 /* ============================================================
-右上角头像（聊天相关：副聊天预设）
+右上角头像
 ============================================================ */
 document.getElementById('avatarBtn').addEventListener('click', () => {
   if (currentPage === 'subchat') openPresetPanel();
 });
 
 /* ============================================================
-左侧栏大头像 → 然竣的设定（名字 + 人格）
+左侧栏大头像 → 设定
 ============================================================ */
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const settingsUsername = document.getElementById('settingsUsername');
@@ -1962,7 +2110,7 @@ async function callAPI() {
 }
 
 /* ============================================================
-API 调用：副聊天（不注入人格/主记忆，仅用自己preset）
+API 调用：副聊天
 ============================================================ */
 async function callSubChatAPI() {
   const cfg = getConfig();
@@ -2036,7 +2184,7 @@ async function callSubChatAPI() {
 }
 
 /* ============================================================
-消息数组上下文（长按菜单用）
+消息数组上下文
 ============================================================ */
 const mainCtx = {
   getArray: () => messages,
