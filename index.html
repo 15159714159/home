@@ -507,6 +507,12 @@ display: block; width: 100%; margin-top: 6px; padding: 8px; border-radius: 10px;
 background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer;
 }
 .emoji-clear-btn:active { transform: scale(0.96); }
+
+#clearChatOverlay { align-items: center; justify-content: center; }
+#clearChatOverlay .sheet-panel {
+border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
+}
+#clearChatTitle { text-align: center; }
 </style>
 </head>
 <body>
@@ -708,6 +714,16 @@ background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer
     <div class="emoji-panel-title">选一个心情章</div>
     <div class="emoji-grid" id="emojiGrid"></div>
     <button class="emoji-clear-btn" id="emojiClearBtn">清除心情章</button>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="clearChatOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title" id="clearChatTitle">清空前先导出备份吗？</div>
+    <div class="preset-btn-row">
+      <button class="preset-btn secondary" id="clearChatBtn1">跳过</button>
+      <button class="preset-btn primary" id="clearChatBtn2">导出备份</button>
+    </div>
   </div>
 </div>
 
@@ -1293,6 +1309,55 @@ async function triggerAutoSummary(atRound) {
     console.warn('自动总结出错，下次到点再试', e);
   }
 }
+
+/* ============================================================
+清空主聊天记录（双重确认）
+============================================================ */
+const clearChatOverlay = document.getElementById('clearChatOverlay');
+const clearChatTitle   = document.getElementById('clearChatTitle');
+const clearChatBtn1    = document.getElementById('clearChatBtn1');
+const clearChatBtn2    = document.getElementById('clearChatBtn2');
+let clearChatStep = 1;
+
+function triggerClearChat() {
+  clearChatStep = 1;
+  clearChatTitle.textContent = '清空前先导出备份吗？';
+  clearChatBtn1.textContent = '跳过';
+  clearChatBtn1.className = 'preset-btn secondary';
+  clearChatBtn2.textContent = '导出备份';
+  clearChatBtn2.className = 'preset-btn primary';
+  clearChatBtn2.style.background = '';
+  clearChatOverlay.classList.add('show');
+}
+function goToClearStep2() {
+  clearChatStep = 2;
+  clearChatTitle.textContent = '确定清空所有主聊天记录？此操作不可恢复！';
+  clearChatBtn1.textContent = '取消';
+  clearChatBtn1.className = 'preset-btn secondary';
+  clearChatBtn2.textContent = '确定清空';
+  clearChatBtn2.className = 'preset-btn primary';
+  clearChatBtn2.style.background = '#c0392b';
+}
+clearChatBtn1.addEventListener('click', () => {
+  if (clearChatStep === 1) {
+    goToClearStep2();
+  } else {
+    clearChatOverlay.classList.remove('show');
+  }
+});
+clearChatBtn2.addEventListener('click', () => {
+  if (clearChatStep === 1) {
+    document.getElementById('exportBackupBtn').click();
+    goToClearStep2();
+  } else {
+    messages = [];
+    persistMessages();
+    renderAllMessages();
+    clearChatOverlay.classList.remove('show');
+    showToast('主聊天记录已清空');
+  }
+});
+clearChatOverlay.addEventListener('click', e => { if (e.target === clearChatOverlay) clearChatOverlay.classList.remove('show'); });
 
 /* ============================================================
 渲染：消息气泡
@@ -1964,8 +2029,16 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
 /* ============================================================
 右上角头像
 ============================================================ */
-document.getElementById('avatarBtn').addEventListener('click', () => {
-  if (currentPage === 'subchat') openPresetPanel();
+document.getElementById('avatarBtn').addEventListener('click', (e) => {
+  if (currentPage === 'subchat') { openPresetPanel(); return; }
+  if (currentPage === 'chat') {
+    const rect = e.currentTarget.getBoundingClientRect();
+    openFloatingMenu(
+      [{ label: '清空聊天记录', danger: true, onClick: () => triggerClearChat() }],
+      rect.right - 140,
+      rect.bottom + 8
+    );
+  }
 });
 
 /* ============================================================
