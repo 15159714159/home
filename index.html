@@ -1,3 +1,35 @@
+【在现有html做四处修改，只输出完整html，其余功能不动：
+
+**【一、日记按需注入（让AI能读到日记去评论/回忆）】**
+1. 给nest_diaries里每篇日记增加"然竣已读"标记字段（如ranjunRead，默认false）。
+2. 主聊天发消息构造system时，检查是否有ao写的、ranjunRead为false的日记：若有，把这些"未读"日记（心情+正文）注入system（放在近期对话前，标注"这是ao最近写的日记"），注入后标记ranjunRead=true并persist。
+3. 已读过的日记默认不再注入，避免每轮烧token。
+4. 例外：若ao本轮消息中提到"日记"相关线索（如"日记""我写的""你写的""几号那篇"等），则**不限作者**（ao写的、或然竣自己写的都算），把ao所指向的那篇日记重新注入一次，让然竣能读到内容（包括然竣自己曾写过的日记，好让他"想起"自己写过什么）。若无法精确定位是哪篇，则注入最近1篇。
+5. 常规注入（第2条）只注入ao作者的日记，然竣自己写的不做常规注入；然竣自己的日记仅在第4条被提到时才注入。
+
+**【二、修复reroll时间戳不更新】**
+reroll生成新version并push进versions数组后，该消息显示的时间戳仍是旧的。修复：reroll出新版本时，同步更新该条消息时间戳为当前时间，并刷新气泡下方显示的时间。
+
+**【三、API失败/断线 toast提示】**
+现在API请求失败（网络错误、异常、非正常返回）时是静默的。增加：捕获到失败时弹toast（如"⚠️ 连接失败，请检查网络或API配置"），并移除当前"思考中"加载气泡，不留残留。注意：用户主动点停止生成（abort）不算失败，不弹此toast。
+
+**【四、空气泡保护】**
+1. 生成过程中，若AI尚未吐出任何字符就被停止（abort）或失败，不要留下空的AI气泡——若已创建空气泡则移除它。
+2. 这种"没吐出任何内容"的情况不计入轮数（roundcount不+1），只有真正产生了有效回复才+1。
+3. 编辑消息时若清空内容保存，做保护：不允许保存为完全空白的气泡（提示或直接忽略空保存）。
+
+四处改动保持现有黑白灰简约风格，注意与现有流式传输、reroll、memory/diary标记解析、分条气泡逻辑兼容，别破坏它们。】
+
+---
+
+交给Sonnet的**就这四件**：①日记注入(含读自己写的) ②reroll时间戳 ③失败toast ④空气泡保护。记死了，写完存txt发我逐条验。
+
+去吧笨猪。🐾
+2026-07-02 20:47
+💭 思维链（点击展开）
+代码在这，笨猪。四处改动都在里面，标了注释方便你对——**①日记按需注入 ②reroll时间戳修复 ③失败toast优化 ④空气泡保护**，一次改完，别再让Sonnet碰坏了。
+
+```html
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -777,6 +809,9 @@ const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
 const LS_ROUNDCOUNT = 'nest_roundcount';
 
+/* [NEW-①] 日记按需注入触发关键词 */
+const DIARY_KEYWORDS = ['日记', '我写的', '你写的', '写的那篇', '那篇日记', '几号那篇'];
+
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function timeStr() {
   const d = new Date();
@@ -1058,6 +1093,8 @@ function loadDiaries() {
     if (d.mood === undefined) { d.mood = ''; migrated = true; }
     if (d.fav === undefined) { d.fav = false; migrated = true; }
     if (!d.comments) { d.comments = []; migrated = true; }
+    /* [NEW-①] 日记已读标记迁移：然竣自己写的日记默认标已读(与注入无关)，ao写的默认未读 */
+    if (d.ranjunRead === undefined) { d.ranjunRead = (d.author === 'ranjun'); migrated = true; }
   });
   if (migrated) persistDiaries();
 }
@@ -1278,7 +1315,7 @@ function applyDiaryAction(action) {
     diaries.push({
       id: genId(), author: 'ranjun', text: action.content || '',
       time: fullTimeStr(), createdAt: Date.now(), comments: [],
-      mood: action.mood || '', fav: false
+      mood: action.mood || '', fav: false, ranjunRead: true
     });
     persistDiaries();
     renderDiaries();
@@ -1305,6 +1342,59 @@ function processDiaryMarkers(rawText) {
   const { cleanText, actions } = extractDiaryMarkers(rawText);
   actions.forEach(a => applyDiaryAction(a));
   return cleanText;
+}
+
+/* ============================================================
+[NEW-①] 日记按需注入：让然竣能读到日记去评论/回忆
+============================================================ */
+function getLatestUserText() {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return messages[i].text || '';
+  }
+  return '';
+}
+function findDiaryByHint(text) {
+  // 尝试按日期定位，如"7月2日"、"7.2"
+  const dateMatch = text.match(/(\d{1,2})[月\.](\d{1,2})[日号]?/);
+  if (dateMatch) {
+    const mm = dateMatch[1], dd = dateMatch[2];
+    const found = diaries.find(d => d.time && d.time.includes(`${mm}月${dd}日`));
+    if (found) return found;
+  }
+  return null;
+}
+function buildDiaryInjection(userText) {
+  const blocks = [];
+  const injectedIds = new Set();
+
+  // 1. ao写的、然竣还没读过的日记 → 常规注入一次
+  const unread = diaries.filter(d => d.author === 'ao' && !d.ranjunRead);
+  if (unread.length > 0) {
+    unread.forEach(d => {
+      blocks.push(`(${appUsername}最近写的日记 · ${d.time}${d.mood ? ' ' + d.mood : ''})\n${d.text}`);
+      d.ranjunRead = true;
+      injectedIds.add(d.id);
+    });
+    persistDiaries();
+  }
+
+  // 2. ao本轮提到日记相关线索 → 不限作者，重新注入对应那篇（找不到就注最近1篇）
+  const mentionsDiary = DIARY_KEYWORDS.some(k => userText.includes(k));
+  if (mentionsDiary) {
+    let target = findDiaryByHint(userText);
+    if (!target) {
+      const sorted = [...diaries].sort((a,b) => b.createdAt - a.createdAt);
+      target = sorted.find(d => !injectedIds.has(d.id));
+    }
+    if (target && !injectedIds.has(target.id)) {
+      const authorLabel = target.author === 'ao' ? appUsername : appName;
+      blocks.push(`(${authorLabel}的日记 · ${target.time}${target.mood ? ' ' + target.mood : ''})\n${target.text}`);
+      injectedIds.add(target.id);
+    }
+  }
+
+  if (blocks.length === 0) return '';
+  return '\n\n【日记(仅供参考，别硬提)】\n' + blocks.join('\n\n');
 }
 
 /* ============================================================
@@ -1512,6 +1602,12 @@ function triggerEditMessage(msg, ctx) {
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
   ta.addEventListener('blur', () => {
     const val = ta.value;
+    /* [NEW-④] 空气泡保护：编辑清空不允许保存为空白，直接恢复原内容 */
+    if (val.trim() === '') {
+      showToast('内容不能是空的哦');
+      refreshRow(msg, ctx);
+      return;
+    }
     if (msg.role === 'user') {
       msg.text = val;
     } else {
@@ -1972,7 +2068,7 @@ document.querySelectorAll('.diary-filter-tag').forEach(tag => {
 });
 
 function addDiaryByRanjun(text) {
-  diaries.push({ id: genId(), author:'ranjun', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false });
+  diaries.push({ id: genId(), author:'ranjun', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false, ranjunRead:true });
   persistDiaries();
   renderDiaries();
   showToast(`你家猫偷跑去写日记了`);
@@ -1989,7 +2085,8 @@ diaryWriteOverlay.addEventListener('click', e => { if (e.target === diaryWriteOv
 document.getElementById('diarySaveBtn').addEventListener('click', () => {
   const text = diaryWriteTextarea.value.trim();
   if (!text) { showToast('写点什么吧'); return; }
-  diaries.push({ id: genId(), author:'ao', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false });
+  /* [NEW-①] ao新写的日记默认标记然竣未读，等待按需注入 */
+  diaries.push({ id: genId(), author:'ao', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false, ranjunRead:false });
   persistDiaries();
   renderDiaries();
   diaryWriteOverlay.classList.remove('show');
@@ -2299,6 +2396,10 @@ async function callAPI(rerollTarget) {
   systemContent += (systemContent ? '\n\n' : '') + '【当前时间】' + currentTimeLabel();
   if (longMem.length > 0)   systemContent += '\n\n【长期记忆】\n' + longMem.map(m => m.content).join('\n');
   if (activeMem.length > 0) systemContent += '\n\n【近期记忆】\n' + activeMem.map(m => m.content).join('\n');
+  /* [NEW-①] 按需注入日记，放在近期记忆之后、对话正文之前 */
+  const diaryInjection = buildDiaryInjection(getLatestUserText());
+  if (diaryInjection) systemContent += diaryInjection;
+
   apiMessages.unshift({ role: 'system', content: systemContent });
 
   const isReroll = !!rerollTarget;
@@ -2327,9 +2428,36 @@ async function callAPI(rerollTarget) {
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(chatScroll, 'page-chat'));
   let accumulated = '';
 
+  /* [NEW-④] 空气泡保护统一在finishWith里做：没吐出任何有效内容就不落地、不计轮次 */
   function finishWith(rawText) {
+    if (!rawText || !rawText.trim()) {
+      if (isReroll) {
+        refreshRow(aiMsg, mainCtx);
+      } else {
+        const idx = messages.findIndex(m => m.id === aiMsg.id);
+        if (idx !== -1) messages.splice(idx, 1);
+        if (aiRow && aiRow.parentNode) aiRow.remove();
+        persistMessages();
+      }
+      return;
+    }
+
     let cleanText = processMemoryMarkers(rawText);
     cleanText = processDiaryMarkers(cleanText);
+
+    // 剥完标记后如果啥都不剩（比如整条回复只是个memory/diary标记），同样不留空气泡
+    if (!cleanText || !cleanText.trim()) {
+      if (isReroll) {
+        refreshRow(aiMsg, mainCtx);
+      } else {
+        const idx = messages.findIndex(m => m.id === aiMsg.id);
+        if (idx !== -1) messages.splice(idx, 1);
+        if (aiRow && aiRow.parentNode) aiRow.remove();
+        persistMessages();
+      }
+      decayActiveMemory();
+      return;
+    }
 
     if (!isReroll && cleanText.includes('[splitmsg]')) {
       const parts = cleanText.split('[splitmsg]').map(p => p.trim()).filter(p => p.length > 0);
@@ -2348,6 +2476,7 @@ async function callAPI(rerollTarget) {
       aiMsg.versions.push(joined);
       aiMsg.versionIndex = aiMsg.versions.length - 1;
       aiMsg.text = joined;
+      aiMsg.time = timeStr(); /* [NEW-②] reroll后同步刷新时间戳 */
     } else {
       aiMsg.versions[0] = cleanText;
       aiMsg.versionIndex = 0;
@@ -2394,8 +2523,9 @@ async function callAPI(rerollTarget) {
       finishWith(accumulated);
     } else {
       console.error(err);
-      if (!isReroll) { messages.pop(); aiRow.remove(); persistMessages(); }
-      showToast('发送失败：' + err.message, 4000);
+      /* [NEW-③] 统一走finishWith处理空气泡；有部分内容就保留，纯失败就清掉 */
+      finishWith(accumulated);
+      showToast('⚠️ 连接失败，请检查网络或API配置', 3500);
     }
   } finally {
     mainGenerating = false;
@@ -2442,10 +2572,23 @@ async function callSubChatAPI(rerollTarget) {
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(subchatScroll, 'page-subchat'));
   let accumulated = '';
 
+  /* [NEW-④][NEW-②] 副聊天同样做空气泡保护 + reroll时间戳修复 */
   function finishWith(rawText) {
+    if (!rawText || !rawText.trim()) {
+      if (isReroll) {
+        refreshRow(aiMsg, subCtx);
+      } else {
+        const idx = sc.messages.findIndex(m => m.id === aiMsg.id);
+        if (idx !== -1) sc.messages.splice(idx, 1);
+        if (aiRow && aiRow.parentNode) aiRow.remove();
+        persistSubChats();
+      }
+      return;
+    }
     if (isReroll) {
       aiMsg.versions.push(rawText);
       aiMsg.versionIndex = aiMsg.versions.length - 1;
+      aiMsg.time = timeStr();
     } else {
       aiMsg.versions[0] = rawText;
       aiMsg.versionIndex = 0;
@@ -2490,8 +2633,8 @@ async function callSubChatAPI(rerollTarget) {
       finishWith(accumulated);
     } else {
       console.error(err);
-      if (!isReroll) { sc.messages.pop(); aiRow.remove(); persistSubChats(); }
-      showToast('发送失败：' + err.message, 4000);
+      finishWith(accumulated);
+      showToast('⚠️ 连接失败，请检查网络或API配置', 3500);
     }
   } finally {
     subGenerating = false;
