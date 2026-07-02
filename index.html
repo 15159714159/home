@@ -723,6 +723,7 @@ let plans = [];
 let diaries = [];
 let diaryFilter = 'all';
 let emojiTargetDiaryId = null;
+let roundCount = 0;
 
 let mainGenerating = false;
 let mainAbortController = null;
@@ -754,6 +755,7 @@ const LS_DIARIES  = 'nest_diaries';
 const LS_USERNAME = 'nest_username';
 const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
+const LS_ROUNDCOUNT = 'nest_roundcount';
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function timeStr() {
@@ -892,6 +894,17 @@ function applyGlobalNames() {
   if (raoTag) raoTag.textContent = appUsername;
   if (rranjunTag) rranjunTag.textContent = appName;
   renderDiaries();
+}
+
+/* ============================================================
+持久化：轮次计数
+============================================================ */
+function loadRoundCount() {
+  const r = localStorage.getItem(LS_ROUNDCOUNT);
+  roundCount = r ? (parseInt(r, 10) || 0) : 0;
+}
+function persistRoundCount() {
+  localStorage.setItem(LS_ROUNDCOUNT, String(roundCount));
 }
 
 /* ============================================================
@@ -1042,7 +1055,8 @@ document.getElementById('exportBackupBtn').addEventListener('click', () => {
     nest_username: localStorage.getItem(LS_USERNAME),
     nest_name: localStorage.getItem(LS_NAME),
     nest_persona: localStorage.getItem(LS_PERSONA),
-    nest_config: localStorage.getItem(LS_CONFIG)
+    nest_config: localStorage.getItem(LS_CONFIG),
+    nest_roundcount: localStorage.getItem(LS_ROUNDCOUNT)
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1225,6 +1239,59 @@ function decayActiveMemory() {
     return true;
   });
   if (changed) { persistMemory(); renderMemoryList(); }
+}
+
+/* ============================================================
+每25轮自动总结
+============================================================ */
+function incrementRoundCount() {
+  roundCount++;
+  persistRoundCount();
+  if (roundCount % 25 === 0) {
+    triggerAutoSummary(roundCount);
+  }
+}
+
+async function triggerAutoSummary(atRound) {
+  const cfg = getConfig();
+  if (!cfg.endpoint || !cfg.key || !cfg.model) return;
+
+  try {
+    const recentMsgs = messages.slice(-50).map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: getMsgDisplayText(m)
+    })).filter(m => m.content && m.content.trim());
+
+    if (recentMsgs.length === 0) return;
+
+    const sysPrompt = `请以第一人称（我=${appName}）总结我和${appUsername}最近这25轮对话里值得长期记住的事：${appUsername}提到的生活/情绪/习惯、我们的约定、重要进展。简洁，分点，只输出总结正文，不要多余客套。`;
+
+    const apiMsgs = [{ role:'system', content: sysPrompt }, ...recentMsgs];
+
+    const res = await fetch(cfg.endpoint + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
+      body: JSON.stringify({ model: cfg.model, stream: false, messages: apiMsgs })
+    });
+    if (!res.ok) { console.warn('自动总结请求失败', res.status); return; }
+
+    const json = await res.json();
+    const summaryText = json.choices?.[0]?.message?.content?.trim();
+    if (!summaryText) return;
+
+    memory.push({
+      id: genId(),
+      content: `【25轮总结·第${atRound}轮】\n${summaryText}`,
+      time: timeStr(),
+      layer: 'long'
+    });
+    persistMemory();
+    renderMemoryList();
+    showToast('🐾家猫悄悄记了点东西');
+
+  } catch(e) {
+    console.warn('自动总结出错，下次到点再试', e);
+  }
 }
 
 /* ============================================================
@@ -2110,6 +2177,7 @@ async function callAPI(rerollTarget) {
     refreshRow(aiMsg, mainCtx);
     scrollToBottom(chatScroll, 'page-chat');
     decayActiveMemory();
+    if (!isReroll) incrementRoundCount();
   }
 
   try {
@@ -2336,6 +2404,7 @@ loadMemory();
 loadSubChats();
 loadPlans();
 loadDiaries();
+loadRoundCount();
 switchPage('chat');
 renderAllMessages();
 renderMemoryList();
