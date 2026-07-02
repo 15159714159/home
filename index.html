@@ -152,6 +152,8 @@ overflow-x: auto; font-size: 13px; max-width: 100%; white-space: pre;
 }
 .msg-bubble code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 .msg-bubble pre code { background: none; padding: 0; }
+.msg-bubble p:first-child { margin-top: 0; }
+.msg-bubble p:last-child { margin-bottom: 0; }
 .msg-time { font-size: 10px; color: #aaa; margin-top: 4px; padding: 0 4px; }
 .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .msg-images img { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; }
@@ -1316,17 +1318,19 @@ function regenerateMessage(msg, ctx) {
 }
 
 function buildMsgRow(msg, ctx) {
-  const row  = document.createElement('div');
+  const row = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai');
   row.dataset.msgId = msg.id;
 
-  // 多选模式：添加复选框（仅主聊天）
+  // 多选模式：整行可点，checkbox纯视觉
   if (ctx === mainCtx && selectMode) {
+    row.style.cursor = 'pointer';
+    const isChecked = selectedIds.has(msg.id);
     const cb = document.createElement('div');
-    cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : '');
-    cb.textContent = selectedIds.has(msg.id) ? '✓' : '';
-    cb.addEventListener('click', (e) => {
-      e.stopPropagation();
+    cb.className = 'msg-select-cb' + (isChecked ? ' checked' : '');
+    cb.textContent = isChecked ? '✓' : '';
+
+    row.addEventListener('click', () => {
       if (selectedIds.has(msg.id)) {
         selectedIds.delete(msg.id);
         cb.classList.remove('checked');
@@ -1338,38 +1342,51 @@ function buildMsgRow(msg, ctx) {
       }
       updateSelectBar();
     });
-    if (msg.role === 'user') {
-      row.appendChild(document.createElement('div')); // 占位让checkbox靠右
-      row.lastChild.style.flex = '1';
-    }
-    if (msg.role === 'ai') {
-      row.appendChild(cb);
-    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-bubble-wrap';
+    buildBubbleContent(msg, wrap);
+    if (msg.role === 'ai') { row.appendChild(cb); row.appendChild(wrap); }
+    else { row.appendChild(wrap); row.appendChild(cb); }
+    return row;
   }
 
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble-wrap';
+  buildBubbleContent(msg, wrap);
+  row.appendChild(wrap);
+  if (ctx && !selectMode) attachLongPress(wrap, msg, ctx);
+  return row;
+}
+
+function buildBubbleContent(msg, wrap) {
   if (msg.images && msg.images.length > 0) {
-    const imgWrap = document.createElement('div'); imgWrap.className = 'msg-images';
-    msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); });
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'msg-images';
+    msg.images.forEach(src => {
+      const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img);
+    });
     wrap.appendChild(imgWrap);
   }
   if (msg.files && msg.files.length > 0) {
     const fw = document.createElement('div'); fw.className = 'msg-files';
-    msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); });
+    msg.files.forEach(f => {
+      const c = document.createElement('span'); c.className = 'msg-file-chip';
+      c.textContent = '📎 ' + f.name; fw.appendChild(c);
+    });
     wrap.appendChild(fw);
   }
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   if (msg.text && msg.text.trim()) {
-    try { bubble.innerHTML = marked.parse(msg.text); } catch(e) { bubble.textContent = msg.text; }
+    try { bubble.innerHTML = marked.parse(msg.text).trim(); } catch(e) { bubble.textContent = msg.text; }
   }
   wrap.appendChild(bubble);
   const timeEl = document.createElement('div');
   timeEl.className = 'msg-time';
   timeEl.textContent = msg.time;
   wrap.appendChild(timeEl);
-  row.appendChild(wrap);
+}
 
   // user的checkbox放bubble之后
   if (ctx === mainCtx && selectMode && msg.role === 'user') {
