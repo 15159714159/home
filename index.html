@@ -163,6 +163,12 @@ width: 100%; font-size: 15px; line-height: 1.5; font-family: inherit; border: 1p
 border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outline: none; background: #fff;
 }
 
+.msg-version-switcher { display:flex; align-items:center; gap:6px; margin-top:4px; padding:0 4px; }
+.version-arrow { background:none;border:none;font-size:13px;color:#999;cursor:pointer;padding:0 4px; transition:opacity .15s, transform .15s; }
+.version-arrow:disabled { opacity:0.3; cursor:default; }
+.version-arrow:not(:disabled):active { transform:scale(0.8); }
+.version-label { font-size:11px; color:#aaa; }
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .stream-chunk { animation: fadeIn 0.3s ease; }
 
@@ -385,7 +391,7 @@ border-radius: 10px; padding: 10px 12px;
 }
 .plan-check {
 width: 20px; height: 20px; border-radius: 50%; border: 2px solid #bbb;
-flex-shrink:flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
 font-size: 12px; color: #fff; transition: background 0.15s, border-color 0.15s;
 }
 .plan-check.done { background: #444; border-color: #444; }
@@ -978,7 +984,10 @@ function loadMessages() {
   try { const r = localStorage.getItem(LS_MESSAGES); if (r) messages = JSON.parse(r); }
   catch(e) { messages = []; }
   let migrated = false;
-  messages.forEach(m => { if (!m.id) { m.id = genId(); migrated = true; } });
+  messages.forEach(m => {
+    if (!m.id) { m.id = genId(); migrated = true; }
+    if (m.role !== 'user' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
+  });
   if (migrated) persistMessages();
 }
 function persistMemory() { localStorage.setItem(LS_MEMORY, JSON.stringify(memory)); }
@@ -995,7 +1004,10 @@ function loadSubChats() {
   catch(e) { subChats = []; }
   let migrated = false;
   subChats.forEach(sc => {
-    (sc.messages || []).forEach(m => { if (!m.id) { m.id = genId(); migrated = true; } });
+    (sc.messages || []).forEach(m => {
+      if (!m.id) { m.id = genId(); migrated = true; }
+      if (m.role !== 'user' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
+    });
   });
   if (migrated) persistSubChats();
 }
@@ -1221,6 +1233,50 @@ function decayActiveMemory() {
 const chatScroll = document.getElementById('chatScroll');
 const subchatScroll = document.getElementById('subchatScroll');
 
+function getMsgDisplayText(m) {
+  if (m.role !== 'user' && m.versions && m.versions.length > 0) {
+    const idx = (m.versionIndex != null) ? m.versionIndex : m.versions.length - 1;
+    return m.versions[idx];
+  }
+  return m.text || '';
+}
+
+function refreshRow(msg, ctx) {
+  const oldRow = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`);
+  if (!oldRow) return;
+  const newRow = buildMsgRow(msg, ctx);
+  oldRow.replaceWith(newRow);
+}
+
+function switchVersion(msg, ctx, delta) {
+  const newIdx = msg.versionIndex + delta;
+  if (newIdx < 0 || newIdx >= msg.versions.length) return;
+  msg.versionIndex = newIdx;
+  msg.text = msg.versions[newIdx];
+  ctx.persist();
+  refreshRow(msg, ctx);
+}
+
+function buildVersionSwitcher(msg, ctx) {
+  const box = document.createElement('div');
+  box.className = 'msg-version-switcher';
+  const leftBtn = document.createElement('button');
+  leftBtn.className = 'version-arrow';
+  leftBtn.textContent = '‹';
+  leftBtn.disabled = msg.versionIndex <= 0;
+  leftBtn.addEventListener('click', (e) => { e.stopPropagation(); switchVersion(msg, ctx, -1); });
+  const label = document.createElement('span');
+  label.className = 'version-label';
+  label.textContent = `${msg.versionIndex+1}/${msg.versions.length}`;
+  const rightBtn = document.createElement('button');
+  rightBtn.className = 'version-arrow';
+  rightBtn.textContent = '›';
+  rightBtn.disabled = msg.versionIndex >= msg.versions.length - 1;
+  rightBtn.addEventListener('click', (e) => { e.stopPropagation(); switchVersion(msg, ctx, 1); });
+  box.appendChild(leftBtn); box.appendChild(label); box.appendChild(rightBtn);
+  return box;
+}
+
 function attachLongPress(el, msg, ctx) {
   let startX = 0, startY = 0, timer = null;
   el.addEventListener('touchstart', (e) => {
@@ -1246,7 +1302,7 @@ function openMsgMenu(msg, ctx, x, y) {
     items.push({ label: '多选', onClick: () => enterSelectMode() });
   }
   items.push({ label: '复制', onClick: () => {
-    const text = msg.text || '';
+    const text = getMsgDisplayText(msg);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => showToast('复制失败'));
     } else { showToast('复制失败'); }
@@ -1265,7 +1321,7 @@ function triggerEditMessage(msg, ctx) {
   const bubble = row.querySelector('.msg-bubble');
   const ta = document.createElement('textarea');
   ta.className = 'msg-edit-textarea';
-  ta.value = msg.text || '';
+  ta.value = getMsgDisplayText(msg);
   bubble.innerHTML = '';
   bubble.appendChild(ta);
   ta.focus();
@@ -1273,7 +1329,14 @@ function triggerEditMessage(msg, ctx) {
   ta.style.height = ta.scrollHeight + 'px';
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
   ta.addEventListener('blur', () => {
-    msg.text = ta.value;
+    const val = ta.value;
+    if (msg.role === 'user') {
+      msg.text = val;
+    } else {
+      if (!msg.versions) { msg.versions = [val]; msg.versionIndex = 0; }
+      else { msg.versions[msg.versionIndex] = val; }
+      msg.text = val;
+    }
     ctx.persist();
     ctx.renderAll();
   });
@@ -1299,10 +1362,10 @@ function regenerateMessage(msg, ctx) {
   const arr = ctx.getArray();
   const idx = arr.findIndex(m => m.id === msg.id);
   if (idx === -1) return;
-  arr.splice(idx);
+  arr.splice(idx + 1);
   ctx.persist();
   ctx.renderAll();
-  ctx.callAPI();
+  ctx.callAPI(msg);
 }
 
 function buildMsgRow(msg, ctx) {
@@ -1312,7 +1375,6 @@ function buildMsgRow(msg, ctx) {
 
   const isMultiSelectable = ctx === mainCtx && selectMode;
 
-  // AI消息的勾选框放在气泡左边
   if (isMultiSelectable && msg.role === 'ai') {
     row.appendChild(buildSelectCb(msg));
   }
@@ -1331,23 +1393,27 @@ function buildMsgRow(msg, ctx) {
   }
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
-  if (msg.text && msg.text.trim()) {
-    try { bubble.innerHTML = marked.parse(msg.text).trim(); } catch(e) { bubble.textContent = msg.text; }
+  const displayText = getMsgDisplayText(msg);
+  if (displayText && displayText.trim()) {
+    try { bubble.innerHTML = marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
   }
   wrap.appendChild(bubble);
+
+  if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) {
+    wrap.appendChild(buildVersionSwitcher(msg, ctx));
+  }
+
   const timeEl = document.createElement('div');
   timeEl.className = 'msg-time';
   timeEl.textContent = msg.time;
   wrap.appendChild(timeEl);
   row.appendChild(wrap);
 
-  // user消息的勾选框放在气泡右边
   if (isMultiSelectable && msg.role === 'user') {
     row.appendChild(buildSelectCb(msg));
   }
 
   if (isMultiSelectable) {
-    // 整行可点选，不弹长按菜单
     row.style.cursor = 'pointer';
     row.addEventListener('click', () => toggleSelect(msg.id));
   } else if (ctx) {
@@ -1990,11 +2056,11 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
 /* ============================================================
 API 调用：主聊天
 ============================================================ */
-async function callAPI() {
+async function callAPI(rerollTarget) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
 
-  const apiMessages = messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text || '' }));
+  const apiMessages = messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
 
   const longMem   = memory.filter(m => m.layer === 'long');
   const activeMem = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0)).slice(0, 8);
@@ -2005,10 +2071,21 @@ async function callAPI() {
   if (activeMem.length > 0) systemContent += '\n\n【近期记忆】\n' + activeMem.map(m => m.content).join('\n');
   apiMessages.unshift({ role: 'system', content: systemContent });
 
-  const aiMsg = { id: genId(), role:'ai', text:'', images:[], files:[], time:timeStr() };
-  messages.push(aiMsg); persistMessages();
-  const aiRow = appendMessage(aiMsg);
-  const aiBubble = aiRow.querySelector('.msg-bubble');
+  const isReroll = !!rerollTarget;
+  let aiMsg, aiRow, aiBubble;
+
+  if (isReroll) {
+    aiMsg = rerollTarget;
+    aiRow = chatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
+    if (!aiRow) { aiRow = appendMessage(aiMsg); }
+    aiBubble = aiRow.querySelector('.msg-bubble');
+    aiBubble.innerHTML = '';
+  } else {
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr() };
+    messages.push(aiMsg); persistMessages();
+    aiRow = appendMessage(aiMsg);
+    aiBubble = aiRow.querySelector('.msg-bubble');
+  }
 
   const sendBtnEl = document.getElementById('sendBtn');
   const controller = new AbortController();
@@ -2018,6 +2095,22 @@ async function callAPI() {
 
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(chatScroll, 'page-chat'));
   let accumulated = '';
+
+  function finishWith(rawText) {
+    const cleanText = processMemoryMarkers(rawText);
+    if (isReroll) {
+      aiMsg.versions.push(cleanText);
+      aiMsg.versionIndex = aiMsg.versions.length - 1;
+    } else {
+      aiMsg.versions[0] = cleanText;
+      aiMsg.versionIndex = 0;
+    }
+    aiMsg.text = cleanText;
+    persistMessages();
+    refreshRow(aiMsg, mainCtx);
+    scrollToBottom(chatScroll, 'page-chat');
+    decayActiveMemory();
+  }
 
   try {
     const res = await fetch(cfg.endpoint + '/chat/completions', {
@@ -2046,22 +2139,14 @@ async function callAPI() {
       }
     }
 
-    const cleanText = processMemoryMarkers(accumulated);
-    messages[messages.length - 1].text = cleanText;
-    persistMessages();
-    renderer.finalize(cleanText);
-    decayActiveMemory();
+    finishWith(accumulated);
 
   } catch(err) {
     if (err.name === 'AbortError') {
-      const cleanText = processMemoryMarkers(accumulated);
-      messages[messages.length - 1].text = cleanText;
-      persistMessages();
-      renderer.finalize(cleanText);
-      decayActiveMemory();
+      finishWith(accumulated);
     } else {
       console.error(err);
-      messages.pop(); chatScroll.lastElementChild?.remove(); persistMessages();
+      if (!isReroll) { messages.pop(); aiRow.remove(); persistMessages(); }
       showToast('发送失败：' + err.message, 4000);
     }
   } finally {
@@ -2074,19 +2159,30 @@ async function callAPI() {
 /* ============================================================
 API 调用：副聊天
 ============================================================ */
-async function callSubChatAPI() {
+async function callSubChatAPI(rerollTarget) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
   const sc = subChats.find(s => s.id === currentSubChatId);
   if (!sc) return;
 
-  const apiMessages = sc.messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text || '' }));
+  const apiMessages = sc.messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
   if (sc.preset && sc.preset.trim()) apiMessages.unshift({ role: 'system', content: sc.preset.trim() });
 
-  const aiMsg = { id: genId(), role:'ai', text:'', images:[], files:[], time:timeStr() };
-  sc.messages.push(aiMsg); persistSubChats();
-  const aiRow = appendSubChatMessage(aiMsg);
-  const aiBubble = aiRow.querySelector('.msg-bubble');
+  const isReroll = !!rerollTarget;
+  let aiMsg, aiRow, aiBubble;
+
+  if (isReroll) {
+    aiMsg = rerollTarget;
+    aiRow = subchatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
+    if (!aiRow) { aiRow = appendSubChatMessage(aiMsg); }
+    aiBubble = aiRow.querySelector('.msg-bubble');
+    aiBubble.innerHTML = '';
+  } else {
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr() };
+    sc.messages.push(aiMsg); persistSubChats();
+    aiRow = appendSubChatMessage(aiMsg);
+    aiBubble = aiRow.querySelector('.msg-bubble');
+  }
 
   const sendBtnEl = document.getElementById('subchatSendBtn');
   const controller = new AbortController();
@@ -2096,6 +2192,20 @@ async function callSubChatAPI() {
 
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(subchatScroll, 'page-subchat'));
   let accumulated = '';
+
+  function finishWith(rawText) {
+    if (isReroll) {
+      aiMsg.versions.push(rawText);
+      aiMsg.versionIndex = aiMsg.versions.length - 1;
+    } else {
+      aiMsg.versions[0] = rawText;
+      aiMsg.versionIndex = 0;
+    }
+    aiMsg.text = rawText;
+    persistSubChats();
+    refreshRow(aiMsg, subCtx);
+    scrollToBottom(subchatScroll, 'page-subchat');
+  }
 
   try {
     const res = await fetch(cfg.endpoint + '/chat/completions', {
@@ -2124,18 +2234,14 @@ async function callSubChatAPI() {
       }
     }
 
-    sc.messages[sc.messages.length - 1].text = accumulated;
-    persistSubChats();
-    renderer.finalize(accumulated);
+    finishWith(accumulated);
 
   } catch(err) {
     if (err.name === 'AbortError') {
-      sc.messages[sc.messages.length - 1].text = accumulated;
-      persistSubChats();
-      renderer.finalize(accumulated);
+      finishWith(accumulated);
     } else {
       console.error(err);
-      sc.messages.pop(); subchatScroll.lastElementChild?.remove(); persistSubChats();
+      if (!isReroll) { sc.messages.pop(); aiRow.remove(); persistSubChats(); }
       showToast('发送失败：' + err.message, 4000);
     }
   } finally {
@@ -2152,7 +2258,7 @@ const mainCtx = {
   getArray: () => messages,
   persist: persistMessages,
   renderAll: renderAllMessages,
-  callAPI: () => callAPI(),
+  callAPI: (target) => callAPI(target),
   container: chatScroll,
   pageId: 'page-chat'
 };
@@ -2160,7 +2266,7 @@ const subCtx = {
   getArray: () => { const sc = subChats.find(s => s.id === currentSubChatId); return sc ? sc.messages : []; },
   persist: persistSubChats,
   renderAll: renderSubChatMessages,
-  callAPI: () => callSubChatAPI(),
+  callAPI: (target) => callSubChatAPI(target),
   container: subchatScroll,
   pageId: 'page-subchat'
 };
