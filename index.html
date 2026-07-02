@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -164,6 +163,7 @@ font-size: 14px; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
 
 /* ===== Space页 ===== */
 .space-section { padding: 24px 20px; }
+.space-section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; margin-top: 4px; }
 .space-label { font-size: 12px; color: #999; margin-bottom: 6px; letter-spacing: 0.5px; }
 .space-input {
 width: 100%; border: 1px solid #ddd; border-radius: 10px;
@@ -209,6 +209,14 @@ padding: 10px 24px; font-size: 14px; cursor: pointer;
 transition: transform 0.15s, opacity 0.15s;
 }
 .space-save-btn:active { transform: scale(0.95); opacity: 0.8; }
+.space-divider { height: 1px; background: #eee; margin: 28px 0 20px 0; }
+.space-danger-btn {
+background: #fff; color: #c0392b; border: 1px solid #e8b4ac; border-radius: 10px;
+padding: 10px 24px; font-size: 14px; cursor: pointer;
+transition: transform 0.15s, opacity 0.15s;
+}
+.space-danger-btn:active { transform: scale(0.95); opacity: 0.8; }
+.space-hint { font-size: 12px; color: #bbb; margin-top: 8px; line-height: 1.5; }
 
 #toast {
 position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
@@ -306,6 +314,7 @@ transition: transform 0.15s, opacity 0.15s;
 .preset-btn.primary { background: #222; color: #fff; }
 .preset-btn.secondary { background: #f0f0f0; color: #555; }
 #importFileHidden { display: none; }
+#backupImportHidden { display: none; }
 
 .settings-label { font-size: 12px; color: #999; margin-bottom: 6px; margin-top: 4px; letter-spacing: 0.5px; }
 .settings-input {
@@ -386,10 +395,20 @@ color: #bbb; transition: transform 0.15s, color 0.15s;
 .diary-action-btn:active { transform: scale(0.85); }
 .diary-action-btn.fav-on { color: #f5b301; }
 .diary-text { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word; margin-bottom: 8px; }
+.diary-edit-textarea {
+width: 100%; font-size: 14px; line-height: 1.6; font-family: inherit; border: 1px solid #ccc;
+border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 80px; outline: none;
+margin-bottom: 8px;
+}
 .diary-comments { border-top: 1px solid #e8e8e8; padding-top: 8px; margin-top: 4px; }
-.diary-comment { display: flex; gap: 6px; font-size: 12.5px; margin-bottom: 5px; }
+.diary-comment { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-bottom: 5px; }
 .diary-comment-author { font-weight: 700; color: #666; flex-shrink: 0; }
-.diary-comment-text { color: #444; word-break: break-word; }
+.diary-comment-text { color: #444; word-break: break-word; flex: 1; }
+.diary-comment-del {
+background: none; border: none; color: #ccc; font-size: 12px; cursor: pointer;
+flex-shrink: 0; padding: 2px 4px; transition: color 0.15s, transform 0.15s;
+}
+.diary-comment-del:active { transform: scale(0.85); color: #999; }
 .diary-comment-input-row { display: flex; gap: 6px; margin-top: 8px; }
 .diary-comment-input {
 flex: 1; border: 1px solid #ddd; border-radius: 14px; padding: 6px 12px;
@@ -546,6 +565,16 @@ background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer
       <div class="space-btn-row">
         <button class="space-save-btn" id="cfgSaveBtn">保存</button>
       </div>
+
+      <div class="space-divider"></div>
+
+      <div class="space-section-title">数据备份</div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="exportBackupBtn">导出全部数据</button>
+        <button class="space-danger-btn" id="importBackupBtn">导入数据</button>
+      </div>
+      <div class="space-hint">导出会把聊天记录、记忆、副聊天、计划、日记、设定和API配置全部打包成一个文件。换设备或清缓存前记得导出，导入会覆盖当前所有数据。</div>
+      <input type="file" id="backupImportHidden" accept="application/json">
 
     </div>
   </div>
@@ -721,7 +750,10 @@ function persistSettings() {
 function applyGlobalNames() {
   document.getElementById('textInput').placeholder = `跟${appName}说点什么…`;
   document.getElementById('sideNameDisplay').textContent = appName;
-  // 侧边栏主聊天默认标题只在未自定义胶囊时用；胶囊内容由用户自行编辑，不覆盖
+  const raoTag = document.querySelector('.diary-filter-tag[data-filter="ao"]');
+  const rranjunTag = document.querySelector('.diary-filter-tag[data-filter="ranjun"]');
+  if (raoTag) raoTag.textContent = appUsername;
+  if (rranjunTag) rranjunTag.textContent = appName;
   renderDiaries();
 }
 
@@ -842,9 +874,61 @@ function loadDiaries() {
   diaries.forEach(d => {
     if (d.mood === undefined) { d.mood = ''; migrated = true; }
     if (d.fav === undefined) { d.fav = false; migrated = true; }
+    if (!d.comments) { d.comments = []; migrated = true; }
   });
   if (migrated) persistDiaries();
 }
+
+/* ============================================================
+数据备份 导出/导入
+============================================================ */
+document.getElementById('exportBackupBtn').addEventListener('click', () => {
+  const backup = {
+    nest_messages: localStorage.getItem(LS_MESSAGES),
+    nest_memory: localStorage.getItem(LS_MEMORY),
+    nest_subchats: localStorage.getItem(LS_SUBCHATS),
+    nest_plans: localStorage.getItem(LS_PLANS),
+    nest_diaries: localStorage.getItem(LS_DIARIES),
+    nest_username: localStorage.getItem(LS_USERNAME),
+    nest_name: localStorage.getItem(LS_NAME),
+    nest_persona: localStorage.getItem(LS_PERSONA),
+    nest_config: localStorage.getItem(LS_CONFIG)
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  const dateStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.href = url; a.download = `nest_backup_${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出 ✓');
+});
+
+const backupImportHidden = document.getElementById('backupImportHidden');
+document.getElementById('importBackupBtn').addEventListener('click', () => {
+  if (!confirm('导入会覆盖当前所有数据，确定？')) return;
+  backupImportHidden.click();
+});
+backupImportHidden.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      Object.keys(data).forEach(key => {
+        if (data[key] != null) localStorage.setItem(key, data[key]);
+      });
+      alert('导入成功，即将刷新');
+      location.reload();
+    } catch(err) {
+      showToast('导入失败：文件格式不对', 3000);
+    }
+  };
+  reader.readAsText(file);
+  backupImportHidden.value = '';
+});
 
 /* ============================================================
 记忆区 UI
@@ -1209,6 +1293,24 @@ function buildDiaryCard(d) {
   const actions = document.createElement('div');
   actions.className = 'diary-card-actions';
 
+  const editBtn = document.createElement('button');
+  editBtn.className = 'diary-action-btn';
+  editBtn.textContent = '✎';
+  editBtn.title = '编辑日记';
+  editBtn.addEventListener('click', () => {
+    const ta = document.createElement('textarea');
+    ta.className = 'diary-edit-textarea';
+    ta.value = d.text;
+    textEl.replaceWith(ta);
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    ta.addEventListener('blur', () => {
+      const val = ta.value.trim();
+      if (val) { d.text = val; persistDiaries(); }
+      renderDiaries();
+    });
+  });
+
   const moodBtn = document.createElement('button');
   moodBtn.className = 'diary-action-btn';
   moodBtn.textContent = '☺';
@@ -1234,6 +1336,7 @@ function buildDiaryCard(d) {
     renderDiaries();
   });
 
+  actions.appendChild(editBtn);
   actions.appendChild(moodBtn);
   actions.appendChild(favBtn);
   actions.appendChild(delBtn);
@@ -1242,10 +1345,11 @@ function buildDiaryCard(d) {
   const text = document.createElement('div');
   text.className = 'diary-text';
   text.textContent = d.text;
+  const textEl = text;
 
   const commentsWrap = document.createElement('div');
   commentsWrap.className = 'diary-comments';
-  (d.comments || []).forEach(c => {
+  (d.comments || []).forEach((c, cIdx) => {
     const cRow = document.createElement('div');
     cRow.className = 'diary-comment';
     const cAuthor = document.createElement('span');
@@ -1254,7 +1358,15 @@ function buildDiaryCard(d) {
     const cText = document.createElement('span');
     cText.className = 'diary-comment-text';
     cText.textContent = c.text;
-    cRow.appendChild(cAuthor); cRow.appendChild(cText);
+    const cDel = document.createElement('button');
+    cDel.className = 'diary-comment-del';
+    cDel.textContent = '✕';
+    cDel.addEventListener('click', () => {
+      d.comments.splice(cIdx, 1);
+      persistDiaries();
+      renderDiaries();
+    });
+    cRow.appendChild(cAuthor); cRow.appendChild(cText); cRow.appendChild(cDel);
     commentsWrap.appendChild(cRow);
   });
 
@@ -1815,4 +1927,3 @@ applyGlobalNames();
 
 </body>
 </html>
-```
