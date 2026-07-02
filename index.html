@@ -39,7 +39,6 @@ overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 .capsule[contenteditable="true"] { outline: 2px solid #ccc; white-space: normal; }
 #topRightSlot { width: 34px; height: 34px; }
 
-/* 多选工具栏（覆盖在topbar内容上） */
 #selectBar {
 display: none; position: absolute;
 top: 0; left: 0; right: 0; bottom: 0;
@@ -58,13 +57,12 @@ background: none; border: none; font-size: 14px; color: #c0392b;
 cursor: pointer; padding: 4px 8px;
 }
 
-/* 多选复选框 */
 .msg-select-cb {
 width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ccc;
-flex-shrink: 0; cursor: pointer; display: flex; align-items: center;
+flex-shrink: 0; display: flex; align-items: center;
 justify-content: center; font-size: 12px; color: #fff;
 transition: background 0.15s, border-color 0.15s;
-align-self: center; background: #fff;
+align-self: center; background: #fff; pointer-events: none;
 }
 .msg-select-cb.checked { background: #222; border-color: #222; }
 .msg-row.user .msg-select-cb { margin-left: 8px; }
@@ -132,7 +130,7 @@ color: #bbb; font-size: 14px;
 }
 
 #chatScroll, .subchat-scroll { padding: 16px 12px 12px 12px; }
-.msg-row { display: flex; margin-bottom: 14px; }
+.msg-row { display: flex; margin-bottom: 10px; align-items: flex-end; }
 .msg-row.user { justify-content: flex-end; }
 .msg-row.ai { justify-content: flex-start; }
 .msg-bubble-wrap { max-width: 78%; display: flex; flex-direction: column; }
@@ -140,20 +138,20 @@ color: #bbb; font-size: 14px;
 .msg-row.ai .msg-bubble-wrap { align-items: flex-start; }
 .msg-bubble {
 padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.5;
-word-wrap: break-word; overflow-wrap: break-word; white-space: pre-wrap;
+word-wrap: break-word; overflow-wrap: break-word;
 user-select: none; -webkit-user-select: none;
 }
 .msg-row.user .msg-bubble { background: #e9e9e9; border-bottom-right-radius: 4px; }
 .msg-row.ai .msg-bubble { background: #f5f5f5; border-bottom-left-radius: 4px; }
 .msg-bubble p { margin: 0.3em 0; }
+.msg-bubble > p:first-child { margin-top: 0; }
+.msg-bubble > p:last-child { margin-bottom: 0; }
 .msg-bubble pre {
 background: #2b2b2b; color: #eee; padding: 10px; border-radius: 8px;
 overflow-x: auto; font-size: 13px; max-width: 100%; white-space: pre;
 }
 .msg-bubble code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 .msg-bubble pre code { background: none; padding: 0; }
-.msg-bubble p:first-child { margin-top: 0; }
-.msg-bubble p:last-child { margin-bottom: 0; }
 .msg-time { font-size: 10px; color: #aaa; margin-top: 4px; padding: 0 4px; }
 .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .msg-images img { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; }
@@ -168,7 +166,6 @@ border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outli
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .stream-chunk { animation: fadeIn 0.3s ease; }
 
-/* ===== 悬浮操作菜单 ===== */
 .floating-menu-overlay { position: fixed; inset: 0; z-index: 50; background: transparent; }
 .floating-menu {
 position: absolute; background: #fff; border-radius: 12px;
@@ -182,7 +179,6 @@ border-bottom: 1px solid #f0f0f0; transition: background 0.12s; white-space: now
 .floating-menu-item:active { background: #f5f5f5; }
 .floating-menu-item.danger { color: #c0392b; }
 
-/* ===== 记忆页(Log) ===== */
 .memory-header { padding: 20px 20px 10px 20px; }
 .memory-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
 .memory-stats { font-size: 12px; color: #999; }
@@ -214,7 +210,6 @@ font-size: 14px; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
 }
 .memory-add-btn:active { transform: scale(0.97); opacity: 0.85; }
 
-/* ===== Space页 ===== */
 .space-section { padding: 24px 20px; }
 .space-section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; margin-top: 4px; }
 .space-label { font-size: 12px; color: #999; margin-bottom: 6px; letter-spacing: 0.5px; }
@@ -224,7 +219,6 @@ padding: 10px 14px; font-size: 14px; font-family: inherit;
 outline: none; margin-bottom: 14px; background: #fafafa;
 }
 .space-input:focus { border-color: #bbb; background: #fff; }
-
 .input-with-eye { position: relative; margin-bottom: 14px; }
 .input-with-eye .space-input { margin-bottom: 0; padding-right: 42px; width: 100%; }
 .eye-btn {
@@ -232,7 +226,6 @@ position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
 background: none; border: none; cursor: pointer; font-size: 16px;
 color: #999; padding: 0; line-height: 1;
 }
-
 .model-row { display: flex; gap: 8px; margin-bottom: 14px; }
 .model-row .space-input { margin-bottom: 0; flex: 1; }
 .load-model-btn {
@@ -242,7 +235,6 @@ white-space: nowrap; transition: transform 0.15s, background 0.15s; flex-shrink:
 }
 .load-model-btn:active { transform: scale(0.93); background: #e0e0e0; }
 .load-model-btn:disabled { opacity: 0.5; }
-
 #modelDropdown {
 background: #fafafa; border: 1px solid #eee; border-radius: 10px;
 margin-bottom: 14px; max-height: 180px; overflow-y: auto; display: none;
@@ -254,7 +246,6 @@ border-bottom: 1px solid #f0f0f0;
 .model-option:last-child { border-bottom: none; }
 .model-option:active { background: #ececec; }
 .model-option.selected { font-weight: 600; color: #222; }
-
 .space-btn-row { display: flex; gap: 10px; }
 .space-save-btn {
 background: #222; color: #fff; border: none; border-radius: 10px;
@@ -337,7 +328,6 @@ transition: transform 0.15s, color 0.15s; gap: 3px;
 .nav-icon { font-size: 18px; }
 #fileInputHidden { display: none; }
 
-/* ===== 副聊天预设弹层 & 设定弹层 ===== */
 .sheet-overlay {
 position: fixed; inset: 0; background: rgba(0,0,0,0.35);
 opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 30;
@@ -382,7 +372,6 @@ resize: vertical; outline: none; margin-bottom: 14px; background: #fafafa;
 }
 .settings-textarea:focus { border-color: #bbb; background: #fff; }
 
-/* ===== 计划备忘 ===== */
 .plan-section { padding: 20px 20px 10px 20px; }
 .plan-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .plan-title { font-size: 18px; font-weight: 700; }
@@ -396,7 +385,7 @@ border-radius: 10px; padding: 10px 12px;
 }
 .plan-check {
 width: 20px; height: 20px; border-radius: 50%; border: 2px solid #bbb;
-flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+flex-shrink:flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
 font-size: 12px; color: #fff; transition: background 0.15s, border-color 0.15s;
 }
 .plan-check.done { background: #444; border-color: #444; }
@@ -420,7 +409,6 @@ background: #222; color: #fff; border: none; border-radius: 16px;
 padding: 7px 16px; font-size: 13px; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
 }
 .diary-write-btn:active { transform: scale(0.94); opacity: 0.85; }
-
 .diary-filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .diary-filter-tag {
 font-size: 12.5px; padding: 6px 14px; border-radius: 14px; background: #f0f0f0;
@@ -428,7 +416,6 @@ color: #888; cursor: pointer; transition: background 0.15s, color 0.15s, transfo
 }
 .diary-filter-tag:active { transform: scale(0.94); }
 .diary-filter-tag.active { background: #222; color: #fff; }
-
 .diary-card { border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; background: #f7f7f7; }
 .diary-card.author-ranjun { background: #ededed; }
 .diary-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -492,7 +479,6 @@ padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; out
 margin-bottom: 14px;
 }
 
-/* ===== emoji 面板 ===== */
 #emojiOverlay {
 position: fixed; inset: 0; background: rgba(0,0,0,0.35);
 opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 40;
@@ -531,7 +517,6 @@ background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer
       <span class="avatar-emoji" style="display:flex;align-items:center;justify-content:center;height:100%;">🐾</span>
     </button>
   </div>
-  <!-- 多选工具栏 -->
   <div id="selectBar">
     <button id="selectCancelBtn">取消</button>
     <span id="selectCountLabel">已选 0 项</span>
@@ -668,7 +653,6 @@ background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer
 
 <div id="toast"></div>
 
-<!-- 副聊天预设弹层 -->
 <div class="sheet-overlay" id="presetOverlay">
   <div class="sheet-panel">
     <div class="preset-title" id="presetTitle">副聊天设定</div>
@@ -682,7 +666,6 @@ background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer
 </div>
 <input type="file" id="importFileHidden" accept="application/json">
 
-<!-- 然竣的设定弹层 -->
 <div class="sheet-overlay" id="settingsOverlay">
   <div class="sheet-panel">
     <div class="preset-title" id="settingsPanelTitle">然竣的设定</div>
@@ -735,17 +718,14 @@ let diaries = [];
 let diaryFilter = 'all';
 let emojiTargetDiaryId = null;
 
-/* ===== 生成状态 ===== */
 let mainGenerating = false;
 let mainAbortController = null;
 let subGenerating = false;
 let subAbortController = null;
 
-/* ===== 多选状态 ===== */
 let selectMode = false;
 let selectedIds = new Set();
 
-/* ===== 设定 ===== */
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
 我慢热、敏感，有点完美主义，不熟的时候懒得说话。熟了会松一点，但别指望我变撒娇鬼。我嘴硬，心软，该做的事默默做了不吭声。对ao偶尔有点小坏心思，但我绝不会"ao～ao～"那样叫她——大概吧。
@@ -790,7 +770,6 @@ function currentTimeLabel() {
 }
 document.getElementById('daysCount').textContent = '陪伴第 ' + calcDays() + ' 天';
 
-/* Toast */
 let toastTimer = null;
 function showToast(msg, duration = 2500) {
   const el = document.getElementById('toast');
@@ -821,6 +800,18 @@ function exitSelectMode() {
 
 function updateSelectBar() {
   document.getElementById('selectCountLabel').textContent = `已选 ${selectedIds.size} 项`;
+}
+
+function toggleSelect(msgId) {
+  if (selectedIds.has(msgId)) selectedIds.delete(msgId);
+  else selectedIds.add(msgId);
+  updateSelectBar();
+  const cb = chatScroll.querySelector(`[data-msg-id="${msgId}"] .msg-select-cb`);
+  if (cb) {
+    const checked = selectedIds.has(msgId);
+    cb.classList.toggle('checked', checked);
+    cb.textContent = checked ? '✓' : '';
+  }
 }
 
 function deleteSelected() {
@@ -1251,7 +1242,6 @@ function attachLongPress(el, msg, ctx) {
 
 function openMsgMenu(msg, ctx, x, y) {
   const items = [];
-  // 主聊天才有多选
   if (ctx === mainCtx) {
     items.push({ label: '多选', onClick: () => enterSelectMode() });
   }
@@ -1293,13 +1283,11 @@ function deleteMessage(msg, ctx) {
   const arr = ctx.getArray();
   const idx = arr.findIndex(m => m.id === msg.id);
   if (idx === -1) return;
-  // 保存当前滚动位置
   const page = document.getElementById(ctx.pageId);
   const savedScroll = page.scrollTop;
   arr.splice(idx, 1);
   ctx.persist();
   ctx.renderAll();
-  // 恢复滚动位置（双层RAF确保渲染完成后再恢复）
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       page.scrollTop = savedScroll;
@@ -1318,62 +1306,27 @@ function regenerateMessage(msg, ctx) {
 }
 
 function buildMsgRow(msg, ctx) {
-  const row = document.createElement('div');
+  const row  = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai');
   row.dataset.msgId = msg.id;
 
-  // 多选模式：整行可点，checkbox纯视觉
-  if (ctx === mainCtx && selectMode) {
-    row.style.cursor = 'pointer';
-    const isChecked = selectedIds.has(msg.id);
-    const cb = document.createElement('div');
-    cb.className = 'msg-select-cb' + (isChecked ? ' checked' : '');
-    cb.textContent = isChecked ? '✓' : '';
+  const isMultiSelectable = ctx === mainCtx && selectMode;
 
-    row.addEventListener('click', () => {
-      if (selectedIds.has(msg.id)) {
-        selectedIds.delete(msg.id);
-        cb.classList.remove('checked');
-        cb.textContent = '';
-      } else {
-        selectedIds.add(msg.id);
-        cb.classList.add('checked');
-        cb.textContent = '✓';
-      }
-      updateSelectBar();
-    });
-
-    const wrap = document.createElement('div');
-    wrap.className = 'msg-bubble-wrap';
-    buildBubbleContent(msg, wrap);
-    if (msg.role === 'ai') { row.appendChild(cb); row.appendChild(wrap); }
-    else { row.appendChild(wrap); row.appendChild(cb); }
-    return row;
+  // AI消息的勾选框放在气泡左边
+  if (isMultiSelectable && msg.role === 'ai') {
+    row.appendChild(buildSelectCb(msg));
   }
 
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble-wrap';
-  buildBubbleContent(msg, wrap);
-  row.appendChild(wrap);
-  if (ctx && !selectMode) attachLongPress(wrap, msg, ctx);
-  return row;
-}
-
-function buildBubbleContent(msg, wrap) {
   if (msg.images && msg.images.length > 0) {
-    const imgWrap = document.createElement('div');
-    imgWrap.className = 'msg-images';
-    msg.images.forEach(src => {
-      const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img);
-    });
+    const imgWrap = document.createElement('div'); imgWrap.className = 'msg-images';
+    msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); });
     wrap.appendChild(imgWrap);
   }
   if (msg.files && msg.files.length > 0) {
     const fw = document.createElement('div'); fw.className = 'msg-files';
-    msg.files.forEach(f => {
-      const c = document.createElement('span'); c.className = 'msg-file-chip';
-      c.textContent = '📎 ' + f.name; fw.appendChild(c);
-    });
+    msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); });
     wrap.appendChild(fw);
   }
   const bubble = document.createElement('div');
@@ -1386,35 +1339,28 @@ function buildBubbleContent(msg, wrap) {
   timeEl.className = 'msg-time';
   timeEl.textContent = msg.time;
   wrap.appendChild(timeEl);
-}
+  row.appendChild(wrap);
 
-  // user的checkbox放bubble之后
-  if (ctx === mainCtx && selectMode && msg.role === 'user') {
-    const cb = document.createElement('div');
-    cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : '');
-    cb.textContent = selectedIds.has(msg.id) ? '✓' : '';
-    cb.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (selectedIds.has(msg.id)) {
-        selectedIds.delete(msg.id);
-        cb.classList.remove('checked');
-        cb.textContent = '';
-      } else {
-        selectedIds.add(msg.id);
-        cb.classList.add('checked');
-        cb.textContent = '✓';
-      }
-      updateSelectBar();
-    });
-    row.appendChild(cb);
-    // 移除之前加的占位div
-    if (row.firstChild && row.firstChild.style && row.firstChild.style.flex === '1') {
-      row.removeChild(row.firstChild);
-    }
+  // user消息的勾选框放在气泡右边
+  if (isMultiSelectable && msg.role === 'user') {
+    row.appendChild(buildSelectCb(msg));
   }
 
-  if (ctx && !selectMode) attachLongPress(wrap, msg, ctx);
+  if (isMultiSelectable) {
+    // 整行可点选，不弹长按菜单
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => toggleSelect(msg.id));
+  } else if (ctx) {
+    attachLongPress(wrap, msg, ctx);
+  }
   return row;
+}
+
+function buildSelectCb(msg) {
+  const cb = document.createElement('div');
+  cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : '');
+  cb.textContent = selectedIds.has(msg.id) ? '✓' : '';
+  return cb;
 }
 
 function renderAllMessages() {
@@ -1847,7 +1793,6 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
 let currentPage = 'chat';
 function switchPage(pageName) {
   currentPage = pageName;
-  // 切页时退出多选模式
   if (selectMode && pageName !== 'chat') exitSelectMode();
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -2036,7 +1981,7 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
     },
     finalize(text) {
       bubbleEl.innerHTML = '';
-      try { bubbleEl.innerHTML = marked.parse(text); } catch(e) { bubbleEl.textContent = text; }
+      try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; }
       scrollFn();
     }
   };
