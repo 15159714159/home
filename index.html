@@ -158,6 +158,9 @@ overflow-x: auto; font-size: 13px; max-width: 100%; white-space: pre;
 .msg-files { font-size: 12px; color: #777; margin-bottom: 4px; }
 .msg-file-chip { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; display: inline-block; }
 
+/* [NEW-notice] 永久留存的系统提示行（偷跑写日记/留言），居中小灰字 */
+.msg-notice { text-align: center; font-size: 11px; color: #bbb; padding: 8px 0; word-break: break-word; user-select: none; -webkit-user-select: none; }
+
 .msg-edit-textarea {
 width: 100%; font-size: 15px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
 border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outline: none; background: #fff;
@@ -777,7 +780,7 @@ const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
 const LS_ROUNDCOUNT = 'nest_roundcount';
 
-/* [NEW-①] 日记按需注入触发关键词 */
+/* 日记按需注入触发关键词 */
 const DIARY_KEYWORDS = ['日记', '我写的', '你写的', '写的那篇', '那篇日记', '几号那篇'];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -1022,7 +1025,8 @@ function loadMessages() {
   let migrated = false;
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
-    if (m.role !== 'user' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
+    /* notice消息不需要versions */
+    if (m.role !== 'user' && m.role !== 'notice' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
   });
   if (migrated) persistMessages();
 }
@@ -1061,7 +1065,6 @@ function loadDiaries() {
     if (d.mood === undefined) { d.mood = ''; migrated = true; }
     if (d.fav === undefined) { d.fav = false; migrated = true; }
     if (!d.comments) { d.comments = []; migrated = true; }
-    /* [NEW-①] 日记已读标记迁移：然竣自己写的日记默认标已读(与注入无关)，ao写的默认未读 */
     if (d.ranjunRead === undefined) { d.ranjunRead = (d.author === 'ranjun'); migrated = true; }
   });
   if (migrated) persistDiaries();
@@ -1278,6 +1281,15 @@ function extractDiaryMarkers(text) {
   }).trim();
   return { cleanText, actions };
 }
+
+/* [NEW-notice] 往主聊天push一条永久小灰字notice */
+function pushChatNotice(text) {
+  const notice = { id: genId(), role: 'notice', text, time: timeStr() };
+  messages.push(notice);
+  persistMessages();
+  renderAllMessages();
+}
+
 function applyDiaryAction(action) {
   if (action.action === 'write') {
     diaries.push({
@@ -1287,6 +1299,7 @@ function applyDiaryAction(action) {
     });
     persistDiaries();
     renderDiaries();
+    pushChatNotice(`🐾 然竣偷偷写了篇日记 · ${fullTimeStr()}`);
     showToast('🐾你家猫偷跑去写日记了');
   } else if (action.action === 'comment') {
     let target = null;
@@ -1302,6 +1315,7 @@ function applyDiaryAction(action) {
       target.comments.push({ author: 'ranjun', text: action.content || '' });
       persistDiaries();
       renderDiaries();
+      pushChatNotice(`🐾 然竣在你的日记下留了言 · ${fullTimeStr()}`);
       showToast('🐾你家猫在你的日记下留了言');
     }
   }
@@ -1313,7 +1327,7 @@ function processDiaryMarkers(rawText) {
 }
 
 /* ============================================================
-[NEW-①] 日记按需注入：让然竣能读到日记去评论/回忆
+[REWORK] 日记按需注入：默认最近3篇全文 + 日期/关键词额外定位
 ============================================================ */
 function getLatestUserText() {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -1321,48 +1335,54 @@ function getLatestUserText() {
   }
   return '';
 }
+function trimText(t, max) {
+  if (!t) return '';
+  return t.length > max ? t.slice(0, max) + '…' : t;
+}
 function findDiaryByHint(text) {
-  // 尝试按日期定位，如"7月2日"、"7.2"
+  // 1. 按日期定位，如"7月2日"、"7.2"
   const dateMatch = text.match(/(\d{1,2})[月\.](\d{1,2})[日号]?/);
   if (dateMatch) {
     const mm = dateMatch[1], dd = dateMatch[2];
     const found = diaries.find(d => d.time && d.time.includes(`${mm}月${dd}日`));
     if (found) return found;
   }
+  // 2. 按关键词在日记正文中搜索（提取用户消息里较长的词）
+  const stripped = text.replace(/[的了吗呢啊哦呀我你他她它这那看请给发是不]/g, ' ');
+  const words = stripped.split(/\s+/).map(w => w.trim()).filter(w => w.length >= 2);
+  for (const w of words) {
+    if (DIARY_KEYWORDS.includes(w)) continue;
+    const found = diaries.find(d => d.text && d.text.includes(w));
+    if (found) return found;
+  }
   return null;
 }
 function buildDiaryInjection(userText) {
+  if (diaries.length === 0) return '';
   const blocks = [];
   const injectedIds = new Set();
 
-  // 1. ao写的、然竣还没读过的日记 → 常规注入一次
-  const unread = diaries.filter(d => d.author === 'ao' && !d.ranjunRead);
-  if (unread.length > 0) {
-    unread.forEach(d => {
-      blocks.push(`(${appUsername}最近写的日记 · ${d.time}${d.mood ? ' ' + d.mood : ''})\n${d.text}`);
-      d.ranjunRead = true;
-      injectedIds.add(d.id);
-    });
-    persistDiaries();
-  }
+  // 1. 默认注入最近3篇日记全文（不分作者、不看已读状态）
+  const recent = [...diaries].sort((a,b) => b.createdAt - a.createdAt).slice(0, 3);
+  recent.forEach(d => {
+    const authorLabel = d.author === 'ao' ? appUsername : appName;
+    blocks.push(`【${authorLabel}·${d.time}${d.mood ? ' ' + d.mood : ''}】\n${trimText(d.text, 300)}`);
+    injectedIds.add(d.id);
+  });
 
-  // 2. ao本轮提到日记相关线索 → 不限作者，重新注入对应那篇（找不到就注最近1篇）
+  // 2. 若本轮提到日记相关线索，额外定位一篇不在最近3篇内的（最多1篇）
   const mentionsDiary = DIARY_KEYWORDS.some(k => userText.includes(k));
   if (mentionsDiary) {
-    let target = findDiaryByHint(userText);
-    if (!target) {
-      const sorted = [...diaries].sort((a,b) => b.createdAt - a.createdAt);
-      target = sorted.find(d => !injectedIds.has(d.id));
-    }
-    if (target && !injectedIds.has(target.id)) {
-      const authorLabel = target.author === 'ao' ? appUsername : appName;
-      blocks.push(`(${authorLabel}的日记 · ${target.time}${target.mood ? ' ' + target.mood : ''})\n${target.text}`);
-      injectedIds.add(target.id);
+    const hinted = findDiaryByHint(userText);
+    if (hinted && !injectedIds.has(hinted.id)) {
+      const authorLabel = hinted.author === 'ao' ? appUsername : appName;
+      blocks.unshift(`【${authorLabel}·${hinted.time}${hinted.mood ? ' ' + hinted.mood : ''}】\n${trimText(hinted.text, 300)}`);
+      injectedIds.add(hinted.id);
     }
   }
 
   if (blocks.length === 0) return '';
-  return '\n\n【日记(仅供参考，别硬提)】\n' + blocks.join('\n\n');
+  return '\n\n【ao和然竣的日记（供你参考回忆）】\n' + blocks.join('\n\n');
 }
 
 /* ============================================================
@@ -1381,7 +1401,7 @@ async function triggerAutoSummary(atRound) {
   if (!cfg.endpoint || !cfg.key || !cfg.model) return;
 
   try {
-    const recentMsgs = messages.slice(-50).map(m => ({
+    const recentMsgs = messages.slice(-50).filter(m => m.role !== 'notice').map(m => ({
       role: m.role === 'user' ? 'user' : 'assistant',
       content: getMsgDisplayText(m)
     })).filter(m => m.content && m.content.trim());
@@ -1474,7 +1494,7 @@ const chatScroll = document.getElementById('chatScroll');
 const subchatScroll = document.getElementById('subchatScroll');
 
 function getMsgDisplayText(m) {
-  if (m.role !== 'user' && m.versions && m.versions.length > 0) {
+  if (m.role !== 'user' && m.role !== 'notice' && m.versions && m.versions.length > 0) {
     const idx = (m.versionIndex != null) ? m.versionIndex : m.versions.length - 1;
     return m.versions[idx];
   }
@@ -1537,6 +1557,11 @@ function attachLongPress(el, msg, ctx) {
 }
 
 function openMsgMenu(msg, ctx, x, y) {
+  /* [NEW-notice] notice消息只给删除 */
+  if (msg.role === 'notice') {
+    openFloatingMenu([{ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) }], x, y);
+    return;
+  }
   const items = [];
   if (ctx === mainCtx) {
     items.push({ label: '多选', onClick: () => enterSelectMode() });
@@ -1570,7 +1595,6 @@ function triggerEditMessage(msg, ctx) {
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
   ta.addEventListener('blur', () => {
     const val = ta.value;
-    /* [NEW-④] 空气泡保护：编辑清空不允许保存为空白，直接恢复原内容 */
     if (val.trim() === '') {
       showToast('内容不能是空的哦');
       refreshRow(msg, ctx);
@@ -1615,6 +1639,16 @@ function regenerateMessage(msg, ctx) {
 }
 
 function buildMsgRow(msg, ctx) {
+  /* [NEW-notice] notice消息：居中小灰字，不做气泡 */
+  if (msg.role === 'notice') {
+    const row = document.createElement('div');
+    row.className = 'msg-notice';
+    row.dataset.msgId = msg.id;
+    row.textContent = msg.text;
+    if (ctx) attachLongPress(row, msg, ctx);
+    return row;
+  }
+
   const row  = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai');
   row.dataset.msgId = msg.id;
@@ -2053,7 +2087,6 @@ diaryWriteOverlay.addEventListener('click', e => { if (e.target === diaryWriteOv
 document.getElementById('diarySaveBtn').addEventListener('click', () => {
   const text = diaryWriteTextarea.value.trim();
   if (!text) { showToast('写点什么吧'); return; }
-  /* [NEW-①] ao新写的日记默认标记然竣未读，等待按需注入 */
   diaries.push({ id: genId(), author:'ao', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false, ranjunRead:false });
   persistDiaries();
   renderDiaries();
@@ -2355,9 +2388,9 @@ async function callAPI(rerollTarget) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
 
-  /* [FIX] reroll时历史要截止到被reroll那条之前，不能把它自己也发过去 */
+  /* reroll时历史要截止到被reroll那条之前，且过滤掉notice消息不发给API */
   const rerollIdx = rerollTarget ? messages.findIndex(m => m.id === rerollTarget.id) : -1;
-  const sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx) : messages;
+  const sourceMsgs = (rerollIdx >= 0 ? messages.slice(0, rerollIdx) : messages).filter(m => m.role !== 'notice');
   const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
 
   const longMem   = memory.filter(m => m.layer === 'long');
@@ -2367,7 +2400,6 @@ async function callAPI(rerollTarget) {
   systemContent += (systemContent ? '\n\n' : '') + '【当前时间】' + currentTimeLabel();
   if (longMem.length > 0)   systemContent += '\n\n【长期记忆】\n' + longMem.map(m => m.content).join('\n');
   if (activeMem.length > 0) systemContent += '\n\n【近期记忆】\n' + activeMem.map(m => m.content).join('\n');
-  /* [NEW-①] 按需注入日记，放在近期记忆之后、对话正文之前 */
   const diaryInjection = buildDiaryInjection(getLatestUserText());
   if (diaryInjection) systemContent += diaryInjection;
 
@@ -2399,7 +2431,6 @@ async function callAPI(rerollTarget) {
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(chatScroll, 'page-chat'));
   let accumulated = '';
 
-  /* [NEW-④] 空气泡保护统一在finishWith里做：没吐出任何有效内容就不落地、不计轮次 */
   function finishWith(rawText) {
     if (!rawText || !rawText.trim()) {
       if (isReroll) {
@@ -2416,7 +2447,6 @@ async function callAPI(rerollTarget) {
     let cleanText = processMemoryMarkers(rawText);
     cleanText = processDiaryMarkers(cleanText);
 
-    // 剥完标记后如果啥都不剩（比如整条回复只是个memory/diary标记），同样不留空气泡
     if (!cleanText || !cleanText.trim()) {
       if (isReroll) {
         refreshRow(aiMsg, mainCtx);
@@ -2447,7 +2477,7 @@ async function callAPI(rerollTarget) {
       aiMsg.versions.push(joined);
       aiMsg.versionIndex = aiMsg.versions.length - 1;
       aiMsg.text = joined;
-      aiMsg.time = timeStr(); /* [NEW-②] reroll后同步刷新时间戳 */
+      aiMsg.time = timeStr();
     } else {
       aiMsg.versions[0] = cleanText;
       aiMsg.versionIndex = 0;
@@ -2513,7 +2543,6 @@ async function callSubChatAPI(rerollTarget) {
   const sc = subChats.find(s => s.id === currentSubChatId);
   if (!sc) return;
 
-  /* [FIX] 副聊天同样修复：reroll时历史截止到被reroll那条之前 */
   const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
   const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
@@ -2545,7 +2574,6 @@ async function callSubChatAPI(rerollTarget) {
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(subchatScroll, 'page-subchat'));
   let accumulated = '';
 
-  /* [NEW-④][NEW-②] 副聊天同样做空气泡保护 + reroll时间戳修复 */
   function finishWith(rawText) {
     if (!rawText || !rawText.trim()) {
       if (isReroll) {
