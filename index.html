@@ -149,9 +149,16 @@ user-select: none; -webkit-user-select: none;
 .msg-bubble pre {
 background: #2b2b2b; color: #eee; padding: 10px; border-radius: 8px;
 overflow-x: auto; font-size: 13px; max-width: 100%; white-space: pre;
+position: relative;
 }
 .msg-bubble code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 .msg-bubble pre code { background: none; padding: 0; }
+.code-copy-btn {
+position: absolute; top: 6px; right: 6px;
+background: rgba(255,255,255,0.15); color: #eee; border: none;
+border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer;
+}
+.code-copy-btn:active { transform: scale(0.9); }
 .msg-time { font-size: 10px; color: #aaa; margin-top: 4px; padding: 0 4px; }
 .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .msg-images img { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; }
@@ -735,6 +742,10 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
 <script>
 marked.setOptions({ breaks: true });
+/* [FIX-html] 关闭HTML直通：任何 <xxx> 标签只当纯文字显示，不再被当真标签渲染成界面 */
+const safeRenderer = new marked.Renderer();
+safeRenderer.html = (html) => html.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+marked.setOptions({ renderer: safeRenderer });
 
 let messages = [];
 let pendingAttachments = [];
@@ -1537,6 +1548,28 @@ function buildVersionSwitcher(msg, ctx) {
   return box;
 }
 
+/* [NEW-copybtn] 给气泡内所有代码块加「复制」按钮，点了整块复制走 */
+function addCopyButtons(bubble) {
+  bubble.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.code-copy-btn')) return;
+    const btn = document.createElement('button');
+    btn.className = 'code-copy-btn';
+    btn.textContent = '复制';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const codeEl = pre.querySelector('code');
+      const code = codeEl ? codeEl.innerText : pre.innerText;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+          btn.textContent = '已复制✓';
+          setTimeout(() => { btn.textContent = '复制'; }, 1500);
+        }).catch(() => showToast('复制失败'));
+      }
+    });
+    pre.appendChild(btn);
+  });
+}
+
 function attachLongPress(el, msg, ctx) {
   let startX = 0, startY = 0, timer = null;
   el.addEventListener('touchstart', (e) => {
@@ -1676,6 +1709,7 @@ function buildMsgRow(msg, ctx) {
   const displayText = getMsgDisplayText(msg);
   if (displayText && displayText.trim()) {
     try { bubble.innerHTML = marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
+    addCopyButtons(bubble);
   }
   wrap.appendChild(bubble);
 
@@ -2376,6 +2410,7 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
     finalize(text) {
       bubbleEl.innerHTML = '';
       try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; }
+      addCopyButtons(bubbleEl);
       scrollFn();
     }
   };
@@ -2446,6 +2481,10 @@ async function callAPI(rerollTarget) {
 
     let cleanText = processMemoryMarkers(rawText);
     cleanText = processDiaryMarkers(cleanText);
+
+    /* [FIX-splitmsg] 归一化各种变体（带空格/下划线/大小写/中文方括号）为标准 [splitmsg]，
+       防止我打变体时被 marked 吞掉、又匹配不到导致分条失效 */
+    cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
 
     if (!cleanText || !cleanText.trim()) {
       if (isReroll) {
