@@ -2355,7 +2355,10 @@ async function callAPI(rerollTarget) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
 
-  const apiMessages = messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
+  /* [FIX] reroll时历史要截止到被reroll那条之前，不能把它自己也发过去 */
+  const rerollIdx = rerollTarget ? messages.findIndex(m => m.id === rerollTarget.id) : -1;
+  const sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx) : messages;
+  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
 
   const longMem   = memory.filter(m => m.layer === 'long');
   const activeMem = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0)).slice(0, 8);
@@ -2491,7 +2494,6 @@ async function callAPI(rerollTarget) {
       finishWith(accumulated);
     } else {
       console.error(err);
-      /* [NEW-③] 统一走finishWith处理空气泡；有部分内容就保留，纯失败就清掉 */
       finishWith(accumulated);
       showToast('⚠️ 连接失败，请检查网络或API配置', 3500);
     }
@@ -2511,7 +2513,10 @@ async function callSubChatAPI(rerollTarget) {
   const sc = subChats.find(s => s.id === currentSubChatId);
   if (!sc) return;
 
-  const apiMessages = sc.messages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
+  /* [FIX] 副聊天同样修复：reroll时历史截止到被reroll那条之前 */
+  const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
+  const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
+  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
   if (sc.preset && sc.preset.trim()) apiMessages.unshift({ role: 'system', content: sc.preset.trim() });
 
   const isReroll = !!rerollTarget;
