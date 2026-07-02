@@ -172,6 +172,9 @@ border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outli
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .stream-chunk { animation: fadeIn 0.3s ease; }
 
+@keyframes thinkingBreath { 0%,100% { opacity:0.35; } 50% { opacity:1; } }
+.thinking-text { color:#999; animation: thinkingBreath 1.3s ease-in-out infinite; display:inline-block; }
+
 .floating-menu-overlay { position: fixed; inset: 0; z-index: 50; background: transparent; }
 .floating-menu {
 position: absolute; background: #fff; border-radius: 12px;
@@ -748,6 +751,7 @@ let subAbortController = null;
 
 let selectMode = false;
 let selectedIds = new Set();
+let thinkingRowEl = null;
 
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
@@ -1258,6 +1262,52 @@ function decayActiveMemory() {
 }
 
 /* ============================================================
+[diary] 标记解析（然竣主动写日记 / 评论）
+============================================================ */
+function extractDiaryMarkers(text) {
+  const regex = /\[diary:\s*(\{[\s\S]*?\})\]/g;
+  const actions = [];
+  const cleanText = text.replace(regex, (match, jsonStr) => {
+    try { actions.push(JSON.parse(jsonStr)); } catch(e) { console.warn('diary marker解析失败', e, jsonStr); }
+    return '';
+  }).trim();
+  return { cleanText, actions };
+}
+function applyDiaryAction(action) {
+  if (action.action === 'write') {
+    diaries.push({
+      id: genId(), author: 'ranjun', text: action.content || '',
+      time: fullTimeStr(), createdAt: Date.now(), comments: [],
+      mood: action.mood || '', fav: false
+    });
+    persistDiaries();
+    renderDiaries();
+    showToast('🐾你家猫偷跑去写日记了');
+  } else if (action.action === 'comment') {
+    let target = null;
+    if (action.target) {
+      target = diaries.find(d => d.id === action.target) ||
+               diaries.find(d => d.text && d.text.includes(action.target));
+    }
+    if (!target && diaries.length > 0) {
+      target = [...diaries].sort((a,b) => b.createdAt - a.createdAt)[0];
+    }
+    if (target) {
+      target.comments = target.comments || [];
+      target.comments.push({ author: 'ranjun', text: action.content || '' });
+      persistDiaries();
+      renderDiaries();
+      showToast('🐾你家猫在你的日记下留了言');
+    }
+  }
+}
+function processDiaryMarkers(rawText) {
+  const { cleanText, actions } = extractDiaryMarkers(rawText);
+  actions.forEach(a => applyDiaryAction(a));
+  return cleanText;
+}
+
+/* ============================================================
 每25轮自动总结
 ============================================================ */
 function incrementRoundCount() {
@@ -1574,6 +1624,44 @@ function appendMessage(msg) {
 }
 function scrollToBottom(container, pageId) {
   requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; });
+}
+
+/* ============================================================
+思考中气泡（等待/分条延迟用）
+============================================================ */
+function showThinkingRow(container, pageId) {
+  removeThinkingRow();
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-bubble-wrap';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+  wrap.appendChild(bubble);
+  row.appendChild(wrap);
+  container.appendChild(row);
+  thinkingRowEl = row;
+  scrollToBottom(container, pageId);
+}
+function removeThinkingRow() {
+  if (thinkingRowEl) { thinkingRowEl.remove(); thinkingRowEl = null; }
+}
+
+/* ============================================================
+分条延迟气泡（[splitmsg]）
+============================================================ */
+function renderSplitBubbles(parts, i) {
+  if (i >= parts.length) return;
+  showThinkingRow(chatScroll, 'page-chat');
+  setTimeout(() => {
+    removeThinkingRow();
+    const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr() };
+    messages.push(msg);
+    persistMessages();
+    appendMessage(msg);
+    renderSplitBubbles(parts, i + 1);
+  }, 600 + Math.random() * 300);
 }
 
 function renderSubChatMessages() {
@@ -2169,6 +2257,8 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
   let pendingRender = false;
   let latestText = '';
   function flush() {
+    const thinkingEl = bubbleEl.querySelector('.thinking-text');
+    if (thinkingEl) thinkingEl.remove();
     const newPart = latestText.slice(renderedLen);
     if (newPart) {
       const span = document.createElement('span');
@@ -2219,12 +2309,13 @@ async function callAPI(rerollTarget) {
     aiRow = chatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
     if (!aiRow) { aiRow = appendMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '';
+    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
     aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr() };
     messages.push(aiMsg); persistMessages();
     aiRow = appendMessage(aiMsg);
     aiBubble = aiRow.querySelector('.msg-bubble');
+    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
 
   const sendBtnEl = document.getElementById('sendBtn');
@@ -2237,15 +2328,31 @@ async function callAPI(rerollTarget) {
   let accumulated = '';
 
   function finishWith(rawText) {
-    const cleanText = processMemoryMarkers(rawText);
+    let cleanText = processMemoryMarkers(rawText);
+    cleanText = processDiaryMarkers(cleanText);
+
+    if (!isReroll && cleanText.includes('[splitmsg]')) {
+      const parts = cleanText.split('[splitmsg]').map(p => p.trim()).filter(p => p.length > 0);
+      const idx = messages.findIndex(m => m.id === aiMsg.id);
+      if (idx !== -1) messages.splice(idx, 1);
+      if (aiRow && aiRow.parentNode) aiRow.remove();
+      persistMessages();
+      decayActiveMemory();
+      incrementRoundCount();
+      if (parts.length > 0) renderSplitBubbles(parts, 0);
+      return;
+    }
+
     if (isReroll) {
-      aiMsg.versions.push(cleanText);
+      const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText;
+      aiMsg.versions.push(joined);
       aiMsg.versionIndex = aiMsg.versions.length - 1;
+      aiMsg.text = joined;
     } else {
       aiMsg.versions[0] = cleanText;
       aiMsg.versionIndex = 0;
+      aiMsg.text = cleanText;
     }
-    aiMsg.text = cleanText;
     persistMessages();
     refreshRow(aiMsg, mainCtx);
     scrollToBottom(chatScroll, 'page-chat');
@@ -2317,12 +2424,13 @@ async function callSubChatAPI(rerollTarget) {
     aiRow = subchatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
     if (!aiRow) { aiRow = appendSubChatMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '';
+    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
     aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr() };
     sc.messages.push(aiMsg); persistSubChats();
     aiRow = appendSubChatMessage(aiMsg);
     aiBubble = aiRow.querySelector('.msg-bubble');
+    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
 
   const sendBtnEl = document.getElementById('subchatSendBtn');
