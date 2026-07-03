@@ -24,18 +24,18 @@ position: relative; z-index: 10;
 width: 34px; height: 34px; border-radius: 50%;
 background: #f0f0f0; border: none; display: flex;
 align-items: center; justify-content: center; cursor: pointer;
-transition: transform 0.15s;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.round-btn:active { transform: scale(0.9); }
+.round-btn:active { transform: scale(0.9); opacity: 0.8; }
 .round-btn img, .round-btn .avatar-emoji { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 #pageTitle { flex: 1; text-align: center; margin: 0 10px; }
 .capsule {
 display: inline-block; padding: 6px 18px; background: #f5f5f5;
 border-radius: 20px; font-size: 14px; font-weight: 600;
-cursor: pointer; transition: transform 0.15s; max-width: 60%;
+cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease; max-width: 60%;
 overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.capsule:active { transform: scale(0.96); }
+.capsule:active { transform: scale(0.96); opacity: 0.85; }
 .capsule[contenteditable="true"] { outline: 2px solid #ccc; white-space: normal; }
 #topRightSlot { width: 34px; height: 34px; }
 
@@ -50,12 +50,16 @@ background: #fff; z-index: 12;
 #selectCancelBtn {
 background: none; border: none; font-size: 14px; color: #555;
 cursor: pointer; padding: 4px 8px;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
+#selectCancelBtn:active { transform: scale(0.92); opacity: 0.7; }
 #selectCountLabel { font-size: 14px; font-weight: 600; color: #222; }
 #selectDeleteBtn {
 background: none; border: none; font-size: 14px; color: #c0392b;
 cursor: pointer; padding: 4px 8px;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
+#selectDeleteBtn:active { transform: scale(0.92); opacity: 0.7; }
 
 .msg-select-cb {
 width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ccc;
@@ -86,9 +90,9 @@ overflow-y: auto;
 .side-avatar {
 width: 64px; height: 64px; border-radius: 50%; background: #ddd;
 display: flex; align-items: center; justify-content: center; font-size: 26px;
-margin-bottom: 10px; overflow: hidden; cursor: pointer; transition: transform 0.15s;
+margin-bottom: 10px; overflow: hidden; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.side-avatar:active { transform: scale(0.92); }
+.side-avatar:active { transform: scale(0.92); opacity: 0.85; }
 .side-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .side-name { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
 .side-since { font-size: 11px; color: #999; letter-spacing: 0.5px; }
@@ -96,34 +100,37 @@ margin-bottom: 10px; overflow: hidden; cursor: pointer; transition: transform 0.
 .side-divider { height: 1px; background: #e5e5e5; margin: 12px 0; }
 .side-nav-item {
 padding: 12px 10px; border-radius: 10px; font-size: 14px;
-cursor: pointer; transition: background 0.15s;
+cursor: pointer; transition: background 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
 }
-.side-nav-item:active { background: #eee; }
+.side-nav-item:active { background: #eee; transform: scale(0.98); }
 .side-nav-item.active { background: #ececec; font-weight: 600; }
 .side-subitem {
 padding: 10px 10px 10px 24px; font-size: 13px; color: #888; cursor: pointer;
-border-radius: 8px; transition: background 0.15s;
+border-radius: 8px; transition: background 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
 display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
-.side-subitem:active { background: #eee; }
+.side-subitem:active { background: #eee; transform: scale(0.98); }
 .side-subitem.active { background: #ececec; font-weight: 600; color: #333; }
 .side-subitem-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-subitem-del {
 flex-shrink: 0; background: none; border: none; color: #ccc; font-size: 13px;
-cursor: pointer; padding: 2px 4px; transition: color 0.15s, transform 0.15s;
+cursor: pointer; padding: 2px 4px; transition: color 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
 }
 .side-subitem-del:active { transform: scale(0.85); color: #999; }
 .side-subitem-empty { padding: 10px 10px 10px 24px; font-size: 13px; color: #ccc; }
 .side-new-btn {
 margin-top: 6px; padding: 10px; border-radius: 10px; font-size: 13px;
 text-align: center; color: #888; background: #f0f0f0; cursor: pointer;
-transition: transform 0.15s, background 0.15s;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.15s ease;
 }
 .side-new-btn:active { transform: scale(0.97); background: #e5e5e5; }
 
 #content { flex: 1; overflow: hidden; position: relative; }
-.page { position: absolute; inset: 0; overflow-y: auto; display: none; -webkit-overflow-scrolling: touch; }
-.page.active { display: block; }
+.page {
+position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s ease;
+}
+.page.active { opacity: 1; visibility: visible; pointer-events: auto; }
 .page-placeholder {
 height: 100%; display: flex; align-items: center; justify-content: center;
 color: #bbb; font-size: 14px;
@@ -157,9 +164,21 @@ position: relative;
 position: absolute; top: 6px; right: 6px;
 background: rgba(255,255,255,0.15); color: #eee; border: none;
 border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.code-copy-btn:active { transform: scale(0.9); }
+.code-copy-btn:active { transform: scale(0.9); opacity: 0.75; }
 .msg-time { font-size: 10px; color: #aaa; margin-top: 4px; padding: 0 4px; }
+.think-cloud {
+  font-size: 11px; color: #bbb; padding: 2px 10px; margin-bottom: 4px;
+  border-radius: 10px; cursor: pointer; user-select: none; -webkit-user-select: none;
+  transition: opacity 0.15s ease; align-self: flex-start;
+}
+.think-cloud:active { opacity: 0.6; }
+.think-content {
+  font-size: 12px; color: #aaa; line-height: 1.6; padding: 6px 10px 6px 12px;
+  margin-bottom: 4px; border-left: 2px solid #eee; white-space: pre-wrap; word-break: break-word;
+  max-width: 100%; align-self: flex-start;
+}
 .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .msg-images img { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; }
 .msg-files { font-size: 12px; color: #777; margin-bottom: 4px; }
@@ -173,9 +192,9 @@ border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outli
 }
 
 .msg-version-switcher { display:flex; align-items:center; gap:6px; margin-top:4px; padding:0 4px; }
-.version-arrow { background:none;border:none;font-size:13px;color:#999;cursor:pointer;padding:0 4px; transition:opacity .15s, transform .15s; }
+.version-arrow { background:none;border:none;font-size:13px;color:#999;cursor:pointer;padding:0 4px; transition: opacity .15s ease, transform .15s cubic-bezier(.34,1.56,.64,1); }
 .version-arrow:disabled { opacity:0.3; cursor:default; }
-.version-arrow:not(:disabled):active { transform:scale(0.8); }
+.version-arrow:not(:disabled):active { transform:scale(0.8); opacity:0.6; }
 .version-label { font-size:11px; color:#aaa; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -184,6 +203,9 @@ border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outli
 @keyframes thinkingBreath { 0%,100% { opacity:0.35; } 50% { opacity:1; } }
 .thinking-text { color:#999; animation: thinkingBreath 1.3s ease-in-out infinite; display:inline-block; }
 
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.msg-row.bubble-in { animation: bubbleIn 0.2s ease; }
+
 .floating-menu-overlay { position: fixed; inset: 0; z-index: 50; background: transparent; }
 .floating-menu {
 position: absolute; background: #fff; border-radius: 12px;
@@ -191,10 +213,10 @@ box-shadow: 0 4px 20px rgba(0,0,0,0.18); overflow: hidden; min-width: 120px;
 }
 .floating-menu-item {
 padding: 12px 18px; font-size: 14px; color: #333; cursor: pointer;
-border-bottom: 1px solid #f0f0f0; transition: background 0.12s; white-space: nowrap;
+border-bottom: 1px solid #f0f0f0; transition: background 0.12s ease, transform 0.1s ease; white-space: nowrap;
 }
 .floating-menu-item:last-child { border-bottom: none; }
-.floating-menu-item:active { background: #f5f5f5; }
+.floating-menu-item:active { background: #f5f5f5; transform: scale(0.98); }
 .floating-menu-item.danger { color: #c0392b; }
 
 .memory-header { padding: 20px 20px 6px 20px; }
@@ -207,7 +229,7 @@ border-bottom: 1px solid #f0f0f0; transition: background 0.12s; white-space: now
 .memory-card-big {
 aspect-ratio: 1/1; background:#f7f7f7; border-radius:18px; display:flex; flex-direction:column;
 align-items:center; justify-content:center; gap:6px; cursor:pointer; border:1px solid #ececec;
-transition:transform .15s, background .15s;
+transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s ease;
 }
 .memory-card-big:active { transform:scale(0.96); background:#efefef; }
 .memory-card-big .memory-card-emoji { font-size:30px; }
@@ -216,7 +238,7 @@ transition:transform .15s, background .15s;
 .memory-card-small {
 aspect-ratio: 1/1; background:#f7f7f7; border-radius:14px; display:flex; flex-direction:column;
 align-items:center; justify-content:center; gap:4px; cursor:pointer; border:1px solid #ececec;
-transition:transform .15s, background .15s;
+transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s ease;
 }
 .memory-card-small:active { transform:scale(0.94); background:#efefef; }
 .memory-card-small .memory-card-emoji { font-size:22px; }
@@ -247,14 +269,14 @@ border-radius: 8px; padding: 6px 8px; resize: vertical; min-height: 60px; outlin
 .memory-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 .mem-btn {
 background: none; border: none; font-size: 13px; color: #999; cursor: pointer; padding: 2px;
-transition: transform 0.15s;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.mem-btn:active { transform: scale(0.85); }
+.mem-btn:active { transform: scale(0.85); opacity: 0.7; }
 .memory-empty { text-align: center; color: #bbb; font-size: 13px; padding: 14px 0; }
 .memory-add-btn {
 display: block; margin: 10px 16px 20px 16px; width: calc(100% - 32px);
 background: #222; color: #fff; border: none; border-radius: 10px; padding: 10px;
-font-size: 14px; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
+font-size: 14px; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .memory-add-btn:active { transform: scale(0.97); opacity: 0.85; }
 
@@ -273,13 +295,15 @@ outline: none; margin-bottom: 14px; background: #fafafa;
 position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
 background: none; border: none; cursor: pointer; font-size: 16px;
 color: #999; padding: 0; line-height: 1;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
+.eye-btn:active { transform: translateY(-50%) scale(0.85); opacity: 0.7; }
 .model-row { display: flex; gap: 8px; margin-bottom: 14px; }
 .model-row .space-input { margin-bottom: 0; flex: 1; }
 .load-model-btn {
 background: #f0f0f0; border: none; border-radius: 10px;
 padding: 0 14px; font-size: 13px; color: #555; cursor: pointer;
-white-space: nowrap; transition: transform 0.15s, background 0.15s; flex-shrink: 0;
+white-space: nowrap; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.15s ease; flex-shrink: 0;
 }
 .load-model-btn:active { transform: scale(0.93); background: #e0e0e0; }
 .load-model-btn:disabled { opacity: 0.5; }
@@ -298,14 +322,14 @@ border-bottom: 1px solid #f0f0f0;
 .space-save-btn {
 background: #222; color: #fff; border: none; border-radius: 10px;
 padding: 10px 24px; font-size: 14px; cursor: pointer;
-transition: transform 0.15s, opacity 0.15s;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .space-save-btn:active { transform: scale(0.95); opacity: 0.8; }
 .space-divider { height: 1px; background: #eee; margin: 28px 0 20px 0; }
 .space-danger-btn {
 background: #fff; color: #c0392b; border: 1px solid #e8b4ac; border-radius: 10px;
 padding: 10px 24px; font-size: 14px; cursor: pointer;
-transition: transform 0.15s, opacity 0.15s;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .space-danger-btn:active { transform: scale(0.95); opacity: 0.8; }
 .space-hint { font-size: 12px; color: #bbb; margin-top: 8px; line-height: 1.5; }
@@ -337,7 +361,9 @@ font-size: 10px; color: #666; text-align: center; padding: 4px; word-break: brea
 position: absolute; top: -2px; right: -2px; width: 18px; height: 18px;
 background: rgba(0,0,0,0.6); color: #fff; border-radius: 50%; border: none;
 font-size: 11px; line-height: 18px; text-align: center; cursor: pointer; padding: 0;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
+.attach-remove:active { transform: scale(0.85); opacity: 0.7; }
 
 #inputBar, .subchat-inputbar {
 display: flex; align-items: flex-end; gap: 8px;
@@ -347,9 +373,9 @@ background: #fff; border-top: 1px solid #eee;
 #plusBtn {
 width: 36px; height: 36px; border-radius: 50%; background: #f0f0f0;
 border: none; font-size: 20px; color: #666; flex-shrink: 0; cursor: pointer;
-transition: transform 0.15s;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-#plusBtn:active { transform: scale(0.88); }
+#plusBtn:active { transform: scale(0.88); opacity: 0.8; }
 #textInput, .subchat-textinput {
 flex: 1; border: 1px solid #ddd; border-radius: 18px; padding: 9px 14px;
 font-size: 15px; resize: none; max-height: 100px; font-family: inherit; outline: none;
@@ -358,9 +384,9 @@ font-size: 15px; resize: none; max-height: 100px; font-family: inherit; outline:
 #sendBtn, .subchat-sendbtn {
 background: #222; color: #fff; border: none; border-radius: 18px;
 padding: 0 16px; height: 36px; font-size: 14px; cursor: pointer;
-flex-shrink: 0; transition: transform 0.15s, opacity 0.15s; min-width: 56px;
+flex-shrink: 0; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease; min-width: 56px;
 }
-#sendBtn:active, .subchat-sendbtn:active { transform: scale(0.92); }
+#sendBtn:active, .subchat-sendbtn:active { transform: scale(0.92); opacity: 0.85; }
 
 #bottomNav {
 display: flex; background: #fff; border-top: 1px solid #eee;
@@ -369,9 +395,9 @@ padding-bottom: env(safe-area-inset-bottom, 0px);
 .nav-tab {
 flex: 1; display: flex; flex-direction: column; align-items: center;
 padding: 8px 0 6px 0; cursor: pointer; color: #aaa; font-size: 10px;
-transition: transform 0.15s, color 0.15s; gap: 3px;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), color 0.15s ease; gap: 3px;
 }
-.nav-tab:active { transform: scale(0.92); }
+.nav-tab:active { transform: scale(0.92); opacity: 0.8; }
 .nav-tab.active { color: #222; font-weight: 600; }
 .nav-icon { font-size: 18px; }
 #fileInputHidden { display: none; }
@@ -398,9 +424,9 @@ margin-bottom: 14px;
 .preset-btn-row { display: flex; gap: 10px; }
 .preset-btn {
 flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; border: none; cursor: pointer;
-transition: transform 0.15s, opacity 0.15s;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.preset-btn:active { transform: scale(0.96); }
+.preset-btn:active { transform: scale(0.96); opacity: 0.85; }
 .preset-btn.primary { background: #222; color: #fff; }
 .preset-btn.secondary { background: #f0f0f0; color: #555; }
 #importFileHidden { display: none; }
@@ -434,16 +460,17 @@ border-radius: 10px; padding: 10px 12px;
 .plan-check {
 width: 20px; height: 20px; border-radius: 50%; border: 2px solid #bbb;
 flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
-font-size: 12px; color: #fff; transition: background 0.15s, border-color 0.15s;
+font-size: 12px; color: #fff; transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
 }
+.plan-check:active { transform: scale(0.85); }
 .plan-check.done { background: #444; border-color: #444; }
 .plan-text { flex: 1; font-size: 14px; color: #333; word-break: break-word; }
 .plan-text.done { text-decoration: line-through; color: #bbb; }
-.plan-del { background: none; border: none; color: #ccc; font-size: 13px; cursor: pointer; flex-shrink: 0; }
-.plan-del:active { transform: scale(0.85); }
+.plan-del { background: none; border: none; color: #ccc; font-size: 13px; cursor: pointer; flex-shrink: 0; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease; }
+.plan-del:active { transform: scale(0.85); opacity: 0.7; }
 .plan-add-btn {
 margin-top: 10px; padding: 9px; border-radius: 10px; font-size: 13px; text-align: center;
-color: #888; background: #f0f0f0; cursor: pointer; transition: transform 0.15s, background 0.15s;
+color: #888; background: #f0f0f0; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.15s ease;
 }
 .plan-add-btn:active { transform: scale(0.97); background: #e5e5e5; }
 .plan-empty { text-align: center; color: #ccc; font-size: 13px; padding: 10px 0; }
@@ -454,15 +481,15 @@ color: #888; background: #f0f0f0; cursor: pointer; transition: transform 0.15s, 
 .diary-title { font-size: 18px; font-weight: 700; }
 .diary-write-btn {
 background: #222; color: #fff; border: none; border-radius: 16px;
-padding: 7px 16px; font-size: 13px; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
+padding: 7px 16px; font-size: 13px; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .diary-write-btn:active { transform: scale(0.94); opacity: 0.85; }
 .diary-filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .diary-filter-tag {
 font-size: 12.5px; padding: 6px 14px; border-radius: 14px; background: #f0f0f0;
-color: #888; cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.15s;
+color: #888; cursor: pointer; transition: background 0.15s ease, color 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
 }
-.diary-filter-tag:active { transform: scale(0.94); }
+.diary-filter-tag:active { transform: scale(0.94); opacity: 0.85; }
 .diary-filter-tag.active { background: #222; color: #fff; }
 .diary-card { border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; background: #f7f7f7; }
 .diary-card.author-ranjun { background: #ededed; }
@@ -477,9 +504,9 @@ background: #e5e5e5; color: #555;
 .diary-card-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .diary-action-btn {
 background: none; border: none; font-size: 14px; cursor: pointer; padding: 3px 5px;
-color: #bbb; transition: transform 0.15s, color 0.15s;
+color: #bbb; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), color 0.15s ease, opacity 0.15s ease;
 }
-.diary-action-btn:active { transform: scale(0.85); }
+.diary-action-btn:active { transform: scale(0.85); opacity: 0.7; }
 .diary-action-btn.fav-on { color: #f5b301; }
 .diary-more-btn { font-size: 16px; font-weight: 700; letter-spacing: -1px; }
 .diary-text { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word; margin-bottom: 8px; }
@@ -504,8 +531,9 @@ font-size: 12.5px; outline: none; font-family: inherit;
 .diary-comment-send {
 background: #eee; border: none; border-radius: 14px; padding: 0 12px;
 font-size: 12px; color: #555; cursor: pointer; flex-shrink: 0;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.diary-comment-send:active { transform: scale(0.92); }
+.diary-comment-send:active { transform: scale(0.92); opacity: 0.8; }
 .diary-empty { text-align: center; color: #ccc; font-size: 13px; padding: 30px 0; }
 
 #diaryWriteOverlay {
@@ -541,20 +569,25 @@ width: 82%; max-width: 320px;
 .emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 10px; }
 .emoji-option {
 font-size: 22px; text-align: center; padding: 6px 0; border-radius: 10px;
-cursor: pointer; transition: background 0.15s, transform 0.15s;
+cursor: pointer; transition: background 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
 }
 .emoji-option:active { transform: scale(0.85); background: #f0f0f0; }
 .emoji-clear-btn {
 display: block; width: 100%; margin-top: 6px; padding: 8px; border-radius: 10px;
 background: #f0f0f0; border: none; color: #888; font-size: 13px; cursor: pointer;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.emoji-clear-btn:active { transform: scale(0.96); }
+.emoji-clear-btn:active { transform: scale(0.96); opacity: 0.85; }
 
 #clearChatOverlay { align-items: center; justify-content: center; }
 #clearChatOverlay .sheet-panel {
 border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 }
 #clearChatTitle { text-align: center; }
+
+.msg-time, .diary-time, .side-days, #tokenEstimateLabel, .version-label, .plan-progress-text, .memory-card-count, .memory-stats {
+  font-variant-numeric: tabular-nums;
+}
 </style>
 </head>
 <body>
@@ -1326,7 +1359,6 @@ document.getElementById('memoryAddBtn').addEventListener('click', () => {
     if (btn) btn.click();
   });
 });
-
 /* ============================================================
 [memory_update] 标记解析（支持 type/emotion/tags）
 ============================================================ */
@@ -1528,7 +1560,7 @@ function processDiaryMarkers(rawText) {
 }
 
 /* ============================================================
-[日记按需注入重构] 只注入ranjunRead为false的ao日记，读过标记已读；
+[日记按需注入] 只注入ranjunRead为false的ao日记，读过标记已读；
 提到日记关键词才重新定位指定那篇（含然竣自己写的）
 ============================================================ */
 function getLatestUserText() {
@@ -1743,6 +1775,19 @@ clearChatBtn2.addEventListener('click', () => {
   }
 });
 clearChatOverlay.addEventListener('click', e => { if (e.target === clearChatOverlay) clearChatOverlay.classList.remove('show'); });
+/* ============================================================
+[思维链解析] 有则显示小云朵，无则不显示
+============================================================ */
+function extractThinking(rawText) {
+  let thinking = '';
+  let cleanText = rawText;
+  const thinkMatch = rawText.match(/<think>([\s\S]*?)<\/think>/i);
+  if (thinkMatch) {
+    thinking = thinkMatch[1].trim();
+    cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
+  }
+  return { thinking, cleanText };
+}
 
 /* ============================================================
 渲染：消息气泡
@@ -1941,6 +1986,25 @@ function buildMsgRow(msg, ctx) {
 
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble-wrap';
+
+  /* [思维链小云朵] 有thinking字段才显示，点击展开/收起 */
+  if (msg.role !== 'user' && msg.thinking && msg.thinking.trim()) {
+    const cloud = document.createElement('div');
+    cloud.className = 'think-cloud';
+    cloud.textContent = '☁️ -thinking-';
+    const thinkBody = document.createElement('div');
+    thinkBody.className = 'think-content';
+    thinkBody.textContent = msg.thinking;
+    thinkBody.style.display = 'none';
+    cloud.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const showing = thinkBody.style.display !== 'none';
+      thinkBody.style.display = showing ? 'none' : 'block';
+    });
+    wrap.appendChild(cloud);
+    wrap.appendChild(thinkBody);
+  }
+
   if (msg.images && msg.images.length > 0) {
     const imgWrap = document.createElement('div'); imgWrap.className = 'msg-images';
     msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); });
@@ -1997,6 +2061,7 @@ function renderAllMessages() {
 }
 function appendMessage(msg) {
   const row = buildMsgRow(msg, mainCtx);
+  row.classList.add('bubble-in');
   chatScroll.appendChild(row);
   scrollToBottom(chatScroll, 'page-chat');
   return row;
@@ -2011,7 +2076,7 @@ function scrollToBottom(container, pageId) {
 function showThinkingRow(container, pageId) {
   removeThinkingRow();
   const row = document.createElement('div');
-  row.className = 'msg-row ai';
+  row.className = 'msg-row ai bubble-in';
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble-wrap';
   const bubble = document.createElement('div');
@@ -2052,11 +2117,11 @@ function renderSubChatMessages() {
 }
 function appendSubChatMessage(msg) {
   const row = buildMsgRow(msg, subCtx);
+  row.classList.add('bubble-in');
   subchatScroll.appendChild(row);
   scrollToBottom(subchatScroll, 'page-subchat');
   return row;
 }
-
 /* ============================================================
 侧边栏：副聊天列表
 ============================================================ */
@@ -2708,7 +2773,7 @@ async function callAPI(rerollTarget) {
     aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false, thinking:'' };
     messages.push(aiMsg); persistMessages();
     aiRow = appendMessage(aiMsg);
     aiBubble = aiRow.querySelector('.msg-bubble');
@@ -2723,8 +2788,9 @@ async function callAPI(rerollTarget) {
 
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(chatScroll, 'page-chat'));
   let accumulated = '';
+  let accumulatedReasoning = '';
 
-  function finishWith(rawText) {
+  function finishWith(rawText, reasoningText) {
     if (!rawText || !rawText.trim()) {
       if (isReroll) {
         refreshRow(aiMsg, mainCtx);
@@ -2737,7 +2803,16 @@ async function callAPI(rerollTarget) {
       return;
     }
 
-    let cleanText = processMemoryMarkers(rawText);
+    /* [思维链提取] 优先用reasoning字段，否则从<think>标签里抠 */
+    let thinking = reasoningText || '';
+    let bodyText = rawText;
+    if (!thinking) {
+      const extracted = extractThinking(rawText);
+      thinking = extracted.thinking;
+      bodyText = extracted.cleanText;
+    }
+
+    let cleanText = processMemoryMarkers(bodyText);
     cleanText = processDiaryMarkers(cleanText);
 
     cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
@@ -2774,11 +2849,13 @@ async function callAPI(rerollTarget) {
       aiMsg.versionIndex = aiMsg.versions.length - 1;
       aiMsg.text = joined;
       aiMsg.time = timeStr();
+      aiMsg.thinking = thinking;
     } else {
       aiMsg.versions[0] = cleanText;
       aiMsg.versionIndex = 0;
       aiMsg.text = cleanText;
       aiMsg.archived = false;
+      aiMsg.thinking = thinking;
     }
     persistMessages();
     refreshRow(aiMsg, mainCtx);
@@ -2808,21 +2885,24 @@ async function callAPI(rerollTarget) {
         const data = line.slice(6).trim();
         if (data === '[DONE]') break;
         try {
-          const delta = JSON.parse(data).choices?.[0]?.delta?.content || '';
+          const deltaObj = JSON.parse(data).choices?.[0]?.delta || {};
+          const delta = deltaObj.content || '';
+          const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || '';
+          if (reasoningDelta) accumulatedReasoning += reasoningDelta;
           accumulated += delta;
           renderer.push(accumulated);
         } catch(_) {}
       }
     }
 
-    finishWith(accumulated);
+    finishWith(accumulated, accumulatedReasoning);
 
   } catch(err) {
     if (err.name === 'AbortError') {
-      finishWith(accumulated);
+      finishWith(accumulated, accumulatedReasoning);
     } else {
       console.error(err);
-      finishWith(accumulated);
+      finishWith(accumulated, accumulatedReasoning);
       showToast('⚠️ 连接失败，请检查网络或API配置', 3500);
     }
   } finally {
@@ -2856,7 +2936,7 @@ async function callSubChatAPI(rerollTarget) {
     aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr() };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), thinking:'' };
     sc.messages.push(aiMsg); persistSubChats();
     aiRow = appendSubChatMessage(aiMsg);
     aiBubble = aiRow.querySelector('.msg-bubble');
@@ -2871,8 +2951,9 @@ async function callSubChatAPI(rerollTarget) {
 
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(subchatScroll, 'page-subchat'));
   let accumulated = '';
+  let accumulatedReasoning = '';
 
-  function finishWith(rawText) {
+  function finishWith(rawText, reasoningText) {
     if (!rawText || !rawText.trim()) {
       if (isReroll) {
         refreshRow(aiMsg, subCtx);
@@ -2884,15 +2965,26 @@ async function callSubChatAPI(rerollTarget) {
       }
       return;
     }
+
+    let thinking = reasoningText || '';
+    let bodyText = rawText;
+    if (!thinking) {
+      const extracted = extractThinking(rawText);
+      thinking = extracted.thinking;
+      bodyText = extracted.cleanText;
+    }
+
     if (isReroll) {
-      aiMsg.versions.push(rawText);
+      aiMsg.versions.push(bodyText);
       aiMsg.versionIndex = aiMsg.versions.length - 1;
       aiMsg.time = timeStr();
+      aiMsg.thinking = thinking;
     } else {
-      aiMsg.versions[0] = rawText;
+      aiMsg.versions[0] = bodyText;
       aiMsg.versionIndex = 0;
+      aiMsg.thinking = thinking;
     }
-    aiMsg.text = rawText;
+    aiMsg.text = bodyText;
     persistSubChats();
     refreshRow(aiMsg, subCtx);
     scrollToBottom(subchatScroll, 'page-subchat');
@@ -2918,21 +3010,24 @@ async function callSubChatAPI(rerollTarget) {
         const data = line.slice(6).trim();
         if (data === '[DONE]') break;
         try {
-          const delta = JSON.parse(data).choices?.[0]?.delta?.content || '';
+          const deltaObj = JSON.parse(data).choices?.[0]?.delta || {};
+          const delta = deltaObj.content || '';
+          const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || '';
+          if (reasoningDelta) accumulatedReasoning += reasoningDelta;
           accumulated += delta;
           renderer.push(accumulated);
         } catch(_) {}
       }
     }
 
-    finishWith(accumulated);
+    finishWith(accumulated, accumulatedReasoning);
 
   } catch(err) {
     if (err.name === 'AbortError') {
-      finishWith(accumulated);
+      finishWith(accumulated, accumulatedReasoning);
     } else {
       console.error(err);
-      finishWith(accumulated);
+      finishWith(accumulated, accumulatedReasoning);
       showToast('⚠️ 连接失败，请检查网络或API配置', 3500);
     }
   } finally {
