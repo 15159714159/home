@@ -201,14 +201,30 @@ border-bottom: 1px solid #f0f0f0; transition: background 0.12s; white-space: now
 .memory-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
 .memory-stats { font-size: 12px; color: #999; }
 .memory-hint { font-size: 11px; color: #ccc; margin-top: 6px; line-height: 1.5; }
-.memory-group { margin-bottom: 2px; }
-.memory-group-header {
-display: flex; align-items: center; gap: 6px; padding: 12px 16px 8px 16px;
-font-size: 13px; font-weight: 700; color: #888; cursor: pointer; user-select: none;
-}
-.memory-group-arrow { font-size: 11px; color: #bbb; width: 10px; display: inline-block; }
-.memory-group-count { margin-left: auto; font-size: 11px; color: #ccc; font-weight: 400; }
 .memory-list { padding: 0 16px; }
+.memory-grid-top { display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding: 6px 16px 8px 16px; }
+.memory-grid-bottom { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; padding: 0 16px 20px 16px; }
+.memory-card-big {
+aspect-ratio: 1/1; background:#f7f7f7; border-radius:18px; display:flex; flex-direction:column;
+align-items:center; justify-content:center; gap:6px; cursor:pointer; border:1px solid #ececec;
+transition:transform .15s, background .15s;
+}
+.memory-card-big:active { transform:scale(0.96); background:#efefef; }
+.memory-card-big .memory-card-emoji { font-size:30px; }
+.memory-card-big .memory-card-label { font-size:14px; font-weight:600; color:#333; }
+.memory-card-big .memory-card-count { font-size:11px; color:#aaa; }
+.memory-card-small {
+aspect-ratio: 1/1; background:#f7f7f7; border-radius:14px; display:flex; flex-direction:column;
+align-items:center; justify-content:center; gap:4px; cursor:pointer; border:1px solid #ececec;
+transition:transform .15s, background .15s;
+}
+.memory-card-small:active { transform:scale(0.94); background:#efefef; }
+.memory-card-small .memory-card-emoji { font-size:22px; }
+.memory-card-small .memory-card-label { font-size:11.5px; font-weight:600; color:#444; text-align:center; }
+.memory-card-small .memory-card-count { font-size:10px; color:#bbb; }
+.memory-detail-header { display:flex; align-items:center; gap:10px; padding: 8px 16px 12px 16px; }
+.memory-back-arrow { font-size:22px; color:#888; cursor:pointer; padding:0 4px; line-height:1; }
+.memory-detail-title { font-size:15px; font-weight:700; color:#333; }
 .memory-item {
 display: flex; align-items: flex-start; justify-content: space-between;
 background: #f7f7f7; border-radius: 10px; padding: 9px 10px; margin-bottom: 6px;
@@ -644,6 +660,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-btn-row">
         <button class="space-save-btn" id="cfgSaveBtn">保存</button>
       </div>
+      <div class="space-hint" id="tokenEstimateLabel">当前上下文约 ~0k tokens</div>
 
       <div class="space-divider"></div>
 
@@ -766,7 +783,6 @@ let plans = [];
 let diaries = [];
 let diaryFilter = 'all';
 let emojiTargetDiaryId = null;
-let roundCount = 0;
 
 let mainGenerating = false;
 let mainAbortController = null;
@@ -779,16 +795,21 @@ let thinkingRowEl = null;
 
 /* [记忆分类] */
 const MEMORY_TYPE_CONFIG = [
-  { key: 'you', label: '🌱 关于你' },
-  { key: 'us', label: '💛 关于我们' },
-  { key: 'study', label: '📚 学习·DSE' },
-  { key: 'nest', label: '🛠️ 筑巢杂事' },
-  { key: 'legacy', label: '📦 待整理' }
+  { key: 'you', emoji: '🌱', name: '关于你', size: 'big' },
+  { key: 'us', emoji: '💛', name: '关于我们', size: 'big' },
+  { key: 'study', emoji: '📚', name: '学习·DSE', size: 'small' },
+  { key: 'nest', emoji: '🛠️', name: '筑巢·杂事', size: 'small' },
+  { key: 'legacy', emoji: '📥', name: '待整理', size: 'small' }
 ];
-let collapsedGroups = new Set(['you','us','study','nest','legacy']);
+let memoryDetailType = null;
 
 const STUDY_KEYWORDS = ['学习','英语','DSE','补习','作业','考试','单词','语法','阅读','写作','听力','温习','复习'];
 const NEST_KEYWORDS = ['家','代码','bug','功能','筑巢','网页','前端','然竣和ao','这个页面'];
+
+/* [窗口/归档] */
+const WINDOW_CHAR_LIMIT = 6000;
+const ARCHIVE_TRIGGER_CHARS = 3000;
+let archiving = false;
 
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
@@ -812,7 +833,6 @@ const LS_DIARIES  = 'nest_diaries';
 const LS_USERNAME = 'nest_username';
 const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
-const LS_ROUNDCOUNT = 'nest_roundcount';
 
 const DIARY_KEYWORDS = ['日记', '我写的', '你写的', '写的那篇', '那篇日记', '几号那篇'];
 
@@ -956,17 +976,6 @@ function applyGlobalNames() {
 }
 
 /* ============================================================
-持久化：轮次计数
-============================================================ */
-function loadRoundCount() {
-  const r = localStorage.getItem(LS_ROUNDCOUNT);
-  roundCount = r ? (parseInt(r, 10) || 0) : 0;
-}
-function persistRoundCount() {
-  localStorage.setItem(LS_ROUNDCOUNT, String(roundCount));
-}
-
-/* ============================================================
 API 配置
 ============================================================ */
 function loadConfig() {
@@ -1059,6 +1068,7 @@ function loadMessages() {
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
     if (m.role !== 'user' && m.role !== 'notice' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
+    if (m.archived === undefined) { m.archived = true; migrated = true; } /* 旧消息默认已归档，避免升级后一次性触发大总结 */
   });
   if (migrated) persistMessages();
 }
@@ -1123,8 +1133,7 @@ document.getElementById('exportBackupBtn').addEventListener('click', () => {
     nest_username: localStorage.getItem(LS_USERNAME),
     nest_name: localStorage.getItem(LS_NAME),
     nest_persona: localStorage.getItem(LS_PERSONA),
-    nest_config: localStorage.getItem(LS_CONFIG),
-    nest_roundcount: localStorage.getItem(LS_ROUNDCOUNT)
+    nest_config: localStorage.getItem(LS_CONFIG)
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1179,17 +1188,11 @@ function normalizeMemTags(tags) {
 }
 
 /* ============================================================
-记忆区 UI（分类分组+折叠+瘦身）
+记忆区 UI：方形卡片格 + 点进详情
 ============================================================ */
 function estimateTokens() {
   const totalChars = memory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
   return Math.round(totalChars / 4);
-}
-
-function toggleMemoryGroup(key) {
-  if (collapsedGroups.has(key)) collapsedGroups.delete(key);
-  else collapsedGroups.add(key);
-  renderMemoryList();
 }
 
 function buildMemoryItem(m) {
@@ -1267,43 +1270,56 @@ function buildMemoryItem(m) {
   return item;
 }
 
+function renderMemoryGrid(container) {
+  const top = document.createElement('div');
+  top.className = 'memory-grid-top';
+  const bottom = document.createElement('div');
+  bottom.className = 'memory-grid-bottom';
+  MEMORY_TYPE_CONFIG.forEach(cfg => {
+    const count = memory.filter(m => (m.type || 'legacy') === cfg.key).length;
+    const card = document.createElement('div');
+    card.className = cfg.size === 'big' ? 'memory-card-big' : 'memory-card-small';
+    card.innerHTML = `<div class="memory-card-emoji">${cfg.emoji}</div><div class="memory-card-label">${cfg.name}</div><div class="memory-card-count">${count}条</div>`;
+    card.addEventListener('click', () => { memoryDetailType = cfg.key; renderMemoryList(); });
+    (cfg.size === 'big' ? top : bottom).appendChild(card);
+  });
+  container.appendChild(top);
+  container.appendChild(bottom);
+}
+
+function renderMemoryDetail(typeKey, container) {
+  const cfg = MEMORY_TYPE_CONFIG.find(c => c.key === typeKey);
+  const backRow = document.createElement('div');
+  backRow.className = 'memory-detail-header';
+  backRow.innerHTML = `<span class="memory-back-arrow">‹</span><span class="memory-detail-title">${cfg.emoji} ${cfg.name}</span>`;
+  backRow.querySelector('.memory-back-arrow').addEventListener('click', () => { memoryDetailType = null; renderMemoryList(); });
+  container.appendChild(backRow);
+
+  const items = memory.filter(m => (m.type || 'legacy') === typeKey);
+  const listEl = document.createElement('div');
+  listEl.className = 'memory-list';
+  if (items.length === 0) {
+    const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '暂无'; listEl.appendChild(e);
+  } else {
+    const longItems = items.filter(m => m.layer === 'long');
+    const activeItems = items.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
+    [...longItems, ...activeItems].forEach(m => listEl.appendChild(buildMemoryItem(m)));
+  }
+  container.appendChild(listEl);
+}
+
 function renderMemoryList() {
   document.getElementById('memoryStats').textContent = `共 ${memory.length} 条 · 约 ${estimateTokens()} tokens`;
   const groupsEl = document.getElementById('memoryGroups');
   groupsEl.innerHTML = '';
-
-  MEMORY_TYPE_CONFIG.forEach(cfg => {
-    const items = memory.filter(m => (m.type || 'legacy') === cfg.key);
-    const groupEl = document.createElement('div');
-    groupEl.className = 'memory-group';
-
-    const headerEl = document.createElement('div');
-    headerEl.className = 'memory-group-header';
-    const collapsed = collapsedGroups.has(cfg.key);
-    headerEl.innerHTML = `<span class="memory-group-arrow">${collapsed ? '▸' : '▾'}</span><span>${cfg.label}</span><span class="memory-group-count">${items.length}条</span>`;
-    headerEl.addEventListener('click', () => toggleMemoryGroup(cfg.key));
-    groupEl.appendChild(headerEl);
-
-    if (!collapsed) {
-      const listEl = document.createElement('div');
-      listEl.className = 'memory-list';
-      if (items.length === 0) {
-        const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '暂无'; listEl.appendChild(e);
-      } else {
-        const longItems = items.filter(m => m.layer === 'long');
-        const activeItems = items.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
-        [...longItems, ...activeItems].forEach(m => listEl.appendChild(buildMemoryItem(m)));
-      }
-      groupEl.appendChild(listEl);
-    }
-    groupsEl.appendChild(groupEl);
-  });
+  if (memoryDetailType) renderMemoryDetail(memoryDetailType, groupsEl);
+  else renderMemoryGrid(groupsEl);
 }
 
 document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const id = genId();
-  collapsedGroups.delete('legacy');
   memory.push({ id, content:'', time: timeStr(), layer:'long', type:'legacy', emotion:2, tags:[] });
+  memoryDetailType = 'legacy';
   persistMemory(); renderMemoryList();
   requestAnimationFrame(() => {
     const btn = document.querySelector(`.memory-item[data-mem-id="${id}"] .edit-btn`);
@@ -1388,7 +1404,7 @@ function processMemoryMarkers(rawText) {
   return cleanText;
 }
 
-/* [情绪权重衰减] 情绪越高衰减越慢；权重不再归零删除，只在低于0.05时退出常规注入池 */
+/* [情绪权重衰减] 情绪越高衰减越慢；权重不再归零删除 */
 function decayActiveMemory() {
   let changed = false;
   memory.forEach(m => {
@@ -1403,7 +1419,7 @@ function decayActiveMemory() {
 }
 
 /* ============================================================
-[记忆注入策略重构] 温度打底 + 场景触发 + tag捞回
+[记忆注入策略] 温度打底 + 场景触发 + tag捞回
 ============================================================ */
 function scoreMemory(m) {
   if (m.layer === 'long') return 1000 + (m.emotion || 2);
@@ -1512,7 +1528,8 @@ function processDiaryMarkers(rawText) {
 }
 
 /* ============================================================
-日记按需注入：默认最近3篇全文 + 日期/关键词额外定位
+[日记按需注入重构] 只注入ranjunRead为false的ao日记，读过标记已读；
+提到日记关键词才重新定位指定那篇（含然竣自己写的）
 ============================================================ */
 function getLatestUserText() {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -1540,16 +1557,22 @@ function findDiaryByHint(text) {
   }
   return null;
 }
+function estimateDiaryChars() {
+  const unread = diaries.filter(d => d.author === 'ao' && !d.ranjunRead);
+  return unread.reduce((s,d) => s + Math.min((d.text||'').length, 300) + 20, 0);
+}
 function buildDiaryInjection(userText) {
   if (diaries.length === 0) return '';
   const blocks = [];
   const injectedIds = new Set();
+  let changed = false;
 
-  const recent = [...diaries].sort((a,b) => b.createdAt - a.createdAt).slice(0, 3);
-  recent.forEach(d => {
-    const authorLabel = d.author === 'ao' ? appUsername : appName;
-    blocks.push(`【${authorLabel}·${d.time}${d.mood ? ' ' + d.mood : ''}】\n${trimText(d.text, 300)}`);
+  const unread = diaries.filter(d => d.author === 'ao' && !d.ranjunRead);
+  unread.forEach(d => {
+    blocks.push(`【${appUsername}·${d.time}${d.mood ? ' ' + d.mood : ''}】\n${trimText(d.text, 300)}`);
     injectedIds.add(d.id);
+    d.ranjunRead = true;
+    changed = true;
   });
 
   const mentionsDiary = DIARY_KEYWORDS.some(k => userText.includes(k));
@@ -1562,64 +1585,114 @@ function buildDiaryInjection(userText) {
     }
   }
 
+  if (changed) persistDiaries();
+
   if (blocks.length === 0) return '';
   return '\n\n【ao和然竣的日记（供你参考回忆）】\n' + blocks.join('\n\n');
 }
 
 /* ============================================================
-每25轮自动总结
+[滑动窗口 + 自动归档] 按字数算，不靠手动命令
 ============================================================ */
-function incrementRoundCount() {
-  roundCount++;
-  persistRoundCount();
-  if (roundCount % 25 === 0) {
-    triggerAutoSummary(roundCount);
+function getMsgCharLen(m) {
+  const textLen = (getMsgDisplayText(m) || '').length;
+  const imgLen = (m.images && m.images.length) ? m.images.length * 300 : 0;
+  return textLen + imgLen;
+}
+function splitWindow(msgArray) {
+  let total = 0;
+  let startIdx = msgArray.length;
+  for (let i = msgArray.length - 1; i >= 0; i--) {
+    const len = getMsgCharLen(msgArray[i]);
+    if (total + len > WINDOW_CHAR_LIMIT && total > 0) { startIdx = i + 1; break; }
+    total += len;
+    startIdx = i;
   }
+  return { windowMsgs: msgArray.slice(startIdx), overflowMsgs: msgArray.slice(0, startIdx) };
 }
 
-async function triggerAutoSummary(atRound) {
+async function tryArchiveOnce(msgsToArchive) {
   const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) return;
+  if (!cfg.endpoint || !cfg.key || !cfg.model) return false;
+  const apiMsgs = msgsToArchive.map(m => ({
+    role: m.role === 'user' ? 'user' : 'assistant',
+    content: getMsgDisplayText(m)
+  })).filter(m => m.content && m.content.trim());
+
+  if (apiMsgs.length === 0) {
+    msgsToArchive.forEach(m => m.archived = true);
+    persistMessages();
+    return true;
+  }
+
+  const sysPrompt = `请以第一人称（我=${appName}）阅读下面这段我和${appUsername}的对话，把值得长期记住的事写成2-4条备忘录式记忆条目（客观记录事实/约定/情绪变化，不是写给${appUsername}看的话）。每条严格用下面格式单独一行输出，除此之外不要任何多余文字：
+[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]`;
 
   try {
-    const recentMsgs = messages.slice(-50).filter(m => m.role !== 'notice').map(m => ({
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: getMsgDisplayText(m)
-    })).filter(m => m.content && m.content.trim());
-
-    if (recentMsgs.length === 0) return;
-
-    const sysPrompt = `请以第一人称（我=${appName}）总结我和${appUsername}最近这25轮对话里值得长期记住的事：${appUsername}提到的生活/情绪/习惯、我们的约定、重要进展。简洁，分点，只输出总结正文，不要多余客套。`;
-
-    const apiMsgs = [{ role:'system', content: sysPrompt }, ...recentMsgs];
-
     const res = await fetch(cfg.endpoint + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
-      body: JSON.stringify({ model: cfg.model, stream: false, messages: apiMsgs })
+      body: JSON.stringify({ model: cfg.model, stream: false, messages: [{ role:'system', content: sysPrompt }, ...apiMsgs] })
     });
-    if (!res.ok) { console.warn('自动总结请求失败', res.status); return; }
-
+    if (!res.ok) return false;
     const json = await res.json();
-    const summaryText = json.choices?.[0]?.message?.content?.trim();
-    if (!summaryText) return;
-
-    memory.push({
-      id: genId(),
-      content: `【25轮总结·第${atRound}轮】\n${summaryText}`,
-      time: timeStr(),
-      layer: 'long',
-      type: 'legacy',
-      emotion: 2,
-      tags: []
-    });
+    const raw = json.choices?.[0]?.message?.content || '';
+    const { actions } = extractMemoryMarkers(raw);
+    if (actions.length === 0) return false;
+    actions.forEach(a => applyMemoryUpdate(a));
     persistMemory();
     renderMemoryList();
-    showToast('🐾家猫悄悄记了点东西');
-
+    msgsToArchive.forEach(m => m.archived = true);
+    persistMessages();
+    showToast('🐾家猫悄悄把这段对话记进了脑子里');
+    return true;
   } catch(e) {
-    console.warn('自动总结出错，下次到点再试', e);
+    console.warn('归档请求出错', e);
+    return false;
   }
+}
+
+async function runArchive(msgsToArchive) {
+  let ok = await tryArchiveOnce(msgsToArchive);
+  if (!ok) {
+    await new Promise(r => setTimeout(r, 2500));
+    ok = await tryArchiveOnce(msgsToArchive);
+  }
+  if (!ok) showToast('🐾归档失败，稍后自动重试', 3000);
+}
+
+async function checkAutoArchive() {
+  if (archiving) return;
+  const real = messages.filter(m => m.role !== 'notice');
+  const { overflowMsgs } = splitWindow(real);
+  const unarchived = overflowMsgs.filter(m => !m.archived);
+  const totalChars = unarchived.reduce((s,m) => s + getMsgCharLen(m), 0);
+  if (totalChars < ARCHIVE_TRIGGER_CHARS || unarchived.length === 0) return;
+  archiving = true;
+  try { await runArchive(unarchived); }
+  finally { archiving = false; }
+}
+
+/* ============================================================
+[token估算] Space页显示
+============================================================ */
+function estimateContextTokens() {
+  const persona = (appPersona || '').length;
+  const timeLine = 40;
+  const userText = getLatestUserText();
+  const memChars = (buildMemoryInjection(userText) || '').length;
+  const diaryChars = estimateDiaryChars();
+  const real = messages.filter(m => m.role !== 'notice');
+  const { windowMsgs } = splitWindow(real);
+  const historyChars = windowMsgs.reduce((s,m) => s + getMsgCharLen(m), 0);
+  const totalChars = persona + timeLine + memChars + diaryChars + historyChars;
+  return totalChars / 1.5;
+}
+function refreshTokenEstimate() {
+  const el = document.getElementById('tokenEstimateLabel');
+  if (!el) return;
+  const tokens = estimateContextTokens();
+  el.textContent = `当前上下文约 ~${(tokens/1000).toFixed(1)}k tokens`;
 }
 
 /* ============================================================
@@ -1747,7 +1820,10 @@ function attachLongPress(el, msg, ctx) {
   el.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
     startX = t.clientX; startY = t.clientY;
-    timer = setTimeout(() => { openMsgMenu(msg, ctx, startX, startY); }, 550);
+    timer = setTimeout(() => {
+      if (window.getSelection && window.getSelection().toString().length > 0) return;
+      openMsgMenu(msg, ctx, startX, startY);
+    }, 550);
   }, { passive: true });
   el.addEventListener('touchmove', (e) => {
     const t = e.touches[0];
@@ -1756,6 +1832,7 @@ function attachLongPress(el, msg, ctx) {
   el.addEventListener('touchend', () => clearTimeout(timer));
   el.addEventListener('touchcancel', () => clearTimeout(timer));
   el.addEventListener('contextmenu', (e) => {
+    if (window.getSelection && window.getSelection().toString().length > 0) return;
     e.preventDefault();
     openMsgMenu(msg, ctx, e.clientX, e.clientY);
   });
@@ -1958,7 +2035,7 @@ function renderSplitBubbles(parts, i) {
   showThinkingRow(chatScroll, 'page-chat');
   setTimeout(() => {
     removeThinkingRow();
-    const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr() };
+    const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr(), archived:false };
     messages.push(msg);
     persistMessages();
     appendMessage(msg);
@@ -2273,13 +2350,6 @@ document.querySelectorAll('.diary-filter-tag').forEach(tag => {
   });
 });
 
-function addDiaryByRanjun(text) {
-  diaries.push({ id: genId(), author:'ranjun', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false, ranjunRead:true });
-  persistDiaries();
-  renderDiaries();
-  showToast(`你家猫偷跑去写日记了`);
-}
-
 const diaryWriteOverlay = document.getElementById('diaryWriteOverlay');
 const diaryWriteTextarea = document.getElementById('diaryWriteTextarea');
 document.getElementById('diaryWriteBtn').addEventListener('click', () => {
@@ -2306,9 +2376,7 @@ const emojiGrid = document.getElementById('emojiGrid');
 
 EMOJI_LIST.forEach(e => {
   const opt = document.createElement('div');
-  opt.className = 'emoji-option';
-  opt.textContent = e;
-  opt.addEventListener('click', () => {
+  opt.className = 'emoji-option'; opt.addEventListener('click', () => {
     const d = diaries.find(x => x.id === emojiTargetDiaryId);
     if (d) {
       d.mood = e;
@@ -2411,6 +2479,8 @@ function switchPage(pageName) {
   if (pageName !== 'space') modelDropdown.style.display = 'none';
 
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
+  if (pageName === 'space') refreshTokenEstimate();
+  if (pageName === 'log') { memoryDetailType = null; renderMemoryList(); }
 }
 document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => switchPage(tab.dataset.page));
@@ -2587,6 +2657,20 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
 }
 
 /* ============================================================
+[多模态] 把消息转换成 OpenAI 格式 content（带图时用数组，无图时用纯文本）
+============================================================ */
+function buildApiContent(m) {
+  const text = getMsgDisplayText(m);
+  if (m.images && m.images.length > 0) {
+    const parts = [];
+    if (text && text.trim()) parts.push({ type: 'text', text });
+    m.images.forEach(url => parts.push({ type: 'image_url', image_url: { url } }));
+    return parts;
+  }
+  return text;
+}
+
+/* ============================================================
 API 调用：主聊天
 ============================================================ */
 async function callAPI(rerollTarget) {
@@ -2594,15 +2678,18 @@ async function callAPI(rerollTarget) {
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
 
   const rerollIdx = rerollTarget ? messages.findIndex(m => m.id === rerollTarget.id) : -1;
-  const sourceMsgs = (rerollIdx >= 0 ? messages.slice(0, rerollIdx) : messages).filter(m => m.role !== 'notice');
-  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
+  const allReal = messages.filter(m => m.role !== 'notice');
+  const sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx).filter(m => m.role !== 'notice') : allReal;
+
+  /* [滑动窗口] 只发最近约6000字，更早的靠记忆兜底 */
+  const { windowMsgs } = splitWindow(sourceMsgs);
+  const apiMessages = windowMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
 
   const userText = getLatestUserText();
 
   let systemContent = appPersona ? appPersona.trim() : '';
   systemContent += (systemContent ? '\n\n' : '') + '【当前时间】' + currentTimeLabel();
 
-  /* [记忆注入重构] 温度打底+场景触发+tag捞回，替代原来的long/active全塞 */
   const memInjection = buildMemoryInjection(userText);
   if (memInjection) systemContent += memInjection;
 
@@ -2621,7 +2708,7 @@ async function callAPI(rerollTarget) {
     aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr() };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false };
     messages.push(aiMsg); persistMessages();
     aiRow = appendMessage(aiMsg);
     aiBubble = aiRow.querySelector('.msg-bubble');
@@ -2675,8 +2762,9 @@ async function callAPI(rerollTarget) {
       if (aiRow && aiRow.parentNode) aiRow.remove();
       persistMessages();
       decayActiveMemory();
-      incrementRoundCount();
       if (parts.length > 0) renderSplitBubbles(parts, 0);
+      checkAutoArchive();
+      refreshTokenEstimate();
       return;
     }
 
@@ -2690,12 +2778,14 @@ async function callAPI(rerollTarget) {
       aiMsg.versions[0] = cleanText;
       aiMsg.versionIndex = 0;
       aiMsg.text = cleanText;
+      aiMsg.archived = false;
     }
     persistMessages();
     refreshRow(aiMsg, mainCtx);
     scrollToBottom(chatScroll, 'page-chat');
     decayActiveMemory();
-    if (!isReroll) incrementRoundCount();
+    checkAutoArchive();
+    refreshTokenEstimate();
   }
 
   try {
@@ -2753,7 +2843,7 @@ async function callSubChatAPI(rerollTarget) {
 
   const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
-  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
+  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
   if (sc.preset && sc.preset.trim()) apiMessages.unshift({ role: 'system', content: sc.preset.trim() });
 
   const isReroll = !!rerollTarget;
@@ -2888,7 +2978,7 @@ async function sendMessage() {
   if (!text && pendingAttachments.length === 0) return;
   const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
   const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
-  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr() };
+  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), archived:false };
   messages.push(userMsg); persistMessages(); appendMessage(userMsg);
   textInput.value = ''; textInput.style.height = 'auto';
   pendingAttachments = []; renderAttachPreview();
@@ -2937,12 +3027,12 @@ loadMemory();
 loadSubChats();
 loadPlans();
 loadDiaries();
-loadRoundCount();
 switchPage('chat');
 renderAllMessages();
 renderMemoryList();
 renderSubChatSidebarList();
 applyGlobalNames();
+checkAutoArchive();
 </script>
 
 </body>
