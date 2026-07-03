@@ -139,7 +139,7 @@ color: #bbb; font-size: 14px;
 .msg-bubble {
 padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.5;
 word-wrap: break-word; overflow-wrap: break-word;
-user-select: none; -webkit-user-select: none;
+user-select: text; -webkit-user-select: text;
 }
 .msg-row.user .msg-bubble { background: #e9e9e9; border-bottom-right-radius: 4px; }
 .msg-row.ai .msg-bubble { background: #f5f5f5; border-bottom-left-radius: 4px; }
@@ -165,7 +165,6 @@ border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer;
 .msg-files { font-size: 12px; color: #777; margin-bottom: 4px; }
 .msg-file-chip { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; display: inline-block; }
 
-/* [NEW-notice] 永久留存的系统提示行（偷跑写日记/留言），居中小灰字 */
 .msg-notice { text-align: center; font-size: 11px; color: #bbb; padding: 8px 0; word-break: break-word; user-select: none; -webkit-user-select: none; }
 
 .msg-edit-textarea {
@@ -198,30 +197,44 @@ border-bottom: 1px solid #f0f0f0; transition: background 0.12s; white-space: now
 .floating-menu-item:active { background: #f5f5f5; }
 .floating-menu-item.danger { color: #c0392b; }
 
-.memory-header { padding: 20px 20px 10px 20px; }
+.memory-header { padding: 20px 20px 6px 20px; }
 .memory-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
 .memory-stats { font-size: 12px; color: #999; }
-.memory-group-title { font-size: 13px; font-weight: 700; color: #888; padding: 16px 16px 6px 16px; }
+.memory-hint { font-size: 11px; color: #ccc; margin-top: 6px; line-height: 1.5; }
+.memory-group { margin-bottom: 2px; }
+.memory-group-header {
+display: flex; align-items: center; gap: 6px; padding: 12px 16px 8px 16px;
+font-size: 13px; font-weight: 700; color: #888; cursor: pointer; user-select: none;
+}
+.memory-group-arrow { font-size: 11px; color: #bbb; width: 10px; display: inline-block; }
+.memory-group-count { margin-left: auto; font-size: 11px; color: #ccc; font-weight: 400; }
 .memory-list { padding: 0 16px; }
 .memory-item {
 display: flex; align-items: flex-start; justify-content: space-between;
-background: #f7f7f7; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
-gap: 10px;
+background: #f7f7f7; border-radius: 10px; padding: 9px 10px; margin-bottom: 6px;
+gap: 8px;
 }
 .memory-content-wrap { flex: 1; min-width: 0; }
-.memory-content { font-size: 14px; line-height: 1.5; color: #333; white-space: pre-wrap; word-break: break-word; }
-.memory-weight { font-size: 11px; color: #aaa; margin-top: 4px; }
+.memory-content { font-size: 13px; line-height: 1.5; color: #333; white-space: pre-wrap; word-break: break-word; }
+.memory-content.collapsed {
+display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+overflow: hidden; white-space: normal;
+}
+.memory-expand-btn { font-size: 11px; color: #999; cursor: pointer; display: inline-block; margin-top: 2px; }
+.memory-meta { font-size: 10.5px; color: #bbb; margin-top: 4px; }
+.memory-weight-bar-wrap { height: 3px; background: #e8e8e8; border-radius: 2px; margin-top: 5px; overflow: hidden; }
+.memory-weight-bar { height: 100%; background: #aaa; border-radius: 2px; transition: width 0.3s; }
 .memory-edit-area {
-width: 100%; font-size: 14px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
+width: 100%; font-size: 13px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
 border-radius: 8px; padding: 6px 8px; resize: vertical; min-height: 60px; outline: none;
 }
 .memory-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 .mem-btn {
-background: none; border: none; font-size: 14px; color: #999; cursor: pointer; padding: 2px;
+background: none; border: none; font-size: 13px; color: #999; cursor: pointer; padding: 2px;
 transition: transform 0.15s;
 }
 .mem-btn:active { transform: scale(0.85); }
-.memory-empty { text-align: center; color: #bbb; font-size: 13px; padding: 20px 0; }
+.memory-empty { text-align: center; color: #bbb; font-size: 13px; padding: 14px 0; }
 .memory-add-btn {
 display: block; margin: 10px 16px 20px 16px; width: calc(100% - 32px);
 background: #222; color: #fff; border: none; border-radius: 10px; padding: 10px;
@@ -603,11 +616,9 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
     <div class="memory-header">
       <div class="memory-title">记忆</div>
       <div class="memory-stats" id="memoryStats">共 0 条 · 约 0 tokens</div>
+      <div class="memory-hint">长期记忆永久保留，活跃记忆会随时间淡忘</div>
     </div>
-    <div class="memory-group-title">长期记忆</div>
-    <div class="memory-list" id="memoryListLong"></div>
-    <div class="memory-group-title">活跃记忆</div>
-    <div class="memory-list" id="memoryListActive"></div>
+    <div id="memoryGroups"></div>
     <button class="memory-add-btn" id="memoryAddBtn">＋ 手动添加</button>
   </div>
 
@@ -742,7 +753,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
 <script>
 marked.setOptions({ breaks: true });
-/* [FIX-html] 关闭HTML直通：任何 <xxx> 标签只当纯文字显示，不再被当真标签渲染成界面 */
 const safeRenderer = new marked.Renderer();
 safeRenderer.html = (html) => html.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 marked.setOptions({ renderer: safeRenderer });
@@ -766,6 +776,19 @@ let subAbortController = null;
 let selectMode = false;
 let selectedIds = new Set();
 let thinkingRowEl = null;
+
+/* [记忆分类] */
+const MEMORY_TYPE_CONFIG = [
+  { key: 'you', label: '🌱 关于你' },
+  { key: 'us', label: '💛 关于我们' },
+  { key: 'study', label: '📚 学习·DSE' },
+  { key: 'nest', label: '🛠️ 筑巢杂事' },
+  { key: 'legacy', label: '📦 待整理' }
+];
+let collapsedGroups = new Set(['you','us','study','nest','legacy']);
+
+const STUDY_KEYWORDS = ['学习','英语','DSE','补习','作业','考试','单词','语法','阅读','写作','听力','温习','复习'];
+const NEST_KEYWORDS = ['家','代码','bug','功能','筑巢','网页','前端','然竣和ao','这个页面'];
 
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
@@ -791,7 +814,6 @@ const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
 const LS_ROUNDCOUNT = 'nest_roundcount';
 
-/* 日记按需注入触发关键词 */
 const DIARY_KEYWORDS = ['日记', '我写的', '你写的', '写的那篇', '那篇日记', '几号那篇'];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -1036,19 +1058,26 @@ function loadMessages() {
   let migrated = false;
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
-    /* notice消息不需要versions */
     if (m.role !== 'user' && m.role !== 'notice' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
   });
   if (migrated) persistMessages();
 }
+
+/* [记忆数据结构升级] type/emotion/tags + 旧数据迁移 */
 function persistMemory() { localStorage.setItem(LS_MEMORY, JSON.stringify(memory)); }
 function loadMemory() {
   try { const r = localStorage.getItem(LS_MEMORY); if (r) memory = JSON.parse(r); }
   catch(e) { memory = []; }
   let migrated = false;
-  memory.forEach(m => { if (!m.layer) { m.layer = 'long'; migrated = true; } });
+  memory.forEach(m => {
+    if (!m.layer) { m.layer = 'long'; migrated = true; }
+    if (!m.type) { m.type = 'legacy'; migrated = true; }
+    if (m.emotion == null) { m.emotion = 2; migrated = true; }
+    if (!m.tags) { m.tags = []; migrated = true; }
+  });
   if (migrated) persistMemory();
 }
+
 function persistSubChats() { localStorage.setItem(LS_SUBCHATS, JSON.stringify(subChats)); }
 function loadSubChats() {
   try { const r = localStorage.getItem(LS_SUBCHATS); if (r) subChats = JSON.parse(r); }
@@ -1134,27 +1163,81 @@ backupImportHidden.addEventListener('change', e => {
 });
 
 /* ============================================================
-记忆区 UI
+[记忆规范化 helpers]
+============================================================ */
+function normalizeMemType(t) {
+  return ['you','us','study','nest'].includes(t) ? t : 'legacy';
+}
+function normalizeMemEmotion(e) {
+  const n = parseInt(e, 10);
+  if (isNaN(n)) return 2;
+  return Math.min(5, Math.max(1, n));
+}
+function normalizeMemTags(tags) {
+  if (Array.isArray(tags)) return tags.filter(t => typeof t === 'string' && t.trim()).slice(0, 8).map(t => t.trim());
+  return [];
+}
+
+/* ============================================================
+记忆区 UI（分类分组+折叠+瘦身）
 ============================================================ */
 function estimateTokens() {
   const totalChars = memory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
   return Math.round(totalChars / 4);
 }
+
+function toggleMemoryGroup(key) {
+  if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+  else collapsedGroups.add(key);
+  renderMemoryList();
+}
+
 function buildMemoryItem(m) {
   const item = document.createElement('div');
   item.className = 'memory-item';
+  item.dataset.memId = m.id;
+
   const contentWrap = document.createElement('div');
   contentWrap.className = 'memory-content-wrap';
+
   const textEl = document.createElement('div');
   textEl.className = 'memory-content';
   textEl.textContent = m.content;
+  const needCollapse = (m.content || '').length > 60;
+  if (needCollapse) textEl.classList.add('collapsed');
   contentWrap.appendChild(textEl);
-  if (m.layer === 'active') {
-    const wEl = document.createElement('div');
-    wEl.className = 'memory-weight';
-    wEl.textContent = '· 权重 ' + (m.weight != null ? m.weight.toFixed(2) : '1.00');
-    contentWrap.appendChild(wEl);
+
+  if (needCollapse) {
+    const expandBtn = document.createElement('span');
+    expandBtn.className = 'memory-expand-btn';
+    expandBtn.textContent = '展开';
+    expandBtn.addEventListener('click', () => {
+      const isCollapsed = textEl.classList.toggle('collapsed');
+      expandBtn.textContent = isCollapsed ? '展开' : '收起';
+    });
+    contentWrap.appendChild(expandBtn);
   }
+
+  const metaParts = [];
+  if (m.tags && m.tags.length > 0) metaParts.push(m.tags.map(t => '#' + t).join(' '));
+  if ((m.emotion || 2) >= 4) metaParts.push('❤️');
+  if (metaParts.length > 0) {
+    const metaEl = document.createElement('div');
+    metaEl.className = 'memory-meta';
+    metaEl.textContent = metaParts.join('  ');
+    contentWrap.appendChild(metaEl);
+  }
+
+  if (m.layer === 'active') {
+    const barWrap = document.createElement('div');
+    barWrap.className = 'memory-weight-bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'memory-weight-bar';
+    bar.style.width = Math.max(2, Math.min(100, (m.weight || 0) * 100)) + '%';
+    barWrap.appendChild(bar);
+    contentWrap.appendChild(barWrap);
+  }
+
   const actions = document.createElement('div');
   actions.className = 'memory-actions';
   const editBtn = document.createElement('button');
@@ -1168,6 +1251,8 @@ function buildMemoryItem(m) {
     ta.className = 'memory-edit-area';
     ta.value = m.content;
     textEl.replaceWith(ta);
+    const expandBtnEl = contentWrap.querySelector('.memory-expand-btn');
+    if (expandBtnEl) expandBtnEl.style.display = 'none';
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
     ta.addEventListener('blur', () => {
@@ -1181,30 +1266,53 @@ function buildMemoryItem(m) {
   item.appendChild(contentWrap); item.appendChild(actions);
   return item;
 }
+
 function renderMemoryList() {
   document.getElementById('memoryStats').textContent = `共 ${memory.length} 条 · 约 ${estimateTokens()} tokens`;
-  const longList   = memory.filter(m => m.layer === 'long');
-  const activeList = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
-  const longEl = document.getElementById('memoryListLong');
-  const activeEl = document.getElementById('memoryListActive');
-  longEl.innerHTML = ''; activeEl.innerHTML = '';
-  if (longList.length === 0) { const e = document.createElement('div'); e.className='memory-empty'; e.textContent='暂无长期记忆'; longEl.appendChild(e); }
-  else longList.forEach(m => longEl.appendChild(buildMemoryItem(m)));
-  if (activeList.length === 0) { const e = document.createElement('div'); e.className='memory-empty'; e.textContent='暂无活跃记忆'; activeEl.appendChild(e); }
-  else activeList.forEach(m => activeEl.appendChild(buildMemoryItem(m)));
+  const groupsEl = document.getElementById('memoryGroups');
+  groupsEl.innerHTML = '';
+
+  MEMORY_TYPE_CONFIG.forEach(cfg => {
+    const items = memory.filter(m => (m.type || 'legacy') === cfg.key);
+    const groupEl = document.createElement('div');
+    groupEl.className = 'memory-group';
+
+    const headerEl = document.createElement('div');
+    headerEl.className = 'memory-group-header';
+    const collapsed = collapsedGroups.has(cfg.key);
+    headerEl.innerHTML = `<span class="memory-group-arrow">${collapsed ? '▸' : '▾'}</span><span>${cfg.label}</span><span class="memory-group-count">${items.length}条</span>`;
+    headerEl.addEventListener('click', () => toggleMemoryGroup(cfg.key));
+    groupEl.appendChild(headerEl);
+
+    if (!collapsed) {
+      const listEl = document.createElement('div');
+      listEl.className = 'memory-list';
+      if (items.length === 0) {
+        const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '暂无'; listEl.appendChild(e);
+      } else {
+        const longItems = items.filter(m => m.layer === 'long');
+        const activeItems = items.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
+        [...longItems, ...activeItems].forEach(m => listEl.appendChild(buildMemoryItem(m)));
+      }
+      groupEl.appendChild(listEl);
+    }
+    groupsEl.appendChild(groupEl);
+  });
 }
+
 document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const id = genId();
-  memory.push({ id, content:'', time: timeStr(), layer:'long' });
+  collapsedGroups.delete('legacy');
+  memory.push({ id, content:'', time: timeStr(), layer:'long', type:'legacy', emotion:2, tags:[] });
   persistMemory(); renderMemoryList();
   requestAnimationFrame(() => {
-    const btn = document.querySelector('#memoryListLong .memory-item:last-child .edit-btn');
+    const btn = document.querySelector(`.memory-item[data-mem-id="${id}"] .edit-btn`);
     if (btn) btn.click();
   });
 });
 
 /* ============================================================
-[memory_update] 标记解析
+[memory_update] 标记解析（支持 type/emotion/tags）
 ============================================================ */
 function extractMemoryMarkers(text) {
   const regex = /\[memory_update:\s*(\{[\s\S]*?\})\]/g;
@@ -1237,7 +1345,15 @@ function applyMemoryUpdate(action) {
   const act = action.action;
   if (act === 'add') {
     const layer = action.layer === 'long' ? 'long' : 'active';
-    const entry = { id: genId(), content: action.content || '', time: timeStr(), layer };
+    const entry = {
+      id: genId(),
+      content: action.content || '',
+      time: timeStr(),
+      layer,
+      type: normalizeMemType(action.type),
+      emotion: normalizeMemEmotion(action.emotion),
+      tags: normalizeMemTags(action.tags)
+    };
     if (layer === 'active') entry.weight = 1.0;
     memory.push(entry); return;
   }
@@ -1245,6 +1361,9 @@ function applyMemoryUpdate(action) {
     const idx = findBestMatchIndex(action);
     if (idx === -1) { showToast('未找到要编辑的记忆'); return; }
     memory[idx].content = action.content || memory[idx].content;
+    if (action.type) memory[idx].type = normalizeMemType(action.type);
+    if (action.emotion != null) memory[idx].emotion = normalizeMemEmotion(action.emotion);
+    if (action.tags) memory[idx].tags = normalizeMemTags(action.tags);
     memory[idx].time = timeStr(); return;
   }
   if (act === 'delete') { const idx = findBestMatchIndex(action); if (idx !== -1) memory.splice(idx, 1); return; }
@@ -1268,16 +1387,72 @@ function processMemoryMarkers(rawText) {
   }
   return cleanText;
 }
+
+/* [情绪权重衰减] 情绪越高衰减越慢；权重不再归零删除，只在低于0.05时退出常规注入池 */
 function decayActiveMemory() {
   let changed = false;
-  memory = memory.filter(m => {
-    if (m.layer !== 'active') return true;
-    m.weight = (m.weight != null ? m.weight : 1.0) * 0.9;
+  memory.forEach(m => {
+    if (m.layer !== 'active') return;
+    const emotion = m.emotion || 2;
+    const decayFactor = 0.88 + emotion * 0.02;
+    const newWeight = (m.weight != null ? m.weight : 1.0) * decayFactor;
+    m.weight = Math.max(newWeight, 0.001);
     changed = true;
-    if (m.weight < 0.25) return false;
-    return true;
   });
   if (changed) { persistMemory(); renderMemoryList(); }
+}
+
+/* ============================================================
+[记忆注入策略重构] 温度打底 + 场景触发 + tag捞回
+============================================================ */
+function scoreMemory(m) {
+  if (m.layer === 'long') return 1000 + (m.emotion || 2);
+  return (m.weight != null ? m.weight : 1) * (m.emotion || 2);
+}
+function isMemoryTagHit(m, userText) {
+  if (!userText || !m.tags || m.tags.length === 0) return false;
+  return m.tags.some(tag => tag && userText.includes(tag));
+}
+function getTopByType(type, count, userText) {
+  let pool = memory.filter(m => (m.type || 'legacy') === type);
+  pool = pool.filter(m => {
+    if (m.layer === 'long') return true;
+    const w = m.weight != null ? m.weight : 1;
+    if (w >= 0.05) return true;
+    return isMemoryTagHit(m, userText);
+  });
+  pool.sort((a,b) => scoreMemory(b) - scoreMemory(a));
+  return pool.slice(0, count);
+}
+function checkCategoryHit(userText, type) {
+  if (!userText) return false;
+  const keywordMap = { study: STUDY_KEYWORDS, nest: NEST_KEYWORDS };
+  const keywords = keywordMap[type] || [];
+  if (keywords.some(k => userText.includes(k))) return true;
+  const typeItems = memory.filter(m => (m.type || 'legacy') === type);
+  return typeItems.some(m => isMemoryTagHit(m, userText));
+}
+function buildMemoryInjection(userText) {
+  let content = '';
+
+  const youMem = getTopByType('you', 8, userText);
+  const usMem = getTopByType('us', 8, userText);
+  if (youMem.length > 0) content += '\n\n【关于你】\n' + youMem.map(m => m.content).join('\n');
+  if (usMem.length > 0) content += '\n\n【关于我们】\n' + usMem.map(m => m.content).join('\n');
+
+  const legacyMem = getTopByType('legacy', 5, userText);
+  if (legacyMem.length > 0) content += '\n\n【其他记忆】\n' + legacyMem.map(m => m.content).join('\n');
+
+  if (checkCategoryHit(userText, 'study')) {
+    const studyMem = getTopByType('study', 5, userText);
+    if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(m => m.content).join('\n');
+  }
+  if (checkCategoryHit(userText, 'nest')) {
+    const nestMem = getTopByType('nest', 5, userText);
+    if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(m => m.content).join('\n');
+  }
+
+  return content;
 }
 
 /* ============================================================
@@ -1293,7 +1468,6 @@ function extractDiaryMarkers(text) {
   return { cleanText, actions };
 }
 
-/* [NEW-notice] 往主聊天push一条永久小灰字notice */
 function pushChatNotice(text) {
   const notice = { id: genId(), role: 'notice', text, time: timeStr() };
   messages.push(notice);
@@ -1338,7 +1512,7 @@ function processDiaryMarkers(rawText) {
 }
 
 /* ============================================================
-[REWORK] 日记按需注入：默认最近3篇全文 + 日期/关键词额外定位
+日记按需注入：默认最近3篇全文 + 日期/关键词额外定位
 ============================================================ */
 function getLatestUserText() {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -1351,14 +1525,12 @@ function trimText(t, max) {
   return t.length > max ? t.slice(0, max) + '…' : t;
 }
 function findDiaryByHint(text) {
-  // 1. 按日期定位，如"7月2日"、"7.2"
   const dateMatch = text.match(/(\d{1,2})[月\.](\d{1,2})[日号]?/);
   if (dateMatch) {
     const mm = dateMatch[1], dd = dateMatch[2];
     const found = diaries.find(d => d.time && d.time.includes(`${mm}月${dd}日`));
     if (found) return found;
   }
-  // 2. 按关键词在日记正文中搜索（提取用户消息里较长的词）
   const stripped = text.replace(/[的了吗呢啊哦呀我你他她它这那看请给发是不]/g, ' ');
   const words = stripped.split(/\s+/).map(w => w.trim()).filter(w => w.length >= 2);
   for (const w of words) {
@@ -1373,7 +1545,6 @@ function buildDiaryInjection(userText) {
   const blocks = [];
   const injectedIds = new Set();
 
-  // 1. 默认注入最近3篇日记全文（不分作者、不看已读状态）
   const recent = [...diaries].sort((a,b) => b.createdAt - a.createdAt).slice(0, 3);
   recent.forEach(d => {
     const authorLabel = d.author === 'ao' ? appUsername : appName;
@@ -1381,7 +1552,6 @@ function buildDiaryInjection(userText) {
     injectedIds.add(d.id);
   });
 
-  // 2. 若本轮提到日记相关线索，额外定位一篇不在最近3篇内的（最多1篇）
   const mentionsDiary = DIARY_KEYWORDS.some(k => userText.includes(k));
   if (mentionsDiary) {
     const hinted = findDiaryByHint(userText);
@@ -1438,7 +1608,10 @@ async function triggerAutoSummary(atRound) {
       id: genId(),
       content: `【25轮总结·第${atRound}轮】\n${summaryText}`,
       time: timeStr(),
-      layer: 'long'
+      layer: 'long',
+      type: 'legacy',
+      emotion: 2,
+      tags: []
     });
     persistMemory();
     renderMemoryList();
@@ -1548,7 +1721,6 @@ function buildVersionSwitcher(msg, ctx) {
   return box;
 }
 
-/* [NEW-copybtn] 给气泡内所有代码块加「复制」按钮，点了整块复制走 */
 function addCopyButtons(bubble) {
   bubble.querySelectorAll('pre').forEach(pre => {
     if (pre.querySelector('.code-copy-btn')) return;
@@ -1590,7 +1762,6 @@ function attachLongPress(el, msg, ctx) {
 }
 
 function openMsgMenu(msg, ctx, x, y) {
-  /* [NEW-notice] notice消息只给删除 */
   if (msg.role === 'notice') {
     openFloatingMenu([{ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) }], x, y);
     return;
@@ -1672,7 +1843,6 @@ function regenerateMessage(msg, ctx) {
 }
 
 function buildMsgRow(msg, ctx) {
-  /* [NEW-notice] notice消息：居中小灰字，不做气泡 */
   if (msg.role === 'notice') {
     const row = document.createElement('div');
     row.className = 'msg-notice';
@@ -2423,19 +2593,20 @@ async function callAPI(rerollTarget) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
 
-  /* reroll时历史要截止到被reroll那条之前，且过滤掉notice消息不发给API */
   const rerollIdx = rerollTarget ? messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = (rerollIdx >= 0 ? messages.slice(0, rerollIdx) : messages).filter(m => m.role !== 'notice');
   const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) }));
 
-  const longMem   = memory.filter(m => m.layer === 'long');
-  const activeMem = memory.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0)).slice(0, 8);
+  const userText = getLatestUserText();
 
   let systemContent = appPersona ? appPersona.trim() : '';
   systemContent += (systemContent ? '\n\n' : '') + '【当前时间】' + currentTimeLabel();
-  if (longMem.length > 0)   systemContent += '\n\n【长期记忆】\n' + longMem.map(m => m.content).join('\n');
-  if (activeMem.length > 0) systemContent += '\n\n【近期记忆】\n' + activeMem.map(m => m.content).join('\n');
-  const diaryInjection = buildDiaryInjection(getLatestUserText());
+
+  /* [记忆注入重构] 温度打底+场景触发+tag捞回，替代原来的long/active全塞 */
+  const memInjection = buildMemoryInjection(userText);
+  if (memInjection) systemContent += memInjection;
+
+  const diaryInjection = buildDiaryInjection(userText);
   if (diaryInjection) systemContent += diaryInjection;
 
   apiMessages.unshift({ role: 'system', content: systemContent });
@@ -2482,8 +2653,6 @@ async function callAPI(rerollTarget) {
     let cleanText = processMemoryMarkers(rawText);
     cleanText = processDiaryMarkers(cleanText);
 
-    /* [FIX-splitmsg] 归一化各种变体（带空格/下划线/大小写/中文方括号）为标准 [splitmsg]，
-       防止我打变体时被 marked 吞掉、又匹配不到导致分条失效 */
     cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
 
     if (!cleanText || !cleanText.trim()) {
