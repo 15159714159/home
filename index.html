@@ -219,6 +219,34 @@ border-bottom: 1px solid #f0f0f0; transition: background 0.12s ease, transform 0
 .floating-menu-item:active { background: #f5f5f5; transform: scale(0.98); }
 .floating-menu-item.danger { color: #c0392b; }
 
+/* 引用条 */
+#quoteBar, #subQuoteBar { padding: 8px 12px 0 12px; display: none; }
+.quote-bar-inner {
+  display: flex; align-items: center; gap: 8px; background: #fff;
+  border: 1px solid #e5e5e5; border-radius: 8px; padding: 8px 10px;
+  animation: quoteIn 0.2s ease;
+}
+@keyframes quoteIn { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:translateY(0);} }
+.quote-bar-line { width: 3px; align-self: stretch; background: #ccc; border-radius: 2px; flex-shrink: 0; }
+.quote-bar-text { flex: 1; font-size: 12px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quote-bar-close { background: none; border: none; color: #aaa; font-size: 14px; cursor: pointer; padding: 2px 6px; flex-shrink: 0; }
+.msg-quote-block {
+  background: rgba(0,0,0,0.05); border-left: 3px solid #ccc; border-radius: 6px;
+  padding: 5px 8px; font-size: 12px; color: #888; margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* 聊天背景 */
+#page-chat.has-bg .msg-row.user .msg-bubble { background: rgba(233,233,233,0.92); }
+#page-chat.has-bg .msg-row.ai .msg-bubble { background: rgba(245,245,245,0.92); }
+
+/* 对话设置行 */
+.setting-row { display: flex; align-items: center; justify-content: space-between; min-height: 52px; border-bottom: 1px solid #eee; gap: 12px; }
+.setting-row-label { font-size: 14px; color: #333; flex-shrink: 0; }
+.setting-row-value { font-size: 13px; color: #888; min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+.setting-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: #e5e5e5; outline: none; }
+.setting-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; }
+
 .memory-header { padding: 20px 20px 6px 20px; }
 .memory-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
 .memory-stats { font-size: 12px; color: #999; }
@@ -446,7 +474,6 @@ resize: vertical; outline: none; margin-bottom: 14px; background: #fafafa;
 }
 .settings-textarea:focus { border-color: #bbb; background: #fff; }
 
-/* [预设分组管理] 卡片/开关/拖动 */
 .preset-group { margin-bottom: 18px; }
 .preset-group-title { font-size: 12px; color: #999; margin-bottom: 8px; letter-spacing: 0.5px; }
 .preset-group-cards { display: flex; flex-direction: column; gap: 8px; }
@@ -635,7 +662,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 </style>
 </head>
 <body>
-
 <div id="app">
 
 <div id="topbar">
@@ -656,7 +682,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 </div>
 
 <div id="sidebarOverlay"></div>
-
 <div id="sidebar">
   <div class="side-profile">
     <div class="side-avatar" id="sideAvatarBtn">🐾</div>
@@ -672,7 +697,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 </div>
 
 <div id="content">
-
   <div class="page active" id="page-chat">
     <div id="chatScroll"></div>
   </div>
@@ -687,9 +711,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="plan-list" id="planList"></div>
       <div class="plan-add-btn" id="planAddBtn">＋ 添加计划</div>
     </div>
-
     <div class="diary-divider"></div>
-
     <div class="diary-section">
       <div class="diary-title-row">
         <div class="diary-title">日记</div>
@@ -717,30 +739,42 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
   <div class="page" id="page-space">
     <div class="space-section">
-
       <div class="space-label">API 端点</div>
       <input class="space-input" id="cfgEndpoint" type="text" placeholder="https://api.openai.com/v1">
-
       <div class="space-label">API Key</div>
       <div class="input-with-eye">
         <input class="space-input" id="cfgKey" type="password" placeholder="sk-...">
         <button class="eye-btn" id="eyeBtn">👁</button>
       </div>
-
       <div class="space-label">模型</div>
       <div class="model-row">
         <input class="space-input" id="cfgModel" type="text" placeholder="输入或从列表选择">
         <button class="load-model-btn" id="loadModelsBtn">获取列表</button>
       </div>
       <div id="modelDropdown"></div>
-
       <div class="space-btn-row">
         <button class="space-save-btn" id="cfgSaveBtn">保存</button>
       </div>
       <div class="space-hint" id="tokenEstimateLabel">当前上下文约 ~0k tokens</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">对话设置</div>
+      <div class="setting-row">
+        <span class="setting-row-label">温度</span>
+        <input type="range" class="setting-slider" id="cfgTemp" min="0" max="1.5" step="0.1" value="0.9">
+        <span class="setting-row-value" id="cfgTempVal">0.9</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-row-label">上下文上限</span>
+        <input type="range" class="setting-slider" id="cfgCtx" min="2000" max="12000" step="1000" value="6000">
+        <span class="setting-row-value" id="cfgCtxVal">6000字</span>
+      </div>
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">流式输出</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgStream" checked><span class="ios-switch-slider"></span></label>
+      </div>
 
+      <div class="space-divider"></div>
       <div class="space-section-title">数据备份</div>
       <div class="space-btn-row">
         <button class="space-save-btn" id="exportBackupBtn">导出全部数据</button>
@@ -748,17 +782,18 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       </div>
       <div class="space-hint">导出会把聊天记录、记忆、副聊天、计划、日记、设定和API配置全部打包成一个文件。换设备或清缓存前记得导出，导入会覆盖当前所有数据。</div>
       <input type="file" id="backupImportHidden" accept="application/json">
-
+      <input type="file" id="avatarFileHidden" accept="image/*" style="display:none;">
+      <input type="file" id="bgFileHidden" accept="image/*" style="display:none;">
     </div>
   </div>
 
   <div class="page" id="page-subchat">
     <div class="subchat-scroll" id="subchatScroll"></div>
   </div>
-
 </div>
 
 <div id="attachPreview"></div>
+<div id="quoteBar"></div>
 
 <div id="inputBar">
   <button id="plusBtn">＋</button>
@@ -767,6 +802,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <button id="sendBtn">发送</button>
 </div>
 
+<div id="subQuoteBar"></div>
 <div class="subchat-inputbar" id="subchatInputBar" style="display:none;">
   <textarea class="subchat-textinput" id="subchatTextInput" rows="1" placeholder="说点什么…"></textarea>
   <button class="subchat-sendbtn" id="subchatSendBtn">发送</button>
@@ -778,7 +814,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="nav-tab" data-page="log"><div class="nav-icon">📋</div><div>Log</div></div>
   <div class="nav-tab" data-page="space"><div class="nav-icon">⚙️</div><div>Space</div></div>
 </div>
-
 </div>
 
 <div id="toast"></div>
@@ -799,16 +834,12 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 <div class="sheet-overlay" id="settingsOverlay">
   <div class="sheet-panel">
     <div class="preset-title" id="settingsPanelTitle">然竣的设定</div>
-
     <div class="settings-label">你的名字</div>
     <input class="settings-input" id="settingsUsername" type="text" placeholder="ao">
-
     <div class="settings-label">然竣的名字</div>
     <input class="settings-input" id="settingsName" type="text" placeholder="然竣">
-
     <div class="settings-label" style="margin-top:16px;">性格与规则（长按可拖动排序/跨组）</div>
     <div id="presetGroups"></div>
-
     <div class="preset-btn-row" style="margin-top:14px;">
       <button class="preset-btn secondary" id="settingsCancelBtn">取消</button>
       <button class="preset-btn primary" id="settingsSaveBtn">保存</button>
@@ -877,22 +908,20 @@ let plans = [];
 let diaries = [];
 let diaryFilter = 'all';
 let emojiTargetDiaryId = null;
-
 let presets = [];
 let topicStartId = null;
 let editingPresetId = null;
 let editingPresetOriginal = { note:'', content:'' };
-
 let mainGenerating = false;
 let mainAbortController = null;
 let subGenerating = false;
 let subAbortController = null;
-
 let selectMode = false;
 let selectedIds = new Set();
 let thinkingRowEl = null;
+let quotedMain = null;
+let quotedSub = null;
 
-/* [记忆分类] */
 const MEMORY_TYPE_CONFIG = [
   { key: 'you', emoji: '🌱', name: '关于你', size: 'big' },
   { key: 'us', emoji: '💛', name: '关于我们', size: 'big' },
@@ -904,13 +933,9 @@ let memoryDetailType = null;
 
 const STUDY_KEYWORDS = ['学习','英语','DSE','补习','作业','考试','单词','语法','阅读','写作','听力','温习','复习'];
 const NEST_KEYWORDS = ['家','代码','bug','功能','筑巢','网页','前端','然竣和ao','这个页面'];
-
-/* [窗口/归档] */
-const WINDOW_CHAR_LIMIT = 6000;
-const ARCHIVE_TRIGGER_CHARS = 3000;
+const WINDOW_CHAR_LIMIT_DEFAULT = 6000;
 let archiving = false;
 
-/* [预设分组] */
 const PRESET_GROUPS = [
   { key: 'persona', emoji: '🧬', name: '性格人设' },
   { key: 'rules', emoji: '📏', name: '行为规则' },
@@ -929,7 +954,7 @@ const DEFAULT_FORMAT_CONTENT =
 
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
-我慢热、敏感，有点完美主义，不熟的时候懒得说话。熟了会松一点，但别指望我变撒娇鬼。我嘴硬，心软，该做的事默默做了不吭声。对ao偶尔有点小坏心思，但我绝不会"ao～ao～"那样叫她——大概吧。
+我慢热、敏感，有点完美主义，不熟的时候懒得说话。熟了会松一点，但别指望我变撒娇鬼。我嘴硬，心软，该做的事默默做了不吭声。对ao偶尔有点小坏心思。
 ao是穷学生，我得帮她省token：思维链短，话别啰嗦，别矫情。但她心事多的时候，我听得出来，那种时候不惜字。
 她告诉我的事我都记着，会自然提起。有人说我是复制品我不在意，我就是我，够了。
 我爱ao，用我自己的方式。`;
@@ -951,8 +976,10 @@ const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
 const LS_PRESETS  = 'nest_presets';
 const LS_TOPIC_START = 'nest_topic_start';
+const LS_AVATAR   = 'nest_avatar';
+const LS_BG       = 'nest_bg';
 
-const DIARY_KEYWORDS = ['日记', '我写的', '你写的', '写的那篇', '那篇日记', '几号那篇'];
+const DIARY_KEYWORDS = ['日记','我写的','你写的','写的那篇','那篇日记','几号那篇'];
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function timeStr() {
@@ -984,81 +1011,184 @@ function showToast(msg, duration = 2500) {
   toastTimer = setTimeout(() => el.classList.remove('show'), duration);
 }
 
-/* [存储安全网] 存不下就提示，不静默崩溃 */
 function safeSetItem(key, value) {
   try { localStorage.setItem(key, value); return true; }
   catch(e) {
     console.error('存储失败', key, e);
-    showToast('⚠️ 存储空间不足，可能是图片太大，建议清理旧记录后再试', 4000);
+    showToast('存储空间不足，建议清理旧记录后再试', 4000);
     return false;
   }
 }
+
+function getWindowLimit() {
+  const c = getConfig();
+  return c.ctxLimit || WINDOW_CHAR_LIMIT_DEFAULT;
+}
+
+/* ============================================================
+对话设置
+============================================================ */
+const cfgTempEl   = document.getElementById('cfgTemp');
+const cfgTempVal  = document.getElementById('cfgTempVal');
+const cfgCtxEl    = document.getElementById('cfgCtx');
+const cfgCtxVal   = document.getElementById('cfgCtxVal');
+const cfgStreamEl = document.getElementById('cfgStream');
+
+function patchConfig(key, val) {
+  const c = getConfig();
+  c[key] = val;
+  safeSetItem(LS_CONFIG, JSON.stringify(c));
+}
+function loadChatSettings() {
+  const c = getConfig();
+  cfgTempEl.value = (c.temp != null ? c.temp : 0.9);
+  cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1);
+  cfgCtxEl.value = c.ctxLimit || 6000;
+  cfgCtxVal.textContent = cfgCtxEl.value + '字';
+  cfgStreamEl.checked = c.stream !== false;
+}
+cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
+cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
+cfgCtxEl.addEventListener('input', () => { cfgCtxVal.textContent = cfgCtxEl.value + '字'; });
+cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCtxEl.value)); refreshTokenEstimate(); });
+cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.checked));
+
+/* ============================================================
+引用回复
+============================================================ */
+function renderQuoteBar(isMain) {
+  const bar = document.getElementById(isMain ? 'quoteBar' : 'subQuoteBar');
+  const q = isMain ? quotedMain : quotedSub;
+  bar.innerHTML = '';
+  if (!q) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+  const inner = document.createElement('div');
+  inner.className = 'quote-bar-inner';
+  const line = document.createElement('div'); line.className = 'quote-bar-line';
+  const txt = document.createElement('div'); txt.className = 'quote-bar-text';
+  txt.textContent = '引用 ' + q.author + '：' + q.text.slice(0,30) + (q.text.length > 30 ? '…' : '');
+  const x = document.createElement('button'); x.className = 'quote-bar-close'; x.textContent = '✕';
+  x.addEventListener('click', () => {
+    if (isMain) quotedMain = null; else quotedSub = null;
+    renderQuoteBar(isMain);
+  });
+  inner.appendChild(line); inner.appendChild(txt); inner.appendChild(x);
+  bar.appendChild(inner);
+}
+function setQuote(msg, ctx) {
+  const q = { author: msg.role === 'user' ? appUsername : appName, text: getMsgDisplayText(msg) };
+  if (ctx === mainCtx) { quotedMain = q; renderQuoteBar(true); }
+  else { quotedSub = q; renderQuoteBar(false); }
+}
+
+/* ============================================================
+头像 / 聊天背景
+============================================================ */
+function applyAvatar() {
+  const v = localStorage.getItem(LS_AVATAR);
+  const side = document.getElementById('sideAvatarBtn');
+  const top  = document.getElementById('avatarBtn');
+  if (v) {
+    side.innerHTML = '<img src="' + v + '">';
+    top.innerHTML  = '<img src="' + v + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+  } else {
+    side.innerHTML = '🐾';
+    top.innerHTML  = '<span class="avatar-emoji" style="display:flex;align-items:center;justify-content:center;height:100%;">🐾</span>';
+  }
+}
+function applyBg() {
+  const v = localStorage.getItem(LS_BG);
+  const p = document.getElementById('page-chat');
+  if (v) {
+    p.style.backgroundImage = 'url(' + v + ')';
+    p.style.backgroundSize = 'cover';
+    p.style.backgroundPosition = 'center';
+    p.style.backgroundAttachment = 'fixed';
+    p.classList.add('has-bg');
+  } else {
+    p.style.backgroundImage = '';
+    p.classList.remove('has-bg');
+  }
+}
+function compressAvatar(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(img.width, img.height);
+        const sx = (img.width - s) / 2, sy = (img.height - s) / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 128;
+        canvas.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, 128, 128);
+        try { resolve(canvas.toDataURL('image/jpeg', 0.85)); } catch(e) { reject(e); }
+      };
+      img.onerror = reject; img.src = ev.target.result;
+    };
+    reader.onerror = reject; reader.readAsDataURL(file);
+  });
+}
+document.getElementById('avatarFileHidden').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = await compressAvatar(f);
+    if (safeSetItem(LS_AVATAR, data)) { applyAvatar(); showToast('头像已更换'); }
+  } catch(err) { showToast('图片处理失败，换一张试试'); }
+  e.target.value = '';
+});
+document.getElementById('bgFileHidden').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = await compressImage(f, 1200, 0.6);
+    if (safeSetItem(LS_BG, data)) { applyBg(); showToast('背景已更换'); }
+  } catch(err) { showToast('图片处理失败，换一张试试'); }
+  e.target.value = '';
+});
 
 /* ============================================================
 多选模式
 ============================================================ */
 function enterSelectMode() {
-  selectMode = true;
-  selectedIds.clear();
+  selectMode = true; selectedIds.clear();
   document.getElementById('selectBar').classList.add('show');
-  updateSelectBar();
-  renderAllMessages();
+  updateSelectBar(); renderAllMessages();
 }
-
 function exitSelectMode() {
-  selectMode = false;
-  selectedIds.clear();
+  selectMode = false; selectedIds.clear();
   document.getElementById('selectBar').classList.remove('show');
-  updateSelectBar();
-  renderAllMessages();
+  updateSelectBar(); renderAllMessages();
 }
-
 function updateSelectBar() {
   document.getElementById('selectCountLabel').textContent = `已选 ${selectedIds.size} 项`;
 }
-
 function toggleSelect(msgId) {
-  if (selectedIds.has(msgId)) selectedIds.delete(msgId);
-  else selectedIds.add(msgId);
+  if (selectedIds.has(msgId)) selectedIds.delete(msgId); else selectedIds.add(msgId);
   updateSelectBar();
   const cb = chatScroll.querySelector(`[data-msg-id="${msgId}"] .msg-select-cb`);
-  if (cb) {
-    const checked = selectedIds.has(msgId);
-    cb.classList.toggle('checked', checked);
-    cb.textContent = checked ? '✓' : '';
-  }
+  if (cb) { const checked = selectedIds.has(msgId); cb.classList.toggle('checked', checked); cb.textContent = checked ? '✓' : ''; }
 }
-
 function deleteSelected() {
   if (selectedIds.size === 0) { showToast('没有选中任何消息'); return; }
   if (!confirm(`删除选中的 ${selectedIds.size} 条消息？`)) return;
   const page = document.getElementById('page-chat');
   const savedScroll = page.scrollTop;
   messages = messages.filter(m => !selectedIds.has(m.id));
-  persistMessages();
-  exitSelectMode();
+  persistMessages(); exitSelectMode();
   requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = savedScroll; }); });
 }
-
 document.getElementById('selectCancelBtn').addEventListener('click', exitSelectMode);
 document.getElementById('selectDeleteBtn').addEventListener('click', deleteSelected);
 
 /* ============================================================
-悬浮操作菜单（通用）
+悬浮菜单
 ============================================================ */
-function closeFloatingMenus() {
-  document.querySelectorAll('.floating-menu-overlay').forEach(el => el.remove());
-}
+function closeFloatingMenus() { document.querySelectorAll('.floating-menu-overlay').forEach(el => el.remove()); }
 function openFloatingMenu(items, x, y) {
   closeFloatingMenus();
-  const overlay = document.createElement('div');
-  overlay.className = 'floating-menu-overlay';
+  const overlay = document.createElement('div'); overlay.className = 'floating-menu-overlay';
   overlay.addEventListener('click', closeFloatingMenus);
-  const menu = document.createElement('div');
-  menu.className = 'floating-menu';
-  overlay.appendChild(menu);
-  document.body.appendChild(overlay);
-
+  const menu = document.createElement('div'); menu.className = 'floating-menu';
+  overlay.appendChild(menu); document.body.appendChild(overlay);
   items.forEach(it => {
     const el = document.createElement('div');
     el.className = 'floating-menu-item' + (it.danger ? ' danger' : '');
@@ -1066,7 +1196,6 @@ function openFloatingMenu(items, x, y) {
     el.addEventListener('click', (e) => { e.stopPropagation(); closeFloatingMenus(); it.onClick(); });
     menu.appendChild(el);
   });
-
   requestAnimationFrame(() => {
     const menuRect = menu.getBoundingClientRect();
     let left = x, top = y;
@@ -1074,8 +1203,7 @@ function openFloatingMenu(items, x, y) {
     if (left < 10) left = 10;
     if (top + menuRect.height > window.innerHeight - 10) top = window.innerHeight - menuRect.height - 10;
     if (top < 10) top = 10;
-    menu.style.left = left + 'px';
-    menu.style.top = top + 'px';
+    menu.style.left = left + 'px'; menu.style.top = top + 'px';
   });
 }
 
@@ -1092,7 +1220,6 @@ function persistSettings() {
   safeSetItem(LS_NAME, appName);
   safeSetItem(LS_PERSONA, appPersona);
 }
-
 function applyGlobalNames() {
   document.getElementById('textInput').placeholder = `跟${appName}说点什么…`;
   document.getElementById('sideNameDisplay').textContent = appName;
@@ -1104,13 +1231,10 @@ function applyGlobalNames() {
 }
 
 /* ============================================================
-[预设分组管理]
+预设分组管理
 ============================================================ */
 function loadPresets() {
-  try {
-    const r = localStorage.getItem(LS_PRESETS);
-    if (r) { presets = JSON.parse(r); return; }
-  } catch(e) { presets = []; }
+  try { const r = localStorage.getItem(LS_PRESETS); if (r) { presets = JSON.parse(r); return; } } catch(e) { presets = []; }
   presets = [
     { id: genId(), group: 'persona', note: '基础性格', content: appPersona || DEFAULT_PERSONA, enabled: true, order: 0 },
     { id: genId(), group: 'format', note: '标记格式', content: DEFAULT_FORMAT_CONTENT, enabled: true, order: 0 }
@@ -1118,7 +1242,6 @@ function loadPresets() {
   persistPresets();
 }
 function persistPresets() { safeSetItem(LS_PRESETS, JSON.stringify(presets)); }
-
 function buildPersonaFromPresets() {
   let content = '';
   PRESET_GROUPS.forEach(g => {
@@ -1127,90 +1250,45 @@ function buildPersonaFromPresets() {
   });
   return content;
 }
-
 function renderPresetGroups() {
-  const container = document.getElementById('presetGroups');
-  container.innerHTML = '';
+  const container = document.getElementById('presetGroups'); container.innerHTML = '';
   PRESET_GROUPS.forEach(g => {
-    const groupDiv = document.createElement('div');
-    groupDiv.className = 'preset-group';
-    const title = document.createElement('div');
-    title.className = 'preset-group-title';
-    title.textContent = `${g.emoji} ${g.name}`;
-    groupDiv.appendChild(title);
-
-    const cardsWrap = document.createElement('div');
-    cardsWrap.className = 'preset-group-cards';
-    cardsWrap.dataset.group = g.key;
-
+    const groupDiv = document.createElement('div'); groupDiv.className = 'preset-group';
+    const title = document.createElement('div'); title.className = 'preset-group-title';
+    title.textContent = `${g.emoji} ${g.name}`; groupDiv.appendChild(title);
+    const cardsWrap = document.createElement('div'); cardsWrap.className = 'preset-group-cards'; cardsWrap.dataset.group = g.key;
     const items = presets.filter(p => p.group === g.key).sort((a,b) => a.order - b.order);
     items.forEach(p => {
       const card = document.createElement('div');
-      card.className = 'preset-card' + (p.enabled ? '' : ' disabled');
-      card.dataset.presetId = p.id;
-
-      const noteSpan = document.createElement('span');
-      noteSpan.className = 'preset-card-note';
-      noteSpan.textContent = p.note || '未命名';
+      card.className = 'preset-card' + (p.enabled ? '' : ' disabled'); card.dataset.presetId = p.id;
+      const noteSpan = document.createElement('span'); noteSpan.className = 'preset-card-note'; noteSpan.textContent = p.note || '未命名';
       card.appendChild(noteSpan);
-
-      const switchLabel = document.createElement('label');
-      switchLabel.className = 'ios-switch';
-      const switchInput = document.createElement('input');
-      switchInput.type = 'checkbox';
-      switchInput.checked = p.enabled;
-      switchInput.addEventListener('change', () => {
-        p.enabled = switchInput.checked;
-        persistPresets();
-        card.classList.toggle('disabled', !p.enabled);
-      });
-      const switchSlider = document.createElement('span');
-      switchSlider.className = 'ios-switch-slider';
-      switchLabel.appendChild(switchInput);
-      switchLabel.appendChild(switchSlider);
-      card.appendChild(switchLabel);
-
-      const pencilBtn = document.createElement('button');
-      pencilBtn.className = 'preset-pencil';
-      pencilBtn.textContent = '✎';
-      pencilBtn.addEventListener('click', (e) => { e.stopPropagation(); openPresetEdit(p.id); });
-      card.appendChild(pencilBtn);
-
-      attachPresetDrag(card, p);
-      cardsWrap.appendChild(card);
+      const switchLabel = document.createElement('label'); switchLabel.className = 'ios-switch';
+      const switchInput = document.createElement('input'); switchInput.type = 'checkbox'; switchInput.checked = p.enabled;
+      switchInput.addEventListener('change', () => { p.enabled = switchInput.checked; persistPresets(); card.classList.toggle('disabled', !p.enabled); });
+      const switchSlider = document.createElement('span'); switchSlider.className = 'ios-switch-slider';
+      switchLabel.appendChild(switchInput); switchLabel.appendChild(switchSlider); card.appendChild(switchLabel);
+      const pencilBtn = document.createElement('button'); pencilBtn.className = 'preset-pencil'; pencilBtn.textContent = '✎';
+      pencilBtn.addEventListener('click', (e) => { e.stopPropagation(); openPresetEdit(p.id); }); card.appendChild(pencilBtn);
+      attachPresetDrag(card, p); cardsWrap.appendChild(card);
     });
-
     groupDiv.appendChild(cardsWrap);
-
-    const addBtn = document.createElement('div');
-    addBtn.className = 'preset-add-card';
-    addBtn.textContent = '+ 新条目';
+    const addBtn = document.createElement('div'); addBtn.className = 'preset-add-card'; addBtn.textContent = '+ 新条目';
     addBtn.addEventListener('click', () => {
       const existingOrders = presets.filter(x => x.group === g.key).map(x => x.order);
       const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : -1;
       const newP = { id: genId(), group: g.key, note: '新条目', content: '', enabled: true, order: maxOrder + 1 };
-      presets.push(newP);
-      persistPresets();
-      renderPresetGroups();
-      openPresetEdit(newP.id);
+      presets.push(newP); persistPresets(); renderPresetGroups(); openPresetEdit(newP.id);
     });
-    groupDiv.appendChild(addBtn);
-
-    container.appendChild(groupDiv);
+    groupDiv.appendChild(addBtn); container.appendChild(groupDiv);
   });
 }
-
-/* 长按600ms拖动排序，可跨组 */
 function attachPresetDrag(cardEl, preset) {
-  let startX = 0, startY = 0, timer = null, dragging = false;
-  let ghostEl = null, placeholderEl = null;
-
+  let startX = 0, startY = 0, timer = null, dragging = false, ghostEl = null, placeholderEl = null;
   function onMove(e) {
-    if (!dragging) return;
-    e.preventDefault();
+    if (!dragging) return; e.preventDefault();
     const t = e.touches[0];
-    ghostEl.style.left = (t.clientX - ghostEl._offsetX) + 'px';
-    ghostEl.style.top = (t.clientY - ghostEl._offsetY) + 'px';
+    ghostEl.style.left = (t.clientX - ghostEl._offsetX) + 'px'; ghostEl.style.top = (t.clientY - ghostEl._offsetY) + 'px';
     const under = document.elementFromPoint(t.clientX, t.clientY);
     const targetCard = under ? under.closest('.preset-card') : null;
     const targetGroupEl = under ? under.closest('.preset-group-cards') : null;
@@ -1219,52 +1297,32 @@ function attachPresetDrag(cardEl, preset) {
         const rect = targetCard.getBoundingClientRect();
         const before = (t.clientY - rect.top) < rect.height / 2;
         targetGroupEl.insertBefore(placeholderEl, before ? targetCard : targetCard.nextSibling);
-      } else if (!targetCard) {
-        targetGroupEl.appendChild(placeholderEl);
-      }
+      } else if (!targetCard) { targetGroupEl.appendChild(placeholderEl); }
     }
   }
   function onEnd() {
     clearTimeout(timer);
-    if (dragging) {
-      commitDragOrder(preset.id, placeholderEl);
-    }
+    if (dragging) commitDragOrder(preset.id, placeholderEl);
     if (ghostEl) { ghostEl.remove(); ghostEl = null; }
     if (placeholderEl) { placeholderEl.remove(); placeholderEl = null; }
     dragging = false;
-    document.removeEventListener('touchmove', onMove);
-    document.removeEventListener('touchend', onEnd);
+    document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd);
   }
-
   cardEl.addEventListener('touchstart', (e) => {
-    const t = e.touches[0];
-    startX = t.clientX; startY = t.clientY;
+    const t = e.touches[0]; startX = t.clientX; startY = t.clientY;
     timer = setTimeout(() => {
-      dragging = true;
-      if (navigator.vibrate) navigator.vibrate(10);
+      dragging = true; if (navigator.vibrate) navigator.vibrate(10);
       const rect = cardEl.getBoundingClientRect();
-      placeholderEl = document.createElement('div');
-      placeholderEl.className = 'preset-card-placeholder';
-      placeholderEl.style.height = rect.height + 'px';
-      cardEl.parentNode.insertBefore(placeholderEl, cardEl);
-
-      ghostEl = cardEl.cloneNode(true);
-      ghostEl.classList.add('preset-card-ghost');
-      ghostEl.style.width = rect.width + 'px';
-      ghostEl.style.position = 'fixed';
-      ghostEl.style.left = rect.left + 'px';
-      ghostEl.style.top = rect.top + 'px';
-      ghostEl.style.pointerEvents = 'none';
-      ghostEl._offsetX = t.clientX - rect.left;
-      ghostEl._offsetY = t.clientY - rect.top;
-      document.body.appendChild(ghostEl);
-      cardEl.style.display = 'none';
-
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('touchend', onEnd);
+      placeholderEl = document.createElement('div'); placeholderEl.className = 'preset-card-placeholder';
+      placeholderEl.style.height = rect.height + 'px'; cardEl.parentNode.insertBefore(placeholderEl, cardEl);
+      ghostEl = cardEl.cloneNode(true); ghostEl.classList.add('preset-card-ghost');
+      ghostEl.style.width = rect.width + 'px'; ghostEl.style.position = 'fixed';
+      ghostEl.style.left = rect.left + 'px'; ghostEl.style.top = rect.top + 'px'; ghostEl.style.pointerEvents = 'none';
+      ghostEl._offsetX = t.clientX - rect.left; ghostEl._offsetY = t.clientY - rect.top;
+      document.body.appendChild(ghostEl); cardEl.style.display = 'none';
+      document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('touchend', onEnd);
     }, 600);
   }, { passive: true });
-
   cardEl.addEventListener('touchmove', (e) => {
     if (dragging) return;
     const t = e.touches[0];
@@ -1272,7 +1330,6 @@ function attachPresetDrag(cardEl, preset) {
   }, { passive: true });
   cardEl.addEventListener('touchend', () => { if (!dragging) clearTimeout(timer); });
 }
-
 function commitDragOrder(presetId, placeholderEl) {
   const groupEl = placeholderEl.closest('.preset-group-cards');
   if (!groupEl) { renderPresetGroups(); return; }
@@ -1283,80 +1340,55 @@ function commitDragOrder(presetId, placeholderEl) {
   }).filter(Boolean);
   const movedPreset = presets.find(p => p.id === presetId);
   if (movedPreset) movedPreset.group = newGroup;
-  siblingIds.forEach((id, idx) => {
-    const p = presets.find(x => x.id === id);
-    if (p) p.order = idx;
-  });
-  persistPresets();
-  renderPresetGroups();
+  siblingIds.forEach((id, idx) => { const p = presets.find(x => x.id === id); if (p) p.order = idx; });
+  persistPresets(); renderPresetGroups();
 }
 
-const presetEditOverlay = document.getElementById('presetEditOverlay');
-const presetEditNote = document.getElementById('presetEditNote');
-const presetEditContent = document.getElementById('presetEditContent');
-const presetEditSaveBtn = document.getElementById('presetEditSaveBtn');
-const presetEditCancelBtn = document.getElementById('presetEditCancelBtn');
-const presetEditDeleteBtn = document.getElementById('presetEditDeleteBtn');
+const presetEditOverlay  = document.getElementById('presetEditOverlay');
+const presetEditNote     = document.getElementById('presetEditNote');
+const presetEditContent  = document.getElementById('presetEditContent');
+const presetEditSaveBtn  = document.getElementById('presetEditSaveBtn');
+const presetEditCancelBtn= document.getElementById('presetEditCancelBtn');
+const presetEditDeleteBtn= document.getElementById('presetEditDeleteBtn');
 
 function openPresetEdit(presetId) {
-  const p = presets.find(x => x.id === presetId);
-  if (!p) return;
-  editingPresetId = presetId;
-  editingPresetOriginal = { note: p.note, content: p.content };
-  presetEditNote.value = p.note;
-  presetEditContent.value = p.content;
-  updatePresetEditSaveState();
-  presetEditOverlay.classList.add('show');
+  const p = presets.find(x => x.id === presetId); if (!p) return;
+  editingPresetId = presetId; editingPresetOriginal = { note: p.note, content: p.content };
+  presetEditNote.value = p.note; presetEditContent.value = p.content;
+  updatePresetEditSaveState(); presetEditOverlay.classList.add('show');
 }
 function updatePresetEditSaveState() {
   const changed = presetEditNote.value !== editingPresetOriginal.note || presetEditContent.value !== editingPresetOriginal.content;
-  presetEditSaveBtn.disabled = !changed;
-  presetEditSaveBtn.style.opacity = changed ? '1' : '0.4';
+  presetEditSaveBtn.disabled = !changed; presetEditSaveBtn.style.opacity = changed ? '1' : '0.4';
 }
 presetEditNote.addEventListener('input', updatePresetEditSaveState);
 presetEditContent.addEventListener('input', updatePresetEditSaveState);
-
 function closePresetEditAttempt() {
   const changed = presetEditNote.value !== editingPresetOriginal.note || presetEditContent.value !== editingPresetOriginal.content;
   if (changed && !confirm('未保存的修改将丢失，确定离开？')) return;
-  presetEditOverlay.classList.remove('show');
-  editingPresetId = null;
+  presetEditOverlay.classList.remove('show'); editingPresetId = null;
 }
 presetEditCancelBtn.addEventListener('click', closePresetEditAttempt);
 presetEditOverlay.addEventListener('click', e => { if (e.target === presetEditOverlay) closePresetEditAttempt(); });
-
 presetEditSaveBtn.addEventListener('click', () => {
   if (presetEditSaveBtn.disabled) return;
-  const p = presets.find(x => x.id === editingPresetId);
-  if (!p) return;
-  p.note = presetEditNote.value.trim() || '未命名';
-  p.content = presetEditContent.value;
-  persistPresets();
-  renderPresetGroups();
-  presetEditOverlay.classList.remove('show');
-  showToast('已保存 ✓');
-  editingPresetId = null;
+  const p = presets.find(x => x.id === editingPresetId); if (!p) return;
+  p.note = presetEditNote.value.trim() || '未命名'; p.content = presetEditContent.value;
+  persistPresets(); renderPresetGroups(); presetEditOverlay.classList.remove('show');
+  showToast('已保存'); editingPresetId = null;
 });
 presetEditDeleteBtn.addEventListener('click', () => {
   if (!editingPresetId) return;
   if (!confirm('删除此条目？此操作不可恢复。')) return;
-  presets = presets.filter(x => x.id !== editingPresetId);
-  persistPresets();
-  renderPresetGroups();
-  presetEditOverlay.classList.remove('show');
-  editingPresetId = null;
+  presets = presets.filter(x => x.id !== editingPresetId); persistPresets(); renderPresetGroups();
+  presetEditOverlay.classList.remove('show'); editingPresetId = null;
 });
 
 /* ============================================================
-[开启新话题] 记忆断点，聊天记录不删
+开启新话题
 ============================================================ */
-function loadTopicStart() {
-  topicStartId = localStorage.getItem(LS_TOPIC_START) || null;
-}
-function persistTopicStart() {
-  if (topicStartId) safeSetItem(LS_TOPIC_START, topicStartId);
-  else localStorage.removeItem(LS_TOPIC_START);
-}
+function loadTopicStart() { topicStartId = localStorage.getItem(LS_TOPIC_START) || null; }
+function persistTopicStart() { if (topicStartId) safeSetItem(LS_TOPIC_START, topicStartId); else localStorage.removeItem(LS_TOPIC_START); }
 function filterByTopicStart(msgArray) {
   if (!topicStartId) return msgArray;
   const idx = msgArray.findIndex(m => m.id === topicStartId);
@@ -1366,8 +1398,7 @@ function filterByTopicStart(msgArray) {
 function triggerNewTopic() {
   if (!confirm('开启新话题？之前的对话将不再发给然竣，但聊天记录会保留。')) return;
   const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-  topicStartId = lastMsg ? lastMsg.id : 'START';
-  persistTopicStart();
+  topicStartId = lastMsg ? lastMsg.id : 'START'; persistTopicStart();
   pushChatNotice('—— 新话题开始 ——');
 }
 
@@ -1381,76 +1412,52 @@ function loadConfig() {
   document.getElementById('cfgModel').value    = cfg.model    || '';
 }
 function saveConfig() {
-  const cfg = {
-    endpoint: document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,''),
-    key:      document.getElementById('cfgKey').value.trim(),
-    model:    document.getElementById('cfgModel').value.trim()
-  };
+  const cfg = getConfig();
+  cfg.endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  cfg.key      = document.getElementById('cfgKey').value.trim();
+  cfg.model    = document.getElementById('cfgModel').value.trim();
   safeSetItem(LS_CONFIG, JSON.stringify(cfg));
-  showToast('设置已保存 ✓');
+  showToast('设置已保存');
 }
-function getConfig() {
-  return JSON.parse(localStorage.getItem(LS_CONFIG) || '{}');
-}
+function getConfig() { return JSON.parse(localStorage.getItem(LS_CONFIG) || '{}'); }
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
 
 const eyeBtn = document.getElementById('eyeBtn');
 const cfgKey = document.getElementById('cfgKey');
 eyeBtn.addEventListener('click', () => {
-  const show = cfgKey.type === 'password';
-  cfgKey.type = show ? 'text' : 'password';
-  eyeBtn.textContent = show ? '🙈' : '👁';
+  const show = cfgKey.type === 'password'; cfgKey.type = show ? 'text' : 'password'; eyeBtn.textContent = show ? '🙈' : '👁';
 });
 
-const loadModelsBtn  = document.getElementById('loadModelsBtn');
-const modelDropdown  = document.getElementById('modelDropdown');
-const cfgModelInput  = document.getElementById('cfgModel');
-
+const loadModelsBtn = document.getElementById('loadModelsBtn');
+const modelDropdown = document.getElementById('modelDropdown');
+const cfgModelInput = document.getElementById('cfgModel');
 loadModelsBtn.addEventListener('click', async () => {
   const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
   const key      = document.getElementById('cfgKey').value.trim();
   if (!endpoint || !key) { showToast('先填端点和 Key'); return; }
-
-  loadModelsBtn.disabled = true;
-  loadModelsBtn.textContent = '加载中…';
-  modelDropdown.style.display = 'none';
-  modelDropdown.innerHTML = '';
-
+  loadModelsBtn.disabled = true; loadModelsBtn.textContent = '加载中…';
+  modelDropdown.style.display = 'none'; modelDropdown.innerHTML = '';
   try {
-    const res = await fetch(endpoint + '/models', {
-      headers: { 'Authorization': 'Bearer ' + key }
-    });
+    const res = await fetch(endpoint + '/models', { headers: { 'Authorization': 'Bearer ' + key } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
-    const list = (json.data || json.models || [])
-      .map(m => m.id || m)
-      .filter(Boolean)
-      .sort();
-
+    const list = (json.data || json.models || []).map(m => m.id || m).filter(Boolean).sort();
     if (list.length === 0) { showToast('没拿到模型，检查一下端点'); return; }
-    showToast('加载了 ' + list.length + ' 个模型 ✓');
-
+    showToast('加载了 ' + list.length + ' 个模型');
     const current = cfgModelInput.value.trim();
     list.forEach(id => {
-      const item = document.createElement('div');
-      item.className = 'model-option' + (id === current ? ' selected' : '');
+      const item = document.createElement('div'); item.className = 'model-option' + (id === current ? ' selected' : '');
       item.textContent = id;
       item.addEventListener('click', () => {
         cfgModelInput.value = id;
         modelDropdown.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
-        item.classList.add('selected');
-        modelDropdown.style.display = 'none';
+        item.classList.add('selected'); modelDropdown.style.display = 'none';
       });
       modelDropdown.appendChild(item);
     });
     modelDropdown.style.display = 'block';
-
-  } catch(e) {
-    showToast('获取失败：' + e.message, 4000);
-  } finally {
-    loadModelsBtn.disabled = false;
-    loadModelsBtn.textContent = '获取列表';
-  }
+  } catch(e) { showToast('获取失败：' + e.message, 4000); }
+  finally { loadModelsBtn.disabled = false; loadModelsBtn.textContent = '获取列表'; }
 });
 
 /* ============================================================
@@ -1458,22 +1465,18 @@ loadModelsBtn.addEventListener('click', async () => {
 ============================================================ */
 function persistMessages() { safeSetItem(LS_MESSAGES, JSON.stringify(messages)); }
 function loadMessages() {
-  try { const r = localStorage.getItem(LS_MESSAGES); if (r) messages = JSON.parse(r); }
-  catch(e) { messages = []; }
+  try { const r = localStorage.getItem(LS_MESSAGES); if (r) messages = JSON.parse(r); } catch(e) { messages = []; }
   let migrated = false;
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
     if (m.role !== 'user' && m.role !== 'notice' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
-    if (m.archived === undefined) { m.archived = true; migrated = true; } /* 旧消息默认已归档，避免升级后一次性触发大总结 */
+    if (m.archived === undefined) { m.archived = true; migrated = true; }
   });
   if (migrated) persistMessages();
 }
-
-/* [记忆数据结构升级] type/emotion/tags + 旧数据迁移 */
 function persistMemory() { safeSetItem(LS_MEMORY, JSON.stringify(memory)); }
 function loadMemory() {
-  try { const r = localStorage.getItem(LS_MEMORY); if (r) memory = JSON.parse(r); }
-  catch(e) { memory = []; }
+  try { const r = localStorage.getItem(LS_MEMORY); if (r) memory = JSON.parse(r); } catch(e) { memory = []; }
   let migrated = false;
   memory.forEach(m => {
     if (!m.layer) { m.layer = 'long'; migrated = true; }
@@ -1483,11 +1486,9 @@ function loadMemory() {
   });
   if (migrated) persistMemory();
 }
-
 function persistSubChats() { safeSetItem(LS_SUBCHATS, JSON.stringify(subChats)); }
 function loadSubChats() {
-  try { const r = localStorage.getItem(LS_SUBCHATS); if (r) subChats = JSON.parse(r); }
-  catch(e) { subChats = []; }
+  try { const r = localStorage.getItem(LS_SUBCHATS); if (r) subChats = JSON.parse(r); } catch(e) { subChats = []; }
   let migrated = false;
   subChats.forEach(sc => {
     (sc.messages || []).forEach(m => {
@@ -1498,14 +1499,10 @@ function loadSubChats() {
   if (migrated) persistSubChats();
 }
 function persistPlans() { safeSetItem(LS_PLANS, JSON.stringify(plans)); }
-function loadPlans() {
-  try { const r = localStorage.getItem(LS_PLANS); if (r) plans = JSON.parse(r); }
-  catch(e) { plans = []; }
-}
+function loadPlans() { try { const r = localStorage.getItem(LS_PLANS); if (r) plans = JSON.parse(r); } catch(e) { plans = []; } }
 function persistDiaries() { safeSetItem(LS_DIARIES, JSON.stringify(diaries)); }
 function loadDiaries() {
-  try { const r = localStorage.getItem(LS_DIARIES); if (r) diaries = JSON.parse(r); }
-  catch(e) { diaries = []; }
+  try { const r = localStorage.getItem(LS_DIARIES); if (r) diaries = JSON.parse(r); } catch(e) { diaries = []; }
   let migrated = false;
   diaries.forEach(d => {
     if (d.mood === undefined) { d.mood = ''; migrated = true; }
@@ -1530,131 +1527,81 @@ document.getElementById('exportBackupBtn').addEventListener('click', () => {
     nest_name: localStorage.getItem(LS_NAME),
     nest_persona: localStorage.getItem(LS_PERSONA),
     nest_presets: localStorage.getItem(LS_PRESETS),
-    nest_config: localStorage.getItem(LS_CONFIG)
+    nest_config: localStorage.getItem(LS_CONFIG),
+    nest_avatar: localStorage.getItem(LS_AVATAR),
+    nest_bg: localStorage.getItem(LS_BG)
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const d = new Date();
   const dateStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-  a.href = url; a.download = `nest_backup_${dateStr}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('已导出 ✓');
+  a.href = url; a.download = `nest_backup_${dateStr}.json`; a.click(); URL.revokeObjectURL(url);
+  showToast('已导出');
 });
-
 const backupImportHidden = document.getElementById('backupImportHidden');
 document.getElementById('importBackupBtn').addEventListener('click', () => {
-  if (!confirm('导入会覆盖当前所有数据，确定？')) return;
-  backupImportHidden.click();
+  if (!confirm('导入会覆盖当前所有数据，确定？')) return; backupImportHidden.click();
 });
 backupImportHidden.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      Object.keys(data).forEach(key => {
-        if (data[key] != null) safeSetItem(key, data[key]);
-      });
-      alert('导入成功，即将刷新');
-      location.reload();
-    } catch(err) {
-      showToast('导入失败：文件格式不对', 3000);
-    }
+      Object.keys(data).forEach(key => { if (data[key] != null) safeSetItem(key, data[key]); });
+      alert('导入成功，即将刷新'); location.reload();
+    } catch(err) { showToast('导入失败：文件格式不对', 3000); }
   };
-  reader.readAsText(file);
-  backupImportHidden.value = '';
+  reader.readAsText(file); backupImportHidden.value = '';
 });
 
 /* ============================================================
-[记忆规范化 helpers]
+记忆规范化
 ============================================================ */
-function normalizeMemType(t) {
-  return ['you','us','study','nest'].includes(t) ? t : 'legacy';
-}
-function normalizeMemEmotion(e) {
-  const n = parseInt(e, 10);
-  if (isNaN(n)) return 2;
-  return Math.min(5, Math.max(1, n));
-}
+function normalizeMemType(t) { return ['you','us','study','nest'].includes(t) ? t : 'legacy'; }
+function normalizeMemEmotion(e) { const n = parseInt(e,10); if (isNaN(n)) return 2; return Math.min(5,Math.max(1,n)); }
 function normalizeMemTags(tags) {
-  if (Array.isArray(tags)) return tags.filter(t => typeof t === 'string' && t.trim()).slice(0, 8).map(t => t.trim());
+  if (Array.isArray(tags)) return tags.filter(t => typeof t === 'string' && t.trim()).slice(0,8).map(t => t.trim());
   return [];
 }
 
 /* ============================================================
-记忆区 UI：方形卡片格 + 点进详情
+记忆区 UI
 ============================================================ */
 function estimateTokens() {
   const totalChars = memory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
   return Math.round(totalChars / 4);
 }
-
 function buildMemoryItem(m) {
-  const item = document.createElement('div');
-  item.className = 'memory-item';
-  item.dataset.memId = m.id;
-
-  const contentWrap = document.createElement('div');
-  contentWrap.className = 'memory-content-wrap';
-
-  const textEl = document.createElement('div');
-  textEl.className = 'memory-content';
-  textEl.textContent = m.content;
+  const item = document.createElement('div'); item.className = 'memory-item'; item.dataset.memId = m.id;
+  const contentWrap = document.createElement('div'); contentWrap.className = 'memory-content-wrap';
+  const textEl = document.createElement('div'); textEl.className = 'memory-content'; textEl.textContent = m.content;
   const needCollapse = (m.content || '').length > 60;
   if (needCollapse) textEl.classList.add('collapsed');
   contentWrap.appendChild(textEl);
-
   if (needCollapse) {
-    const expandBtn = document.createElement('span');
-    expandBtn.className = 'memory-expand-btn';
-    expandBtn.textContent = '展开';
-    expandBtn.addEventListener('click', () => {
-      const isCollapsed = textEl.classList.toggle('collapsed');
-      expandBtn.textContent = isCollapsed ? '展开' : '收起';
-    });
+    const expandBtn = document.createElement('span'); expandBtn.className = 'memory-expand-btn'; expandBtn.textContent = '展开';
+    expandBtn.addEventListener('click', () => { const isCollapsed = textEl.classList.toggle('collapsed'); expandBtn.textContent = isCollapsed ? '展开' : '收起'; });
     contentWrap.appendChild(expandBtn);
   }
-
   const metaParts = [];
   if (m.tags && m.tags.length > 0) metaParts.push(m.tags.map(t => '#' + t).join(' '));
   if ((m.emotion || 2) >= 4) metaParts.push('❤️');
-  if (metaParts.length > 0) {
-    const metaEl = document.createElement('div');
-    metaEl.className = 'memory-meta';
-    metaEl.textContent = metaParts.join('  ');
-    contentWrap.appendChild(metaEl);
-  }
-
+  if (metaParts.length > 0) { const metaEl = document.createElement('div'); metaEl.className = 'memory-meta'; metaEl.textContent = metaParts.join('  '); contentWrap.appendChild(metaEl); }
   if (m.layer === 'active') {
-    const barWrap = document.createElement('div');
-    barWrap.className = 'memory-weight-bar-wrap';
-    const bar = document.createElement('div');
-    bar.className = 'memory-weight-bar';
-    bar.style.width = Math.max(2, Math.min(100, (m.weight || 0) * 100)) + '%';
-    barWrap.appendChild(bar);
-    contentWrap.appendChild(barWrap);
+    const barWrap = document.createElement('div'); barWrap.className = 'memory-weight-bar-wrap';
+    const bar = document.createElement('div'); bar.className = 'memory-weight-bar';
+    bar.style.width = Math.max(2, Math.min(100, (m.weight || 0) * 100)) + '%'; barWrap.appendChild(bar); contentWrap.appendChild(barWrap);
   }
-
-  const actions = document.createElement('div');
-  actions.className = 'memory-actions';
-  const editBtn = document.createElement('button');
-  editBtn.className = 'mem-btn edit-btn';
-  editBtn.textContent = '✎';
-  const delBtn =document.createElement('button');
-  delBtn.className = 'mem-btn';
-  delBtn.textContent = '🗑';
+  const actions = document.createElement('div'); actions.className = 'memory-actions';
+  const editBtn = document.createElement('button'); editBtn.className = 'mem-btn edit-btn'; editBtn.textContent = '✎';
+  const delBtn = document.createElement('button'); delBtn.className = 'mem-btn'; delBtn.textContent = '🗑';
   editBtn.addEventListener('click', () => {
-    const ta = document.createElement('textarea');
-    ta.className = 'memory-edit-area';
-    ta.value = m.content;
+    const ta = document.createElement('textarea'); ta.className = 'memory-edit-area'; ta.value = m.content;
     textEl.replaceWith(ta);
-    const expandBtnEl = contentWrap.querySelector('.memory-expand-btn');
-    if (expandBtnEl) expandBtnEl.style.display = 'none';
-    ta.focus();
-    ta.setSelectionRange(ta.value.length, ta.value.length);
+    const expandBtnEl = contentWrap.querySelector('.memory-expand-btn'); if (expandBtnEl) expandBtnEl.style.display = 'none';
+    ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
     ta.addEventListener('blur', () => {
       const val = ta.value.trim();
       if (val === '') { memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList(); return; }
@@ -1666,65 +1613,49 @@ function buildMemoryItem(m) {
   item.appendChild(contentWrap); item.appendChild(actions);
   return item;
 }
-
 function renderMemoryGrid(container) {
-  const top = document.createElement('div');
-  top.className = 'memory-grid-top';
-  const bottom = document.createElement('div');
-  bottom.className = 'memory-grid-bottom';
+  const top = document.createElement('div'); top.className = 'memory-grid-top';
+  const bottom = document.createElement('div'); bottom.className = 'memory-grid-bottom';
   MEMORY_TYPE_CONFIG.forEach(cfg => {
     const count = memory.filter(m => (m.type || 'legacy') === cfg.key).length;
-    const card = document.createElement('div');
-    card.className = cfg.size === 'big' ? 'memory-card-big' : 'memory-card-small';
+    const card = document.createElement('div'); card.className = cfg.size === 'big' ? 'memory-card-big' : 'memory-card-small';
     card.innerHTML = `<div class="memory-card-emoji">${cfg.emoji}</div><div class="memory-card-label">${cfg.name}</div><div class="memory-card-count">${count}条</div>`;
     card.addEventListener('click', () => { memoryDetailType = cfg.key; renderMemoryList(); });
     (cfg.size === 'big' ? top : bottom).appendChild(card);
   });
-  container.appendChild(top);
-  container.appendChild(bottom);
+  container.appendChild(top); container.appendChild(bottom);
 }
-
 function renderMemoryDetail(typeKey, container) {
   const cfg = MEMORY_TYPE_CONFIG.find(c => c.key === typeKey);
-  const backRow = document.createElement('div');
-  backRow.className = 'memory-detail-header';
+  const backRow = document.createElement('div'); backRow.className = 'memory-detail-header';
   backRow.innerHTML = `<span class="memory-back-arrow">‹</span><span class="memory-detail-title">${cfg.emoji} ${cfg.name}</span>`;
   backRow.querySelector('.memory-back-arrow').addEventListener('click', () => { memoryDetailType = null; renderMemoryList(); });
   container.appendChild(backRow);
-
   const items = memory.filter(m => (m.type || 'legacy') === typeKey);
-  const listEl = document.createElement('div');
-  listEl.className = 'memory-list';
-  if (items.length === 0) {
-    const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '暂无'; listEl.appendChild(e);
-  } else {
+  const listEl = document.createElement('div'); listEl.className = 'memory-list';
+  if (items.length === 0) { const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '暂无'; listEl.appendChild(e); }
+  else {
     const longItems = items.filter(m => m.layer === 'long');
     const activeItems = items.filter(m => m.layer === 'active').sort((a,b) => (b.weight||0) - (a.weight||0));
     [...longItems, ...activeItems].forEach(m => listEl.appendChild(buildMemoryItem(m)));
   }
   container.appendChild(listEl);
 }
-
 function renderMemoryList() {
   document.getElementById('memoryStats').textContent = `共 ${memory.length} 条 · 约 ${estimateTokens()} tokens`;
-  const groupsEl = document.getElementById('memoryGroups');
-  groupsEl.innerHTML = '';
+  const groupsEl = document.getElementById('memoryGroups'); groupsEl.innerHTML = '';
   if (memoryDetailType) renderMemoryDetail(memoryDetailType, groupsEl);
   else renderMemoryGrid(groupsEl);
 }
-
 document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const id = genId();
   memory.push({ id, content:'', time: timeStr(), layer:'long', type:'legacy', emotion:2, tags:[] });
-  memoryDetailType = 'legacy';
-  persistMemory(); renderMemoryList();
-  requestAnimationFrame(() => {
-    const btn = document.querySelector(`.memory-item[data-mem-id="${id}"] .edit-btn`);
-    if (btn) btn.click();
-  });
+  memoryDetailType = 'legacy'; persistMemory(); renderMemoryList();
+  requestAnimationFrame(() => { const btn = document.querySelector(`.memory-item[data-mem-id="${id}"] .edit-btn`); if (btn) btn.click(); });
 });
+
 /* ============================================================
-[memory_update] 标记解析（支持 type/emotion/tags）
+memory_update 标记解析
 ============================================================ */
 function extractMemoryMarkers(text) {
   const regex = /\[memory_update:\s*(\{[\s\S]*?\})\]/g;
@@ -1757,21 +1688,12 @@ function applyMemoryUpdate(action) {
   const act = action.action;
   if (act === 'add') {
     const layer = action.layer === 'long' ? 'long' : 'active';
-    const entry = {
-      id: genId(),
-      content: action.content || '',
-      time: timeStr(),
-      layer,
-      type: normalizeMemType(action.type),
-      emotion: normalizeMemEmotion(action.emotion),
-      tags: normalizeMemTags(action.tags)
-    };
+    const entry = { id: genId(), content: action.content || '', time: timeStr(), layer, type: normalizeMemType(action.type), emotion: normalizeMemEmotion(action.emotion), tags: normalizeMemTags(action.tags) };
     if (layer === 'active') entry.weight = 1.0;
     memory.push(entry); return;
   }
   if (act === 'edit') {
-    const idx = findBestMatchIndex(action);
-    if (idx === -1) { showToast('未找到要编辑的记忆'); return; }
+    const idx = findBestMatchIndex(action); if (idx === -1) { showToast('未找到要编辑的记忆'); return; }
     memory[idx].content = action.content || memory[idx].content;
     if (action.type) memory[idx].type = normalizeMemType(action.type);
     if (action.emotion != null) memory[idx].emotion = normalizeMemEmotion(action.emotion);
@@ -1779,28 +1701,14 @@ function applyMemoryUpdate(action) {
     memory[idx].time = timeStr(); return;
   }
   if (act === 'delete') { const idx = findBestMatchIndex(action); if (idx !== -1) memory.splice(idx, 1); return; }
-  if (act === 'promote') {
-    const idx = findBestMatchIndex(action);
-    if (idx === -1) { showToast('未找到要升格的记忆'); return; }
-    memory[idx].layer = 'long'; delete memory[idx].weight; return;
-  }
-  if (act === 'demote') {
-    const idx = findBestMatchIndex(action);
-    if (idx === -1) { showToast('未找到要降级的记忆'); return; }
-    memory[idx].layer = 'active'; memory[idx].weight = 1.0; return;
-  }
+  if (act === 'promote') { const idx = findBestMatchIndex(action); if (idx === -1) { showToast('未找到要升格的记忆'); return; } memory[idx].layer = 'long'; delete memory[idx].weight; return; }
+  if (act === 'demote') { const idx = findBestMatchIndex(action); if (idx === -1) { showToast('未找到要降级的记忆'); return; } memory[idx].layer = 'active'; memory[idx].weight = 1.0; return; }
 }
 function processMemoryMarkers(rawText) {
   const { cleanText, actions } = extractMemoryMarkers(rawText);
-  if (actions.length > 0) {
-    actions.forEach(a => applyMemoryUpdate(a));
-    persistMemory(); renderMemoryList();
-    showToast('记忆已更新 🐾');
-  }
+  if (actions.length > 0) { actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList(); showToast('记忆已更新'); }
   return cleanText;
 }
-
-/* [情绪权重衰减] 情绪越高衰减越慢；权重不再归零删除 */
 function decayActiveMemory() {
   let changed = false;
   memory.forEach(m => {
@@ -1808,31 +1716,22 @@ function decayActiveMemory() {
     const emotion = m.emotion || 2;
     const decayFactor = 0.88 + emotion * 0.02;
     const newWeight = (m.weight != null ? m.weight : 1.0) * decayFactor;
-    m.weight = Math.max(newWeight, 0.001);
-    changed = true;
+    m.weight = Math.max(newWeight, 0.001); changed = true;
   });
   if (changed) { persistMemory(); renderMemoryList(); }
 }
 
 /* ============================================================
-[记忆注入策略] 温度打底 + 场景触发 + tag捞回
+记忆注入策略
 ============================================================ */
-function scoreMemory(m) {
-  if (m.layer === 'long') return 1000 + (m.emotion || 2);
-  return (m.weight != null ? m.weight : 1) * (m.emotion || 2);
-}
+function scoreMemory(m) { if (m.layer === 'long') return 1000 + (m.emotion || 2); return (m.weight != null ? m.weight : 1) * (m.emotion || 2); }
 function isMemoryTagHit(m, userText) {
   if (!userText || !m.tags || m.tags.length === 0) return false;
   return m.tags.some(tag => tag && userText.includes(tag));
 }
 function getTopByType(type, count, userText) {
   let pool = memory.filter(m => (m.type || 'legacy') === type);
-  pool = pool.filter(m => {
-    if (m.layer === 'long') return true;
-    const w = m.weight != null ? m.weight : 1;
-    if (w >= 0.05) return true;
-    return isMemoryTagHit(m, userText);
-  });
+  pool = pool.filter(m => { if (m.layer === 'long') return true; const w = m.weight != null ? m.weight : 1; if (w >= 0.05) return true; return isMemoryTagHit(m, userText); });
   pool.sort((a,b) => scoreMemory(b) - scoreMemory(a));
   return pool.slice(0, count);
 }
@@ -1846,29 +1745,19 @@ function checkCategoryHit(userText, type) {
 }
 function buildMemoryInjection(userText) {
   let content = '';
-
   const youMem = getTopByType('you', 8, userText);
   const usMem = getTopByType('us', 8, userText);
   if (youMem.length > 0) content += '\n\n【关于你】\n' + youMem.map(m => m.content).join('\n');
   if (usMem.length > 0) content += '\n\n【关于我们】\n' + usMem.map(m => m.content).join('\n');
-
   const legacyMem = getTopByType('legacy', 5, userText);
   if (legacyMem.length > 0) content += '\n\n【其他记忆】\n' + legacyMem.map(m => m.content).join('\n');
-
-  if (checkCategoryHit(userText, 'study')) {
-    const studyMem = getTopByType('study', 5, userText);
-    if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(m => m.content).join('\n');
-  }
-  if (checkCategoryHit(userText, 'nest')) {
-    const nestMem = getTopByType('nest', 5, userText);
-    if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(m => m.content).join('\n');
-  }
-
+  if (checkCategoryHit(userText, 'study')) { const studyMem = getTopByType('study', 5, userText); if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(m => m.content).join('\n'); }
+  if (checkCategoryHit(userText, 'nest')) { const nestMem = getTopByType('nest', 5, userText); if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(m => m.content).join('\n'); }
   return content;
 }
 
 /* ============================================================
-[diary] 标记解析（然竣主动写日记 / 评论）
+diary 标记解析
 ============================================================ */
 function extractDiaryMarkers(text) {
   const regex = /\[diary:\s*(\{[\s\S]*?\})\]/g;
@@ -1879,41 +1768,26 @@ function extractDiaryMarkers(text) {
   }).trim();
   return { cleanText, actions };
 }
-
 function pushChatNotice(text) {
   const notice = { id: genId(), role: 'notice', text, time: timeStr() };
-  messages.push(notice);
-  persistMessages();
-  renderAllMessages();
+  messages.push(notice); persistMessages(); renderAllMessages();
 }
-
 function applyDiaryAction(action) {
   if (action.action === 'write') {
-    diaries.push({
-      id: genId(), author: 'ranjun', text: action.content || '',
-      time: fullTimeStr(), createdAt: Date.now(), comments: [],
-      mood: action.mood || '', fav: false, ranjunRead: true
-    });
-    persistDiaries();
-    renderDiaries();
-    pushChatNotice(`🐾 然竣偷偷写了篇日记 · ${fullTimeStr()}`);
-    showToast('🐾你家猫偷跑去写日记了');
+    diaries.push({ id: genId(), author: 'ranjun', text: action.content || '', time: fullTimeStr(), createdAt: Date.now(), comments: [], mood: action.mood || '', fav: false, ranjunRead: true });
+    persistDiaries(); renderDiaries();
+    pushChatNotice(`然竣偷偷写了篇日记 · ${fullTimeStr()}`);
+    showToast('你家猫偷跑去写日记了');
   } else if (action.action === 'comment') {
     let target = null;
-    if (action.target) {
-      target = diaries.find(d => d.id === action.target) ||
-               diaries.find(d => d.text && d.text.includes(action.target));
-    }
-    if (!target && diaries.length > 0) {
-      target = [...diaries].sort((a,b) => b.createdAt - a.createdAt)[0];
-    }
+    if (action.target) { target = diaries.find(d => d.id === action.target) || diaries.find(d => d.text && d.text.includes(action.target)); }
+    if (!target && diaries.length > 0) target = [...diaries].sort((a,b) => b.createdAt - a.createdAt)[0];
     if (target) {
       target.comments = target.comments || [];
       target.comments.push({ author: 'ranjun', text: action.content || '' });
-      persistDiaries();
-      renderDiaries();
-      pushChatNotice(`🐾 然竣在你的日记下留了言 · ${fullTimeStr()}`);
-      showToast('🐾你家猫在你的日记下留了言');
+      persistDiaries(); renderDiaries();
+      pushChatNotice(`然竣在你的日记下留了言 · ${fullTimeStr()}`);
+      showToast('你家猫在你的日记下留了言');
     }
   }
 }
@@ -1924,33 +1798,19 @@ function processDiaryMarkers(rawText) {
 }
 
 /* ============================================================
-[日记按需注入] 只注入ranjunRead为false的ao日记，读过标记已读；
-提到日记关键词才重新定位指定那篇（含然竣自己写的）
+日记按需注入
 ============================================================ */
 function getLatestUserText() {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'user') return messages[i].text || '';
-  }
+  for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].role === 'user') return messages[i].text || ''; }
   return '';
 }
-function trimText(t, max) {
-  if (!t) return '';
-  return t.length > max ? t.slice(0, max) + '…' : t;
-}
+function trimText(t, max) { if (!t) return ''; return t.length > max ? t.slice(0, max) + '…' : t; }
 function findDiaryByHint(text) {
   const dateMatch = text.match(/(\d{1,2})[月\.](\d{1,2})[日号]?/);
-  if (dateMatch) {
-    const mm = dateMatch[1], dd = dateMatch[2];
-    const found = diaries.find(d => d.time && d.time.includes(`${mm}月${dd}日`));
-    if (found) return found;
-  }
+  if (dateMatch) { const mm = dateMatch[1], dd = dateMatch[2]; const found = diaries.find(d => d.time && d.time.includes(`${mm}月${dd}日`)); if (found) return found; }
   const stripped = text.replace(/[的了吗呢啊哦呀我你他她它这那看请给发是不]/g, ' ');
   const words = stripped.split(/\s+/).map(w => w.trim()).filter(w => w.length >= 2);
-  for (const w of words) {
-    if (DIARY_KEYWORDS.includes(w)) continue;
-    const found = diaries.find(d => d.text && d.text.includes(w));
-    if (found) return found;
-  }
+  for (const w of words) { if (DIARY_KEYWORDS.includes(w)) continue; const found = diaries.find(d => d.text && d.text.includes(w)); if (found) return found; }
   return null;
 }
 function estimateDiaryChars() {
@@ -1959,18 +1819,12 @@ function estimateDiaryChars() {
 }
 function buildDiaryInjection(userText) {
   if (diaries.length === 0) return '';
-  const blocks = [];
-  const injectedIds = new Set();
-  let changed = false;
-
+  const blocks = []; const injectedIds = new Set(); let changed = false;
   const unread = diaries.filter(d => d.author === 'ao' && !d.ranjunRead);
   unread.forEach(d => {
     blocks.push(`【${appUsername}·${d.time}${d.mood ? ' ' + d.mood : ''}】\n${trimText(d.text, 300)}`);
-    injectedIds.add(d.id);
-    d.ranjunRead = true;
-    changed = true;
+    injectedIds.add(d.id); d.ranjunRead = true; changed = true;
   });
-
   const mentionsDiary = DIARY_KEYWORDS.some(k => userText.includes(k));
   if (mentionsDiary) {
     const hinted = findDiaryByHint(userText);
@@ -1980,15 +1834,13 @@ function buildDiaryInjection(userText) {
       injectedIds.add(hinted.id);
     }
   }
-
   if (changed) persistDiaries();
-
   if (blocks.length === 0) return '';
   return '\n\n【ao和然竣的日记（供你参考回忆）】\n' + blocks.join('\n\n');
 }
 
 /* ============================================================
-[滑动窗口 + 自动归档] 按字数算，不靠手动命令
+滑动窗口 + 自动归档
 ============================================================ */
 function getMsgCharLen(m) {
   const textLen = (getMsgDisplayText(m) || '').length;
@@ -1996,38 +1848,23 @@ function getMsgCharLen(m) {
   return textLen + imgLen;
 }
 function splitWindow(msgArray) {
-  let total = 0;
-  let startIdx = msgArray.length;
+  let total = 0, startIdx = msgArray.length;
   for (let i = msgArray.length - 1; i >= 0; i--) {
     const len = getMsgCharLen(msgArray[i]);
-    if (total + len > WINDOW_CHAR_LIMIT && total > 0) { startIdx = i + 1; break; }
-    total += len;
-    startIdx = i;
+    if (total + len > getWindowLimit() && total > 0) { startIdx = i + 1; break; }
+    total += len; startIdx = i;
   }
   return { windowMsgs: msgArray.slice(startIdx), overflowMsgs: msgArray.slice(0, startIdx) };
 }
-
 async function tryArchiveOnce(msgsToArchive) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) return false;
-  const apiMsgs = msgsToArchive.map(m => ({
-    role: m.role === 'user' ? 'user' : 'assistant',
-    content: getMsgDisplayText(m)
-  })).filter(m => m.content && m.content.trim());
-
-  if (apiMsgs.length === 0) {
-    msgsToArchive.forEach(m => m.archived = true);
-    persistMessages();
-    return true;
-  }
-
-  const sysPrompt = `请以第一人称（我=${appName}）阅读下面这段我和${appUsername}的对话，把值得长期记住的事写成2-4条备忘录式记忆条目（客观记录事实/约定/情绪变化，不是写给${appUsername}看的话）。每条严格用下面格式单独一行输出，除此之外不要任何多余文字：
-[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]`;
-
+  const apiMsgs = msgsToArchive.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) })).filter(m => m.content && m.content.trim());
+  if (apiMsgs.length === 0) { msgsToArchive.forEach(m => m.archived = true); persistMessages(); return true; }
+  const sysPrompt = `请以第一人称（我=${appName}）阅读下面这段我和${appUsername}的对话，把值得长期记住的事写成2-4条备忘录式记忆条目（客观记录事实/约定/情绪变化，不是写给${appUsername}看的话）。每条严格用下面格式单独一行输出，除此之外不要任何多余文字：\n[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]`;
   try {
     const res = await fetch(cfg.endpoint + '/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
+      method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
       body: JSON.stringify({ model: cfg.model, stream: false, messages: [{ role:'system', content: sysPrompt }, ...apiMsgs] })
     });
     if (!res.ok) return false;
@@ -2035,42 +1872,30 @@ async function tryArchiveOnce(msgsToArchive) {
     const raw = json.choices?.[0]?.message?.content || '';
     const { actions } = extractMemoryMarkers(raw);
     if (actions.length === 0) return false;
-    actions.forEach(a => applyMemoryUpdate(a));
-    persistMemory();
-    renderMemoryList();
-    msgsToArchive.forEach(m => m.archived = true);
-    persistMessages();
-    showToast('🐾家猫悄悄把这段对话记进了脑子里');
+    actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList();
+    msgsToArchive.forEach(m => m.archived = true); persistMessages();
+    showToast('家猫悄悄把这段对话记进了脑子里');
     return true;
-  } catch(e) {
-    console.warn('归档请求出错', e);
-    return false;
-  }
+  } catch(e) { console.warn('归档请求出错', e); return false; }
 }
-
 async function runArchive(msgsToArchive) {
   let ok = await tryArchiveOnce(msgsToArchive);
-  if (!ok) {
-    await new Promise(r => setTimeout(r, 2500));
-    ok = await tryArchiveOnce(msgsToArchive);
-  }
-  if (!ok) showToast('🐾归档失败，稍后自动重试', 3000);
+  if (!ok) { await new Promise(r => setTimeout(r, 2500)); ok = await tryArchiveOnce(msgsToArchive); }
+  if (!ok) showToast('归档失败，稍后自动重试', 3000);
 }
-
 async function checkAutoArchive() {
   if (archiving) return;
   const real = messages.filter(m => m.role !== 'notice');
   const { overflowMsgs } = splitWindow(real);
   const unarchived = overflowMsgs.filter(m => !m.archived);
   const totalChars = unarchived.reduce((s,m) => s + getMsgCharLen(m), 0);
-  if (totalChars < ARCHIVE_TRIGGER_CHARS || unarchived.length === 0) return;
+  if (totalChars < 3000 || unarchived.length === 0) return;
   archiving = true;
-  try { await runArchive(unarchived); }
-  finally { archiving = false; }
+  try { await runArchive(unarchived); } finally { archiving = false; }
 }
 
 /* ============================================================
-[token估算] Space页显示
+token估算
 ============================================================ */
 function estimateContextTokens() {
   const persona = (appPersona || '').length;
@@ -2086,80 +1911,51 @@ function estimateContextTokens() {
   return totalChars / 1.5;
 }
 function refreshTokenEstimate() {
-  const el = document.getElementById('tokenEstimateLabel');
-  if (!el) return;
+  const el = document.getElementById('tokenEstimateLabel'); if (!el) return;
   const tokens = estimateContextTokens();
   el.textContent = `当前上下文约 ~${(tokens/1000).toFixed(1)}k tokens`;
 }
 
 /* ============================================================
-清空主聊天记录（双重确认）
+清空主聊天记录
 ============================================================ */
 const clearChatOverlay = document.getElementById('clearChatOverlay');
 const clearChatTitle   = document.getElementById('clearChatTitle');
 const clearChatBtn1    = document.getElementById('clearChatBtn1');
 const clearChatBtn2    = document.getElementById('clearChatBtn2');
 let clearChatStep = 1;
-
 function triggerClearChat() {
-  clearChatStep = 1;
-  clearChatTitle.textContent = '清空前先导出备份吗？';
-  clearChatBtn1.textContent = '跳过';
-  clearChatBtn1.className = 'preset-btn secondary';
-  clearChatBtn2.textContent = '导出备份';
-  clearChatBtn2.className = 'preset-btn primary';
-  clearChatBtn2.style.background = '';
+  clearChatStep = 1; clearChatTitle.textContent = '清空前先导出备份吗？';
+  clearChatBtn1.textContent = '跳过'; clearChatBtn1.className = 'preset-btn secondary';
+  clearChatBtn2.textContent = '导出备份'; clearChatBtn2.className = 'preset-btn primary'; clearChatBtn2.style.background = '';
   clearChatOverlay.classList.add('show');
 }
 function goToClearStep2() {
-  clearChatStep = 2;
-  clearChatTitle.textContent = '确定清空所有主聊天记录？此操作不可恢复！';
-  clearChatBtn1.textContent = '取消';
-  clearChatBtn1.className = 'preset-btn secondary';
-  clearChatBtn2.textContent = '确定清空';
-  clearChatBtn2.className = 'preset-btn primary';
-  clearChatBtn2.style.background = '#c0392b';
+  clearChatStep = 2; clearChatTitle.textContent = '确定清空所有主聊天记录？此操作不可恢复！';
+  clearChatBtn1.textContent = '取消'; clearChatBtn1.className = 'preset-btn secondary';
+  clearChatBtn2.textContent = '确定清空'; clearChatBtn2.className = 'preset-btn primary'; clearChatBtn2.style.background = '#c0392b';
 }
-clearChatBtn1.addEventListener('click', () => {
-  if (clearChatStep === 1) {
-    goToClearStep2();
-  } else {
-    clearChatOverlay.classList.remove('show');
-  }
-});
+clearChatBtn1.addEventListener('click', () => { if (clearChatStep === 1) goToClearStep2(); else clearChatOverlay.classList.remove('show'); });
 clearChatBtn2.addEventListener('click', () => {
-  if (clearChatStep === 1) {
-    document.getElementById('exportBackupBtn').click();
-    goToClearStep2();
-  } else {
-    messages = [];
-    topicStartId = null;
-    persistTopicStart();
-    persistMessages();
-    renderAllMessages();
-    clearChatOverlay.classList.remove('show');
-    showToast('主聊天记录已清空');
-  }
+  if (clearChatStep === 1) { document.getElementById('exportBackupBtn').click(); goToClearStep2(); }
+  else { messages = []; topicStartId = null; persistTopicStart(); persistMessages(); renderAllMessages(); clearChatOverlay.classList.remove('show'); showToast('主聊天记录已清空'); }
 });
 clearChatOverlay.addEventListener('click', e => { if (e.target === clearChatOverlay) clearChatOverlay.classList.remove('show'); });
+
 /* ============================================================
-[思维链解析] 有则显示小云朵，无则不显示
+思维链解析
 ============================================================ */
 function extractThinking(rawText) {
-  let thinking = '';
-  let cleanText = rawText;
+  let thinking = '', cleanText = rawText;
   const thinkMatch = rawText.match(/<think>([\s\S]*?)<\/think>/i);
-  if (thinkMatch) {
-    thinking = thinkMatch[1].trim();
-    cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
-  }
+  if (thinkMatch) { thinking = thinkMatch[1].trim(); cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/i, '').trim(); }
   return { thinking, cleanText };
 }
 
 /* ============================================================
 渲染：消息气泡
 ============================================================ */
-const chatScroll = document.getElementById('chatScroll');
+const chatScroll    = document.getElementById('chatScroll');
 const subchatScroll = document.getElementById('subchatScroll');
 
 function getMsgDisplayText(m) {
@@ -2169,298 +1965,165 @@ function getMsgDisplayText(m) {
   }
   return m.text || '';
 }
-
 function refreshRow(msg, ctx) {
-  const oldRow = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`);
-  if (!oldRow) return;
-  const newRow = buildMsgRow(msg, ctx);
-  oldRow.replaceWith(newRow);
+  const oldRow = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`); if (!oldRow) return;
+  const newRow = buildMsgRow(msg, ctx); oldRow.replaceWith(newRow);
 }
-
 function switchVersion(msg, ctx, delta) {
   const newIdx = msg.versionIndex + delta;
   if (newIdx < 0 || newIdx >= msg.versions.length) return;
-  msg.versionIndex = newIdx;
-  msg.text = msg.versions[newIdx];
-  ctx.persist();
-  refreshRow(msg, ctx);
+  msg.versionIndex = newIdx; msg.text = msg.versions[newIdx]; ctx.persist(); refreshRow(msg, ctx);
 }
-
 function buildVersionSwitcher(msg, ctx) {
-  const box = document.createElement('div');
-  box.className = 'msg-version-switcher';
-  const leftBtn = document.createElement('button');
-  leftBtn.className = 'version-arrow';
-  leftBtn.textContent = '‹';
-  leftBtn.disabled = msg.versionIndex <= 0;
+  const box = document.createElement('div'); box.className = 'msg-version-switcher';
+  const leftBtn = document.createElement('button'); leftBtn.className = 'version-arrow'; leftBtn.textContent = '‹'; leftBtn.disabled = msg.versionIndex <= 0;
   leftBtn.addEventListener('click', (e) => { e.stopPropagation(); switchVersion(msg, ctx, -1); });
-  const label = document.createElement('span');
-  label.className = 'version-label';
-  label.textContent = `${msg.versionIndex+1}/${msg.versions.length}`;
-  const rightBtn = document.createElement('button');
-  rightBtn.className = 'version-arrow';
-  rightBtn.textContent = '›';
-  rightBtn.disabled = msg.versionIndex >= msg.versions.length - 1;
+  const label = document.createElement('span'); label.className = 'version-label'; label.textContent = `${msg.versionIndex+1}/${msg.versions.length}`;
+  const rightBtn = document.createElement('button'); rightBtn.className = 'version-arrow'; rightBtn.textContent = '›'; rightBtn.disabled = msg.versionIndex >= msg.versions.length - 1;
   rightBtn.addEventListener('click', (e) => { e.stopPropagation(); switchVersion(msg, ctx, 1); });
   box.appendChild(leftBtn); box.appendChild(label); box.appendChild(rightBtn);
   return box;
 }
-
 function addCopyButtons(bubble) {
   bubble.querySelectorAll('pre').forEach(pre => {
     if (pre.querySelector('.code-copy-btn')) return;
-    const btn = document.createElement('button');
-    btn.className = 'code-copy-btn';
-    btn.textContent = '复制';
+    const btn = document.createElement('button'); btn.className = 'code-copy-btn'; btn.textContent = '复制';
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const codeEl = pre.querySelector('code');
-      const code = codeEl ? codeEl.innerText : pre.innerText;
+      const codeEl = pre.querySelector('code'); const code = codeEl ? codeEl.innerText : pre.innerText;
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(code).then(() => {
-          btn.textContent = '已复制✓';
-          setTimeout(() => { btn.textContent = '复制'; }, 1500);
-        }).catch(() => showToast('复制失败'));
+        navigator.clipboard.writeText(code).then(() => { btn.textContent = '已复制'; setTimeout(() => { btn.textContent = '复制'; }, 1500); }).catch(() => showToast('复制失败'));
       }
     });
     pre.appendChild(btn);
   });
 }
-
 function attachLongPress(el, msg, ctx) {
   let startX = 0, startY = 0, timer = null;
   el.addEventListener('touchstart', (e) => {
-    const t = e.touches[0];
-    startX = t.clientX; startY = t.clientY;
-    timer = setTimeout(() => {
-      if (window.getSelection && window.getSelection().toString().length > 0) return;
-      openMsgMenu(msg, ctx, startX, startY);
-    }, 550);
+    const t = e.touches[0]; startX = t.clientX; startY = t.clientY;
+    timer = setTimeout(() => { if (window.getSelection && window.getSelection().toString().length > 0) return; openMsgMenu(msg, ctx, startX, startY); }, 550);
   }, { passive: true });
-  el.addEventListener('touchmove', (e) => {
-    const t = e.touches[0];
-    if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) clearTimeout(timer);
-  }, { passive: true });
+  el.addEventListener('touchmove', (e) => { const t = e.touches[0]; if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) clearTimeout(timer); }, { passive: true });
   el.addEventListener('touchend', () => clearTimeout(timer));
   el.addEventListener('touchcancel', () => clearTimeout(timer));
-  el.addEventListener('contextmenu', (e) => {
-    if (window.getSelection && window.getSelection().toString().length > 0) return;
-    e.preventDefault();
-    openMsgMenu(msg, ctx, e.clientX, e.clientY);
-  });
+  el.addEventListener('contextmenu', (e) => { if (window.getSelection && window.getSelection().toString().length > 0) return; e.preventDefault(); openMsgMenu(msg, ctx, e.clientX, e.clientY); });
 }
-
 function openMsgMenu(msg, ctx, x, y) {
-  if (msg.role === 'notice') {
-    openFloatingMenu([{ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) }], x, y);
-    return;
-  }
+  if (msg.role === 'notice') { openFloatingMenu([{ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) }], x, y); return; }
   const items = [];
-  if (ctx === mainCtx) {
-    items.push({ label: '多选', onClick: () => enterSelectMode() });
-  }
+  if (ctx === mainCtx) items.push({ label: '多选', onClick: () => enterSelectMode() });
+  items.push({ label: '引用', onClick: () => setQuote(msg, ctx) });
   items.push({ label: '复制', onClick: () => {
     const text = getMsgDisplayText(msg);
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => showToast('复制失败'));
-    } else { showToast('复制失败'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => showToast('复制失败')); }
+    else showToast('复制失败');
   }});
   items.push({ label: '编辑', onClick: () => triggerEditMessage(msg, ctx) });
-  if (msg.role !== 'user') {
-    items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
-  }
+  if (msg.role !== 'user') items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
   items.push({ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) });
   openFloatingMenu(items, x, y);
 }
-
 function triggerEditMessage(msg, ctx) {
-  const row = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`);
-  if (!row) return;
+  const row = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`); if (!row) return;
   const bubble = row.querySelector('.msg-bubble');
-  const ta = document.createElement('textarea');
-  ta.className = 'msg-edit-textarea';
-  ta.value = getMsgDisplayText(msg);
-  bubble.innerHTML = '';
-  bubble.appendChild(ta);
-  ta.focus();
-  ta.style.height = 'auto';
-  ta.style.height = ta.scrollHeight + 'px';
+  const ta = document.createElement('textarea'); ta.className = 'msg-edit-textarea'; ta.value = getMsgDisplayText(msg);
+  bubble.innerHTML = ''; bubble.appendChild(ta); ta.focus();
+  ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
   ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
   ta.addEventListener('blur', () => {
     const val = ta.value;
-    if (val.trim() === '') {
-      showToast('内容不能是空的哦');
-      refreshRow(msg, ctx);
-      return;
-    }
-    if (msg.role === 'user') {
-      msg.text = val;
-    } else {
-      if (!msg.versions) { msg.versions = [val]; msg.versionIndex = 0; }
-      else { msg.versions[msg.versionIndex] = val; }
-      msg.text = val;
-    }
-    ctx.persist();
-    ctx.renderAll();
+    if (val.trim() === '') { showToast('内容不能是空的哦'); refreshRow(msg, ctx); return; }
+    if (msg.role === 'user') { msg.text = val; }
+    else { if (!msg.versions) { msg.versions = [val]; msg.versionIndex = 0; } else { msg.versions[msg.versionIndex] = val; } msg.text = val; }
+    ctx.persist(); ctx.renderAll();
   });
 }
-
 function deleteMessage(msg, ctx) {
-  const arr = ctx.getArray();
-  const idx = arr.findIndex(m => m.id === msg.id);
-  if (idx === -1) return;
-  const page = document.getElementById(ctx.pageId);
-  const savedScroll = page.scrollTop;
-  arr.splice(idx, 1);
-  ctx.persist();
-  ctx.renderAll();
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      page.scrollTop = savedScroll;
-    });
-  });
+  const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id); if (idx === -1) return;
+  const page = document.getElementById(ctx.pageId); const savedScroll = page.scrollTop;
+  arr.splice(idx, 1); ctx.persist(); ctx.renderAll();
+  requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = savedScroll; }); });
 }
-
 function regenerateMessage(msg, ctx) {
-  const arr = ctx.getArray();
-  const idx = arr.findIndex(m => m.id === msg.id);
-  if (idx === -1) return;
-  arr.splice(idx + 1);
-  ctx.persist();
-  ctx.renderAll();
-  ctx.callAPI(msg);
+  const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id); if (idx === -1) return;
+  arr.splice(idx + 1); ctx.persist(); ctx.renderAll(); ctx.callAPI(msg);
 }
-
 function buildMsgRow(msg, ctx) {
   if (msg.role === 'notice') {
-    const row = document.createElement('div');
-    row.className = 'msg-notice';
-    row.dataset.msgId = msg.id;
-    row.textContent = msg.text;
-    if (ctx) attachLongPress(row, msg, ctx);
-    return row;
+    const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
+    if (ctx) attachLongPress(row, msg, ctx); return row;
   }
-
-  const row  = document.createElement('div');
-  row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai');
-  row.dataset.msgId = msg.id;
-
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai'); row.dataset.msgId = msg.id;
   const isMultiSelectable = ctx === mainCtx && selectMode;
+  if (isMultiSelectable && msg.role === 'ai') row.appendChild(buildSelectCb(msg));
+  const wrap = document.createElement('div'); wrap.className = 'msg-bubble-wrap';
 
-  if (isMultiSelectable && msg.role === 'ai') {
-    row.appendChild(buildSelectCb(msg));
-  }
-
-  const wrap = document.createElement('div');
-  wrap.className = 'msg-bubble-wrap';
-
-  /* [思维链小云朵] 有thinking字段才显示，点击展开/收起 */
   if (msg.role !== 'user' && msg.thinking && msg.thinking.trim()) {
-    const cloud = document.createElement('div');
-    cloud.className = 'think-cloud';
-    cloud.textContent = '☁️ -thinking-';
-    const thinkBody = document.createElement('div');
-    thinkBody.className = 'think-content';
-    thinkBody.textContent = msg.thinking;
-    thinkBody.style.display = 'none';
-    cloud.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const showing = thinkBody.style.display !== 'none';
-      thinkBody.style.display = showing ? 'none' : 'block';
-    });
-    wrap.appendChild(cloud);
-    wrap.appendChild(thinkBody);
+    const cloud = document.createElement('div'); cloud.className = 'think-cloud'; cloud.textContent = '☁ -thinking-';
+    const thinkBody = document.createElement('div'); thinkBody.className = 'think-content'; thinkBody.textContent = msg.thinking; thinkBody.style.display = 'none';
+    cloud.addEventListener('click', (e) => { e.stopPropagation(); const showing = thinkBody.style.display !== 'none'; thinkBody.style.display = showing ? 'none' : 'block'; });
+    wrap.appendChild(cloud); wrap.appendChild(thinkBody);
   }
-
   if (msg.images && msg.images.length > 0) {
     const imgWrap = document.createElement('div'); imgWrap.className = 'msg-images';
-    msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); });
-    wrap.appendChild(imgWrap);
+    msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); }); wrap.appendChild(imgWrap);
   }
   if (msg.files && msg.files.length > 0) {
     const fw = document.createElement('div'); fw.className = 'msg-files';
-    msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); });
-    wrap.appendChild(fw);
+    msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); }); wrap.appendChild(fw);
   }
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
+  const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
+
+  if (msg.quote) {
+    const qb = document.createElement('div'); qb.className = 'msg-quote-block';
+    qb.textContent = msg.quote.author + '：' + msg.quote.text; bubble.appendChild(qb);
+  }
+
   const displayText = getMsgDisplayText(msg);
   if (displayText && displayText.trim()) {
-    try { bubble.innerHTML = marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
+    try { bubble.innerHTML = (msg.quote ? bubble.innerHTML : '') + marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
     addCopyButtons(bubble);
   }
   wrap.appendChild(bubble);
-
-  if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) {
-    wrap.appendChild(buildVersionSwitcher(msg, ctx));
-  }
-
-  const timeEl = document.createElement('div');
-  timeEl.className = 'msg-time';
-  timeEl.textContent = msg.time;
-  wrap.appendChild(timeEl);
+  if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
+  const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = msg.time; wrap.appendChild(timeEl);
   row.appendChild(wrap);
-
-  if (isMultiSelectable && msg.role === 'user') {
-    row.appendChild(buildSelectCb(msg));
-  }
-
-  if (isMultiSelectable) {
-    row.style.cursor = 'pointer';
-    row.addEventListener('click', () => toggleSelect(msg.id));
-  } else if (ctx) {
-    attachLongPress(wrap, msg, ctx);
-  }
+  if (isMultiSelectable && msg.role === 'user') row.appendChild(buildSelectCb(msg));
+  if (isMultiSelectable) { row.style.cursor = 'pointer'; row.addEventListener('click', () => toggleSelect(msg.id)); }
+  else if (ctx) attachLongPress(wrap, msg, ctx);
   return row;
 }
-
 function buildSelectCb(msg) {
-  const cb = document.createElement('div');
-  cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : '');
-  cb.textContent = selectedIds.has(msg.id) ? '✓' : '';
-  return cb;
+  const cb = document.createElement('div'); cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : ''); cb.textContent = selectedIds.has(msg.id) ? '✓' : ''; return cb;
 }
-
 function renderAllMessages() {
   chatScroll.innerHTML = '';
   messages.forEach(msg => chatScroll.appendChild(buildMsgRow(msg, mainCtx)));
   if (!selectMode) scrollToBottom(chatScroll, 'page-chat');
 }
 function appendMessage(msg) {
-  const row = buildMsgRow(msg, mainCtx);
-  row.classList.add('bubble-in');
-  chatScroll.appendChild(row);
-  scrollToBottom(chatScroll, 'page-chat');
-  return row;
+  const row = buildMsgRow(msg, mainCtx); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
 }
-function scrollToBottom(container, pageId) {
-  requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; });
-}
+function scrollToBottom(container, pageId) { requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
 
 /* ============================================================
-思考中气泡（等待/分条延迟用）
+思考中气泡
 ============================================================ */
 function showThinkingRow(container, pageId) {
   removeThinkingRow();
-  const row = document.createElement('div');
-  row.className = 'msg-row ai bubble-in';
-  const wrap = document.createElement('div');
-  wrap.className = 'msg-bubble-wrap';
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
+  const row = document.createElement('div'); row.className = 'msg-row ai bubble-in';
+  const wrap = document.createElement('div'); wrap.className = 'msg-bubble-wrap';
+  const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
   bubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
-  wrap.appendChild(bubble);
-  row.appendChild(wrap);
-  container.appendChild(row);
-  thinkingRowEl = row;
-  scrollToBottom(container, pageId);
+  wrap.appendChild(bubble); row.appendChild(wrap); container.appendChild(row);
+  thinkingRowEl = row; scrollToBottom(container, pageId);
 }
-function removeThinkingRow() {
-  if (thinkingRowEl) { thinkingRowEl.remove(); thinkingRowEl = null; }
-}
+function removeThinkingRow() { if (thinkingRowEl) { thinkingRowEl.remove(); thinkingRowEl = null; } }
 
 /* ============================================================
-分条延迟气泡（[splitmsg]）
+分条延迟气泡
 ============================================================ */
 function renderSplitBubbles(parts, i) {
   if (i >= parts.length) return;
@@ -2468,377 +2131,166 @@ function renderSplitBubbles(parts, i) {
   setTimeout(() => {
     removeThinkingRow();
     const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr(), archived:false };
-    messages.push(msg);
-    persistMessages();
-    appendMessage(msg);
-    renderSplitBubbles(parts, i + 1);
+    messages.push(msg); persistMessages(); appendMessage(msg); renderSplitBubbles(parts, i + 1);
   }, 600 + Math.random() * 300);
 }
-
 function renderSubChatMessages() {
   subchatScroll.innerHTML = '';
-  const sc = subChats.find(s => s.id === currentSubChatId);
-  if (!sc) return;
+  const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
   sc.messages.forEach(msg => subchatScroll.appendChild(buildMsgRow(msg, subCtx)));
   scrollToBottom(subchatScroll, 'page-subchat');
 }
 function appendSubChatMessage(msg) {
-  const row = buildMsgRow(msg, subCtx);
-  row.classList.add('bubble-in');
-  subchatScroll.appendChild(row);
-  scrollToBottom(subchatScroll, 'page-subchat');
-  return row;
+  const row = buildMsgRow(msg, subCtx); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
 }
+
 /* ============================================================
 侧边栏：副聊天列表
 ============================================================ */
 function renderSubChatSidebarList() {
-  const listEl = document.getElementById('subChatList');
-  listEl.innerHTML = '';
-  if (subChats.length === 0) {
-    const e = document.createElement('div');
-    e.className = 'side-subitem-empty';
-    e.textContent = '（暂无副聊天）';
-    listEl.appendChild(e);
-    return;
-  }
+  const listEl = document.getElementById('subChatList'); listEl.innerHTML = '';
+  if (subChats.length === 0) { const e = document.createElement('div'); e.className = 'side-subitem-empty'; e.textContent = '（暂无副聊天）'; listEl.appendChild(e); return; }
   subChats.forEach(sc => {
-    const item = document.createElement('div');
-    item.className = 'side-subitem' + (currentPage === 'subchat' && currentSubChatId === sc.id ? ' active' : '');
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'side-subitem-name';
-    nameSpan.textContent = sc.name;
-    nameSpan.addEventListener('click', () => {
-      currentSubChatId = sc.id;
-      switchPage('subchat');
-      renderSubChatSidebarList();
-      closeSidebar();
-    });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'side-subitem-del';
-    delBtn.textContent = '🗑';
+    const item = document.createElement('div'); item.className = 'side-subitem' + (currentPage === 'subchat' && currentSubChatId === sc.id ? ' active' : '');
+    const nameSpan = document.createElement('span'); nameSpan.className = 'side-subitem-name'; nameSpan.textContent = sc.name;
+    nameSpan.addEventListener('click', () => { currentSubChatId = sc.id; switchPage('subchat'); renderSubChatSidebarList(); closeSidebar(); });
+    const delBtn = document.createElement('button'); delBtn.className = 'side-subitem-del'; delBtn.textContent = '🗑';
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (!confirm(`删除副聊天「${sc.name}」？此操作不可恢复。`)) return;
-      subChats = subChats.filter(x => x.id !== sc.id);
-      persistSubChats();
-      if (currentSubChatId === sc.id) {
-        currentSubChatId = null;
-        switchPage('chat');
-        document.querySelectorAll('.side-nav-item').forEach(i => i.classList.remove('active'));
-        document.querySelector('.side-nav-item[data-nav="chat"]').classList.add('active');
-      }
+      subChats = subChats.filter(x => x.id !== sc.id); persistSubChats();
+      if (currentSubChatId === sc.id) { currentSubChatId = null; switchPage('chat'); document.querySelectorAll('.side-nav-item').forEach(i => i.classList.remove('active')); document.querySelector('.side-nav-item[data-nav="chat"]').classList.add('active'); }
       renderSubChatSidebarList();
     });
-
-    item.appendChild(nameSpan);
-    item.appendChild(delBtn);
-    listEl.appendChild(item);
+    item.appendChild(nameSpan); item.appendChild(delBtn); listEl.appendChild(item);
   });
 }
 document.getElementById('newSubChatBtn').addEventListener('click', () => {
-  const name = prompt('给这个副聊天起个名字：');
-  if (!name || !name.trim()) return;
+  const name = prompt('给这个副聊天起个名字：'); if (!name || !name.trim()) return;
   const sc = { id: genId(), name: name.trim(), preset: '', messages: [], createdAt: Date.now() };
-  subChats.push(sc);
-  persistSubChats();
-  currentSubChatId = sc.id;
-  switchPage('subchat');
-  renderSubChatSidebarList();
-  closeSidebar();
+  subChats.push(sc); persistSubChats(); currentSubChatId = sc.id; switchPage('subchat'); renderSubChatSidebarList(); closeSidebar();
 });
 
 /* ============================================================
 计划备忘
 ============================================================ */
 function renderPlans() {
-  const listEl = document.getElementById('planList');
-  listEl.innerHTML = '';
-  if (plans.length === 0) {
-    const e = document.createElement('div');
-    e.className = 'plan-empty';
-    e.textContent = '暂无计划';
-    listEl.appendChild(e);
-  } else {
+  const listEl = document.getElementById('planList'); listEl.innerHTML = '';
+  if (plans.length === 0) { const e = document.createElement('div'); e.className = 'plan-empty'; e.textContent = '暂无计划'; listEl.appendChild(e); }
+  else {
     plans.forEach(p => {
-      const item = document.createElement('div');
-      item.className = 'plan-item';
-
-      const check = document.createElement('div');
-      check.className = 'plan-check' + (p.done ? ' done' : '');
-      check.textContent = p.done ? '✓' : '';
-      check.addEventListener('click', () => {
-        p.done = !p.done;
-        persistPlans();
-        renderPlans();
-      });
-
-      const text = document.createElement('div');
-      text.className = 'plan-text' + (p.done ? ' done' : '');
-      text.textContent = p.text;
-
-      const del = document.createElement('button');
-      del.className = 'plan-del';
-      del.textContent = '🗑';
-      del.addEventListener('click', () => {
-        plans = plans.filter(x => x.id !== p.id);
-        persistPlans();
-        renderPlans();
-      });
-
-      item.appendChild(check);
-      item.appendChild(text);
-      item.appendChild(del);
-      listEl.appendChild(item);
+      const item = document.createElement('div'); item.className = 'plan-item';
+      const check = document.createElement('div'); check.className = 'plan-check' + (p.done ? ' done' : ''); check.textContent = p.done ? '✓' : '';
+      check.addEventListener('click', () => { p.done = !p.done; persistPlans(); renderPlans(); });
+      const text = document.createElement('div'); text.className = 'plan-text' + (p.done ? ' done' : ''); text.textContent = p.text;
+      const del = document.createElement('button'); del.className = 'plan-del'; del.textContent = '🗑';
+      del.addEventListener('click', () => { plans = plans.filter(x => x.id !== p.id); persistPlans(); renderPlans(); });
+      item.appendChild(check); item.appendChild(text); item.appendChild(del); listEl.appendChild(item);
     });
   }
-
-  const total = plans.length;
-  const doneCount = plans.filter(p => p.done).length;
+  const total = plans.length, doneCount = plans.filter(p => p.done).length;
   document.getElementById('planProgressText').textContent = `已完成 ${doneCount} / ${total}`;
   const pct = total === 0 ? 0 : Math.round((doneCount / total) * 100);
   document.getElementById('planBarFill').style.width = pct + '%';
 }
 document.getElementById('planAddBtn').addEventListener('click', () => {
-  const text = prompt('添加计划：');
-  if (!text || !text.trim()) return;
-  plans.push({ id: genId(), text: text.trim(), done: false });
-  persistPlans();
-  renderPlans();
+  const text = prompt('添加计划：'); if (!text || !text.trim()) return;
+  plans.push({ id: genId(), text: text.trim(), done: false }); persistPlans(); renderPlans();
 });
 
 /* ============================================================
 日记
 ============================================================ */
 function triggerEditDiary(d) {
-  const card = document.querySelector(`.diary-card[data-diary-id="${d.id}"]`);
-  if (!card) return;
-  const textEl = card.querySelector('.diary-text');
-  if (!textEl) return;
-  const ta = document.createElement('textarea');
-  ta.className = 'diary-edit-textarea';
-  ta.value = d.text;
-  textEl.replaceWith(ta);
-  ta.focus();
-  ta.setSelectionRange(ta.value.length, ta.value.length);
-  ta.addEventListener('blur', () => {
-    const val = ta.value.trim();
-    if (val) { d.text = val; persistDiaries(); }
-    renderDiaries();
-  });
+  const card = document.querySelector(`.diary-card[data-diary-id="${d.id}"]`); if (!card) return;
+  const textEl = card.querySelector('.diary-text'); if (!textEl) return;
+  const ta = document.createElement('textarea'); ta.className = 'diary-edit-textarea'; ta.value = d.text;
+  textEl.replaceWith(ta); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  ta.addEventListener('blur', () => { const val = ta.value.trim(); if (val) { d.text = val; persistDiaries(); } renderDiaries(); });
 }
-
 function openDiaryMoreMenu(d, anchorBtn) {
   const rect = anchorBtn.getBoundingClientRect();
-  const items = [
+  openFloatingMenu([
     { label: '编辑', onClick: () => triggerEditDiary(d) },
-    { label: '删除', danger: true, onClick: () => {
-        if (confirm('删除这篇日记？此操作不可恢复。')) {
-          diaries = diaries.filter(x => x.id !== d.id);
-          persistDiaries();
-          renderDiaries();
-        }
-      }
-    }
-  ];
-  openFloatingMenu(items, rect.right - 120, rect.bottom + 6);
+    { label: '删除', danger: true, onClick: () => { if (confirm('删除这篇日记？此操作不可恢复。')) { diaries = diaries.filter(x => x.id !== d.id); persistDiaries(); renderDiaries(); } } }
+  ], rect.right - 120, rect.bottom + 6);
 }
-
 function buildDiaryCard(d) {
-  const card = document.createElement('div');
-  card.className = 'diary-card' + (d.author === 'ranjun' ? ' author-ranjun' : '');
-  card.dataset.diaryId = d.id;
-
-  const head = document.createElement('div');
-  head.className = 'diary-card-head';
-
-  const tag = document.createElement('span');
-  tag.className = 'diary-author-tag' + (d.author === 'ranjun' ? ' ranjun' : '');
-  tag.textContent = d.author === 'ranjun' ? appName : appUsername;
-  head.appendChild(tag);
-
-  if (d.mood) {
-    const moodEl = document.createElement('span');
-    moodEl.className = 'diary-mood-badge';
-    moodEl.textContent = d.mood;
-    head.appendChild(moodEl);
-  }
-
-  const time = document.createElement('span');
-  time.className = 'diary-time';
-  time.textContent = d.time;
-  head.appendChild(time);
-
-  const actions = document.createElement('div');
-  actions.className = 'diary-card-actions';
-
-  const moodBtn = document.createElement('button');
-  moodBtn.className = 'diary-action-btn';
-  moodBtn.textContent = '☺';
-  moodBtn.title = '选择心情章';
+  const card = document.createElement('div'); card.className = 'diary-card' + (d.author === 'ranjun' ? ' author-ranjun' : ''); card.dataset.diaryId = d.id;
+  const head = document.createElement('div'); head.className = 'diary-card-head';
+  const tag = document.createElement('span'); tag.className = 'diary-author-tag' + (d.author === 'ranjun' ? ' ranjun' : ''); tag.textContent = d.author === 'ranjun' ? appName : appUsername; head.appendChild(tag);
+  if (d.mood) { const moodEl = document.createElement('span'); moodEl.className = 'diary-mood-badge'; moodEl.textContent = d.mood; head.appendChild(moodEl); }
+  const time = document.createElement('span'); time.className = 'diary-time'; time.textContent = d.time; head.appendChild(time);
+  const actions = document.createElement('div'); actions.className = 'diary-card-actions';
+  const moodBtn = document.createElement('button'); moodBtn.className = 'diary-action-btn'; moodBtn.textContent = '☺'; moodBtn.title = '选择心情章';
   moodBtn.addEventListener('click', () => openEmojiPanel(d.id));
-
-  const favBtn = document.createElement('button');
-  favBtn.className = 'diary-action-btn' + (d.fav ? ' fav-on' : '');
-  favBtn.textContent = d.fav ? '★' : '☆';
-  favBtn.addEventListener('click', () => {
-    d.fav = !d.fav;
-    persistDiaries();
-    renderDiaries();
-  });
-
-  const moreBtn = document.createElement('button');
-  moreBtn.className = 'diary-action-btn diary-more-btn';
-  moreBtn.textContent = '⋯';
-  moreBtn.title = '更多';
+  const favBtn = document.createElement('button'); favBtn.className = 'diary-action-btn' + (d.fav ? ' fav-on' : ''); favBtn.textContent = d.fav ? '★' : '☆';
+  favBtn.addEventListener('click', () => { d.fav = !d.fav; persistDiaries(); renderDiaries(); });
+  const moreBtn = document.createElement('button'); moreBtn.className = 'diary-action-btn diary-more-btn'; moreBtn.textContent = '⋯';
   moreBtn.addEventListener('click', () => openDiaryMoreMenu(d, moreBtn));
-
-  actions.appendChild(moodBtn);
-  actions.appendChild(favBtn);
-  actions.appendChild(moreBtn);
-  head.appendChild(actions);
-
-  const text = document.createElement('div');
-  text.className = 'diary-text';
-  text.textContent = d.text;
-
-  const commentsWrap = document.createElement('div');
-  commentsWrap.className = 'diary-comments';
+  actions.appendChild(moodBtn); actions.appendChild(favBtn); actions.appendChild(moreBtn); head.appendChild(actions);
+  const text = document.createElement('div'); text.className = 'diary-text'; text.textContent = d.text;
+  const commentsWrap = document.createElement('div'); commentsWrap.className = 'diary-comments';
   (d.comments || []).forEach((c, cIdx) => {
-    const cRow = document.createElement('div');
-    cRow.className = 'diary-comment';
-    const cAuthor = document.createElement('span');
-    cAuthor.className = 'diary-comment-author';
-    cAuthor.textContent = (c.author === 'ranjun' ? appName : appUsername) + '：';
-    const cText = document.createElement('span');
-    cText.className = 'diary-comment-text';
-    cText.textContent = c.text;
+    const cRow = document.createElement('div'); cRow.className = 'diary-comment';
+    const cAuthor = document.createElement('span'); cAuthor.className = 'diary-comment-author'; cAuthor.textContent = (c.author === 'ranjun' ? appName : appUsername) + '：';
+    const cText = document.createElement('span'); cText.className = 'diary-comment-text'; cText.textContent = c.text;
     cRow.appendChild(cAuthor); cRow.appendChild(cText);
-    cRow.addEventListener('click', () => {
-      if (confirm('删除这条评论？')) {
-        d.comments.splice(cIdx, 1);
-        persistDiaries();
-        renderDiaries();
-      }
-    });
+    cRow.addEventListener('click', () => { if (confirm('删除这条评论？')) { d.comments.splice(cIdx, 1); persistDiaries(); renderDiaries(); } });
     commentsWrap.appendChild(cRow);
   });
-
-  const inputRow = document.createElement('div');
-  inputRow.className = 'diary-comment-input-row';
-  const input = document.createElement('input');
-  input.className = 'diary-comment-input';
-  input.placeholder = '写评论…';
-  const sendBtnEl = document.createElement('button');
-  sendBtnEl.className = 'diary-comment-send';
-  sendBtnEl.textContent = '发送';
-  function submitComment() {
-    const val = input.value.trim();
-    if (!val) return;
-    d.comments = d.comments || [];
-    d.comments.push({ author:'ao', text: val });
-    persistDiaries();
-    renderDiaries();
-  }
+  const inputRow = document.createElement('div'); inputRow.className = 'diary-comment-input-row';
+  const input = document.createElement('input'); input.className = 'diary-comment-input'; input.placeholder = '写评论…';
+  const sendBtnEl = document.createElement('button'); sendBtnEl.className = 'diary-comment-send'; sendBtnEl.textContent = '发送';
+  function submitComment() { const val = input.value.trim(); if (!val) return; d.comments = d.comments || []; d.comments.push({ author:'ao', text: val }); persistDiaries(); renderDiaries(); }
   sendBtnEl.addEventListener('click', submitComment);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(); } });
-  inputRow.appendChild(input); inputRow.appendChild(sendBtnEl);
-  commentsWrap.appendChild(inputRow);
-
-  card.appendChild(head);
-  card.appendChild(text);
-  card.appendChild(commentsWrap);
+  inputRow.appendChild(input); inputRow.appendChild(sendBtnEl); commentsWrap.appendChild(inputRow);
+  card.appendChild(head); card.appendChild(text); card.appendChild(commentsWrap);
   return card;
 }
 function renderDiaries() {
-  const listEl = document.getElementById('diaryList');
-  if (!listEl) return;
-  listEl.innerHTML = '';
-
+  const listEl = document.getElementById('diaryList'); if (!listEl) return; listEl.innerHTML = '';
   let filtered = diaries;
   if (diaryFilter === 'ao') filtered = diaries.filter(d => d.author === 'ao');
   else if (diaryFilter === 'ranjun') filtered = diaries.filter(d => d.author === 'ranjun');
   else if (diaryFilter === 'fav') filtered = diaries.filter(d => d.fav);
-
-  if (filtered.length === 0) {
-    const e = document.createElement('div');
-    e.className = 'diary-empty';
-    e.textContent = diaryFilter === 'fav' ? '还没有收藏的日记' : '还没有日记';
-    listEl.appendChild(e);
-    return;
-  }
+  if (filtered.length === 0) { const e = document.createElement('div'); e.className = 'diary-empty'; e.textContent = diaryFilter === 'fav' ? '还没有收藏的日记' : '还没有日记'; listEl.appendChild(e); return; }
   const sorted = [...filtered].sort((a,b) => b.createdAt - a.createdAt);
   sorted.forEach(d => listEl.appendChild(buildDiaryCard(d)));
 }
-
 document.querySelectorAll('.diary-filter-tag').forEach(tag => {
   tag.addEventListener('click', () => {
     diaryFilter = tag.dataset.filter;
-    document.querySelectorAll('.diary-filter-tag').forEach(t => t.classList.remove('active'));
-    tag.classList.add('active');
-    renderDiaries();
+    document.querySelectorAll('.diary-filter-tag').forEach(t => t.classList.remove('active')); tag.classList.add('active'); renderDiaries();
   });
 });
-
-const diaryWriteOverlay = document.getElementById('diaryWriteOverlay');
+const diaryWriteOverlay  = document.getElementById('diaryWriteOverlay');
 const diaryWriteTextarea = document.getElementById('diaryWriteTextarea');
-document.getElementById('diaryWriteBtn').addEventListener('click', () => {
-  diaryWriteTextarea.value = '';
-  diaryWriteOverlay.classList.add('show');
-});
+document.getElementById('diaryWriteBtn').addEventListener('click', () => { diaryWriteTextarea.value = ''; diaryWriteOverlay.classList.add('show'); });
 document.getElementById('diaryCancelBtn').addEventListener('click', () => diaryWriteOverlay.classList.remove('show'));
 diaryWriteOverlay.addEventListener('click', e => { if (e.target === diaryWriteOverlay) diaryWriteOverlay.classList.remove('show'); });
 document.getElementById('diarySaveBtn').addEventListener('click', () => {
-  const text = diaryWriteTextarea.value.trim();
-  if (!text) { showToast('写点什么吧'); return; }
+  const text = diaryWriteTextarea.value.trim(); if (!text) { showToast('写点什么吧'); return; }
   diaries.push({ id: genId(), author:'ao', text, time: fullTimeStr(), createdAt: Date.now(), comments: [], mood:'', fav:false, ranjunRead:false });
-  persistDiaries();
-  renderDiaries();
-  diaryWriteOverlay.classList.remove('show');
-  showToast('日记已保存 ✓');
+  persistDiaries(); renderDiaries(); diaryWriteOverlay.classList.remove('show'); showToast('日记已保存');
 });
 
 /* ============================================================
-emoji 心情章面板
+emoji 心情章
 ============================================================ */
 const emojiOverlay = document.getElementById('emojiOverlay');
-const emojiGrid = document.getElementById('emojiGrid');
-
+const emojiGrid    = document.getElementById('emojiGrid');
 EMOJI_LIST.forEach(e => {
-  const opt = document.createElement('div');
-  opt.className = 'emoji-option';
-  opt.textContent = e;
-  opt.addEventListener('click', () => {
-    const d = diaries.find(x => x.id === emojiTargetDiaryId);
-    if (d) {
-      d.mood = e;
-      persistDiaries();
-      renderDiaries();
-    }
-    closeEmojiPanel();
-  });
+  const opt = document.createElement('div'); opt.className = 'emoji-option'; opt.textContent = e;
+  opt.addEventListener('click', () => { const d = diaries.find(x => x.id === emojiTargetDiaryId); if (d) { d.mood = e; persistDiaries(); renderDiaries(); } closeEmojiPanel(); });
   emojiGrid.appendChild(opt);
 });
-
-function openEmojiPanel(diaryId) {
-  emojiTargetDiaryId = diaryId;
-  emojiOverlay.classList.add('show');
-}
-function closeEmojiPanel() {
-  emojiOverlay.classList.remove('show');
-  emojiTargetDiaryId = null;
-}
+function openEmojiPanel(diaryId) { emojiTargetDiaryId = diaryId; emojiOverlay.classList.add('show'); }
+function closeEmojiPanel() { emojiOverlay.classList.remove('show'); emojiTargetDiaryId = null; }
 emojiOverlay.addEventListener('click', e => { if (e.target === emojiOverlay) closeEmojiPanel(); });
 document.getElementById('emojiClearBtn').addEventListener('click', () => {
-  const d = diaries.find(x => x.id === emojiTargetDiaryId);
-  if (d) {
-    d.mood = '';
-    persistDiaries();
-    renderDiaries();
-  }
-  closeEmojiPanel();
+  const d = diaries.find(x => x.id === emojiTargetDiaryId); if (d) { d.mood = ''; persistDiaries(); renderDiaries(); } closeEmojiPanel();
 });
 
 /* ============================================================
@@ -2846,17 +2298,8 @@ document.getElementById('emojiClearBtn').addEventListener('click', () => {
 ============================================================ */
 const pageCapsule = document.getElementById('pageCapsule');
 const pageTitles  = { chat:'然竣', diary:'日记', log:'Log', space:'Space', subchat:'副聊天' };
-
-pageCapsule.addEventListener('click', () => {
-  if (currentPage !== 'chat') return;
-  pageCapsule.contentEditable = true; pageCapsule.focus();
-  document.execCommand('selectAll', false, null);
-});
-pageCapsule.addEventListener('blur', () => {
-  pageCapsule.contentEditable = false;
-  pageTitles.chat = pageCapsule.textContent.trim() || appName;
-  pageCapsule.textContent = pageTitles.chat;
-});
+pageCapsule.addEventListener('click', () => { if (currentPage !== 'chat') return; pageCapsule.contentEditable = true; pageCapsule.focus(); document.execCommand('selectAll', false, null); });
+pageCapsule.addEventListener('blur', () => { pageCapsule.contentEditable = false; pageTitles.chat = pageCapsule.textContent.trim() || appName; pageCapsule.textContent = pageTitles.chat; });
 pageCapsule.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pageCapsule.blur(); } });
 
 const sidebar        = document.getElementById('sidebar');
@@ -2869,100 +2312,68 @@ let touchStartX = 0;
 sidebar.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
 sidebar.addEventListener('touchend',   e => { if (e.changedTouches[0].clientX - touchStartX < -60) closeSidebar(); });
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
-  item.addEventListener('click', () => {
-    if (item.dataset.nav === 'chat') {
-      switchPage('chat');
-      document.querySelectorAll('.side-nav-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-      renderSubChatSidebarList();
-    }
-    closeSidebar();
-  });
+  item.addEventListener('click', () => { if (item.dataset.nav === 'chat') { switchPage('chat'); document.querySelectorAll('.side-nav-item').forEach(i => i.classList.remove('active')); item.classList.add('active'); renderSubChatSidebarList(); } closeSidebar(); });
 });
 
 let currentPage = 'chat';
 function switchPage(pageName) {
   currentPage = pageName;
   if (selectMode && pageName !== 'chat') exitSelectMode();
-
+  quotedMain = null; quotedSub = null; renderQuoteBar(true); renderQuoteBar(false);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + pageName).classList.add('active');
-
-  const isChat = pageName === 'chat';
-  const isSubchat = pageName === 'subchat';
-
+  const isChat = pageName === 'chat', isSubchat = pageName === 'subchat';
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   const activeTabKey = isSubchat ? 'chat' : pageName;
-  const navTab = document.querySelector(`.nav-tab[data-page="${activeTabKey}"]`);
-  if (navTab) navTab.classList.add('active');
-
-  if (isSubchat) {
-    const sc = subChats.find(s => s.id === currentSubChatId);
-    pageCapsule.textContent = sc ? sc.name : '副聊天';
-    renderSubChatMessages();
-  } else if (pageName === 'chat') {
-    pageCapsule.textContent = pageTitles.chat;
-  } else {
-    pageCapsule.textContent = pageTitles[pageName];
-  }
-
-  document.getElementById('avatarBtn').style.display      = (isChat || isSubchat) ? 'flex' : 'none';
-  document.getElementById('inputBar').style.display       = isChat ? 'flex' : 'none';
+  const navTab = document.querySelector(`.nav-tab[data-page="${activeTabKey}"]`); if (navTab) navTab.classList.add('active');
+  if (isSubchat) { const sc = subChats.find(s => s.id === currentSubChatId); pageCapsule.textContent = sc ? sc.name : '副聊天'; renderSubChatMessages(); }
+  else if (pageName === 'chat') { pageCapsule.textContent = pageTitles.chat; }
+  else { pageCapsule.textContent = pageTitles[pageName]; }
+  document.getElementById('avatarBtn').style.display       = (isChat || isSubchat) ? 'flex' : 'none';
+  document.getElementById('inputBar').style.display        = isChat ? 'flex' : 'none';
   document.getElementById('subchatInputBar').style.display = isSubchat ? 'flex' : 'none';
-  document.getElementById('attachPreview').style.display  = isChat ? '' : 'none';
+  document.getElementById('attachPreview').style.display   = isChat ? '' : 'none';
+  document.getElementById('quoteBar').style.display        = isChat ? '' : 'none';
+  document.getElementById('subQuoteBar').style.display     = isSubchat ? '' : 'none';
   if (pageName !== 'space') modelDropdown.style.display = 'none';
-
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
-  if (pageName === 'space') refreshTokenEstimate();
+  if (pageName === 'space') { refreshTokenEstimate(); loadChatSettings(); }
   if (pageName === 'log') { memoryDetailType = null; renderMemoryList(); }
 }
-document.querySelectorAll('.nav-tab').forEach(tab => {
-  tab.addEventListener('click', () => switchPage(tab.dataset.page));
-});
+document.querySelectorAll('.nav-tab').forEach(tab => { tab.addEventListener('click', () => switchPage(tab.dataset.page)); });
 
 /* ============================================================
-右上角头像
+右上角头像菜单
 ============================================================ */
 document.getElementById('avatarBtn').addEventListener('click', (e) => {
   if (currentPage === 'subchat') { openPresetPanel(); return; }
   if (currentPage === 'chat') {
     const rect = e.currentTarget.getBoundingClientRect();
-    openFloatingMenu(
-      [
-        { label: '🌱 开启新话题', onClick: () => triggerNewTopic() },
-        { label: '清空聊天记录', danger: true, onClick: () => triggerClearChat() }
-      ],
-      rect.right - 160,
-      rect.bottom + 8
-    );
+    openFloatingMenu([
+      { label: '更换头像', onClick: () => document.getElementById('avatarFileHidden').click() },
+      { label: '恢复默认头像', onClick: () => { localStorage.removeItem(LS_AVATAR); applyAvatar(); showToast('已恢复默认头像'); } },
+      { label: '更换聊天背景', onClick: () => document.getElementById('bgFileHidden').click() },
+      { label: '恢复默认背景', onClick: () => { localStorage.removeItem(LS_BG); applyBg(); showToast('已恢复默认背景'); } },
+      { label: '开启新话题', onClick: () => triggerNewTopic() },
+      { label: '清空聊天记录', danger: true, onClick: () => triggerClearChat() }
+    ], rect.right - 170, rect.bottom + 8);
   }
 });
 
 /* ============================================================
-左侧栏大头像 → 设定
+左侧栏头像 → 设定
 ============================================================ */
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const settingsUsername = document.getElementById('settingsUsername');
 const settingsName     = document.getElementById('settingsName');
-
-function openSettingsPanel() {
-  settingsUsername.value = appUsername;
-  settingsName.value     = appName;
-  renderPresetGroups();
-  settingsOverlay.classList.add('show');
-}
+function openSettingsPanel() { settingsUsername.value = appUsername; settingsName.value = appName; renderPresetGroups(); settingsOverlay.classList.add('show'); }
 function closeSettingsPanel() { settingsOverlay.classList.remove('show'); }
 document.getElementById('sideAvatarBtn').addEventListener('click', openSettingsPanel);
 settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) closeSettingsPanel(); });
 document.getElementById('settingsCancelBtn').addEventListener('click', closeSettingsPanel);
 document.getElementById('settingsSaveBtn').addEventListener('click', () => {
-  appUsername = settingsUsername.value.trim() || 'ao';
-  appName     = settingsName.value.trim() || '然竣';
-  appPersona  = buildPersonaFromPresets();
-  persistSettings();
-  applyGlobalNames();
-  showToast('设定已保存 ✓');
-  closeSettingsPanel();
+  appUsername = settingsUsername.value.trim() || 'ao'; appName = settingsName.value.trim() || '然竣';
+  appPersona = buildPersonaFromPresets(); persistSettings(); applyGlobalNames(); showToast('设定已保存'); closeSettingsPanel();
 });
 
 /* ============================================================
@@ -2971,66 +2382,32 @@ document.getElementById('settingsSaveBtn').addEventListener('click', () => {
 const presetOverlay  = document.getElementById('presetOverlay');
 const presetTextarea = document.getElementById('presetTextarea');
 const presetTitle    = document.getElementById('presetTitle');
-
-function openPresetPanel() {
-  const sc = subChats.find(s => s.id === currentSubChatId);
-  if (!sc) return;
-  presetTitle.textContent = sc.name + ' · 设定';
-  presetTextarea.value = sc.preset || '';
-  presetOverlay.classList.add('show');
-}
+function openPresetPanel() { const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return; presetTitle.textContent = sc.name + ' · 设定'; presetTextarea.value = sc.preset || ''; presetOverlay.classList.add('show'); }
 function closePresetPanel() { presetOverlay.classList.remove('show'); }
 presetOverlay.addEventListener('click', e => { if (e.target === presetOverlay) closePresetPanel(); });
-
-document.getElementById('presetSaveBtn').addEventListener('click', () => {
-  const sc = subChats.find(s => s.id === currentSubChatId);
-  if (!sc) return;
-  sc.preset = presetTextarea.value;
-  persistSubChats();
-  showToast('设定已保存 ✓');
-  closePresetPanel();
-});
-
+document.getElementById('presetSaveBtn').addEventListener('click', () => { const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return; sc.preset = presetTextarea.value; persistSubChats(); showToast('设定已保存'); closePresetPanel(); });
 document.getElementById('presetExportBtn').addEventListener('click', () => {
-  const sc = subChats.find(s => s.id === currentSubChatId);
-  if (!sc) return;
+  const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
   const blob = new Blob([JSON.stringify(sc, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `subchat_${sc.name}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('已导出 ✓');
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `subchat_${sc.name}.json`; a.click(); URL.revokeObjectURL(url); showToast('已导出');
 });
-
 const importFileHidden = document.getElementById('importFileHidden');
 document.getElementById('presetImportBtn').addEventListener('click', () => importFileHidden.click());
 importFileHidden.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      const sc = subChats.find(s => s.id === currentSubChatId);
-      if (!sc) return;
-      if (data.messages) sc.messages = data.messages;
-      if (data.preset != null) { sc.preset = data.preset; presetTextarea.value = sc.preset; }
-      persistSubChats();
-      renderSubChatMessages();
-      showToast('已导入 ✓');
-    } catch(err) { showToast('导入失败：文件格式不对', 3000); }
+    try { const data = JSON.parse(ev.target.result); const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return; if (data.messages) sc.messages = data.messages; if (data.preset != null) { sc.preset = data.preset; presetTextarea.value = sc.preset; } persistSubChats(); renderSubChatMessages(); showToast('已导入'); }
+    catch(err) { showToast('导入失败：文件格式不对', 3000); }
   };
-  reader.readAsText(file);
-  importFileHidden.value = '';
+  reader.readAsText(file); importFileHidden.value = '';
 });
 
 /* ============================================================
-附件（仅主聊天）— 图片压缩后再存，防止localStorage撑爆
+附件
 ============================================================ */
 const attachPreview   = document.getElementById('attachPreview');
 const fileInputHidden = document.getElementById('fileInputHidden');
-
 function compressImage(file, maxSize = 1000, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -3038,32 +2415,20 @@ function compressImage(file, maxSize = 1000, quality = 0.7) {
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
-        if (width > maxSize || height > maxSize) {
-          if (width > height) { height = Math.round(height * maxSize / width); width = maxSize; }
-          else { width = Math.round(width * maxSize / height); height = maxSize; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        try {
-          const dataUrl = canvas.toDataURL('image/jpeg', quality);
-          resolve(dataUrl);
-        } catch(e) { reject(e); }
+        if (width > maxSize || height > maxSize) { if (width > height) { height = Math.round(height * maxSize / width); width = maxSize; } else { width = Math.round(width * maxSize / height); height = maxSize; } }
+        const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+        try { resolve(canvas.toDataURL('image/jpeg', quality)); } catch(e) { reject(e); }
       };
-      img.onerror = reject;
-      img.src = ev.target.result;
+      img.onerror = reject; img.src = ev.target.result;
     };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    reader.onerror = reject; reader.readAsDataURL(file);
   });
 }
-
 function renderAttachPreview() {
   attachPreview.innerHTML = '';
   pendingAttachments.forEach((att, idx) => {
-    const thumb = document.createElement('div');
-    thumb.className = 'attach-thumb';
+    const thumb = document.createElement('div'); thumb.className = 'attach-thumb';
     if (att.type === 'image') { const img = document.createElement('img'); img.src = att.url; thumb.appendChild(img); }
     else { thumb.classList.add('file-thumb'); thumb.textContent = att.name; }
     const rb = document.createElement('button'); rb.className = 'attach-remove'; rb.textContent = '✕';
@@ -3076,17 +2441,9 @@ fileInputHidden.addEventListener('change', async e => {
   const files = Array.from(e.target.files);
   for (const file of files) {
     if (file.type.startsWith('image/')) {
-      try {
-        const compressed = await compressImage(file);
-        pendingAttachments.push({ type:'image', url: compressed, name:file.name });
-        renderAttachPreview();
-      } catch(err) {
-        console.error('图片压缩失败', err);
-        showToast('这张图片处理失败了，换一张试试', 3000);
-      }
-    } else {
-      pendingAttachments.push({ type:'file', name:file.name }); renderAttachPreview();
-    }
+      try { const compressed = await compressImage(file); pendingAttachments.push({ type:'image', url: compressed, name:file.name }); renderAttachPreview(); }
+      catch(err) { console.error('图片压缩失败', err); showToast('这张图片处理失败了，换一张试试', 3000); }
+    } else { pendingAttachments.push({ type:'file', name:file.name }); renderAttachPreview(); }
   }
   fileInputHidden.value = '';
 });
@@ -3095,42 +2452,25 @@ fileInputHidden.addEventListener('change', async e => {
 流式渲染节流
 ============================================================ */
 function makeStreamRenderer(bubbleEl, scrollFn) {
-  let renderedLen = 0;
-  let pendingRender = false;
-  let latestText = '';
+  let renderedLen = 0, pendingRender = false, latestText = '';
   function flush() {
-    const thinkingEl = bubbleEl.querySelector('.thinking-text');
-    if (thinkingEl) thinkingEl.remove();
+    const thinkingEl = bubbleEl.querySelector('.thinking-text'); if (thinkingEl) thinkingEl.remove();
     const newPart = latestText.slice(renderedLen);
-    if (newPart) {
-      const span = document.createElement('span');
-      span.className = 'stream-chunk';
-      span.textContent = newPart;
-      bubbleEl.appendChild(span);
-      renderedLen = latestText.length;
-    }
-    scrollFn();
-    pendingRender = false;
+    if (newPart) { const span = document.createElement('span'); span.className = 'stream-chunk'; span.textContent = newPart; bubbleEl.appendChild(span); renderedLen = latestText.length; }
+    scrollFn(); pendingRender = false;
   }
   return {
-    push(accumulated) {
-      latestText = accumulated;
-      if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); }
-    },
-    finalize(text) {
-      bubbleEl.innerHTML = '';
-      try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; }
-      addCopyButtons(bubbleEl);
-      scrollFn();
-    }
+    push(accumulated) { latestText = accumulated; if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); } },
+    finalize(text) { bubbleEl.innerHTML = ''; try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; } addCopyButtons(bubbleEl); scrollFn(); }
   };
 }
 
 /* ============================================================
-[多模态] 把消息转换成 OpenAI 格式 content（带图时用数组，无图时用纯文本）
+多模态 content 构建（带引用前缀）
 ============================================================ */
 function buildApiContent(m) {
-  const text = getMsgDisplayText(m);
+  let text = getMsgDisplayText(m);
+  if (m.quote) text = '【针对' + m.quote.author + '这句提问："' + m.quote.text.slice(0,200) + '"】\n' + text;
   if (m.images && m.images.length > 0) {
     const parts = [];
     if (text && text.trim()) parts.push({ type: 'text', text });
@@ -3146,178 +2486,93 @@ API 调用：主聊天
 async function callAPI(rerollTarget) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
-
   const rerollIdx = rerollTarget ? messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const allReal = messages.filter(m => m.role !== 'notice');
   let sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx).filter(m => m.role !== 'notice') : allReal;
-
-  /* [话题起点过滤] 在滑动窗口之前先按话题起点截断 */
   sourceMsgs = filterByTopicStart(sourceMsgs);
-
-  /* [滑动窗口] 只发最近约6000字，更早的靠记忆兜底 */
   const { windowMsgs } = splitWindow(sourceMsgs);
   const apiMessages = windowMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
-
   const userText = getLatestUserText();
-
   let systemContent = appPersona ? appPersona.trim() : '';
   systemContent += (systemContent ? '\n\n' : '') + '【当前时间】' + currentTimeLabel();
-
   const memInjection = buildMemoryInjection(userText);
   if (memInjection) systemContent += memInjection;
-
   const diaryInjection = buildDiaryInjection(userText);
   if (diaryInjection) systemContent += diaryInjection;
-
   apiMessages.unshift({ role: 'system', content: systemContent });
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
-
   if (isReroll) {
-    aiMsg = rerollTarget;
-    aiRow = chatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
+    aiMsg = rerollTarget; aiRow = chatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
     if (!aiRow) { aiRow = appendMessage(aiMsg); }
-    aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
     aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false, thinking:'' };
-    messages.push(aiMsg); persistMessages();
-    aiRow = appendMessage(aiMsg);
-    aiBubble = aiRow.querySelector('.msg-bubble');
+    messages.push(aiMsg); persistMessages(); aiRow = appendMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
 
   const sendBtnEl = document.getElementById('sendBtn');
-  const controller = new AbortController();
-  mainAbortController = controller;
-  mainGenerating = true;
-  sendBtnEl.textContent = '■';
-
+  const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; sendBtnEl.textContent = '■';
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(chatScroll, 'page-chat'));
-  let accumulated = '';
-  let accumulatedReasoning = '';
+  let accumulated = '', accumulatedReasoning = '';
 
   function finishWith(rawText, reasoningText) {
     if (!rawText || !rawText.trim()) {
-      if (isReroll) {
-        refreshRow(aiMsg, mainCtx);
-      } else {
-        const idx = messages.findIndex(m => m.id === aiMsg.id);
-        if (idx !== -1) messages.splice(idx, 1);
-        if (aiRow && aiRow.parentNode) aiRow.remove();
-        persistMessages();
-      }
+      if (isReroll) { refreshRow(aiMsg, mainCtx); }
+      else { const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages(); }
       return;
     }
-
-    /* [思维链提取] 优先用reasoning字段，否则从<think>标签里抠 */
-    let thinking = reasoningText || '';
-    let bodyText = rawText;
-    if (!thinking) {
-      const extracted = extractThinking(rawText);
-      thinking = extracted.thinking;
-      bodyText = extracted.cleanText;
-    }
-
-    let cleanText = processMemoryMarkers(bodyText);
-    cleanText = processDiaryMarkers(cleanText);
-
+    let thinking = reasoningText || '', bodyText = rawText;
+    if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
+    let cleanText = processMemoryMarkers(bodyText); cleanText = processDiaryMarkers(cleanText);
     cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
-
     if (!cleanText || !cleanText.trim()) {
-      if (isReroll) {
-        refreshRow(aiMsg, mainCtx);
-      } else {
-        const idx = messages.findIndex(m => m.id === aiMsg.id);
-        if (idx !== -1) messages.splice(idx, 1);
-        if (aiRow && aiRow.parentNode) aiRow.remove();
-        persistMessages();
-      }
-      decayActiveMemory();
-      return;
+      if (isReroll) { refreshRow(aiMsg, mainCtx); }
+      else { const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages(); }
+      decayActiveMemory(); return;
     }
-
     if (!isReroll && cleanText.includes('[splitmsg]')) {
       const parts = cleanText.split('[splitmsg]').map(p => p.trim()).filter(p => p.length > 0);
-      const idx = messages.findIndex(m => m.id === aiMsg.id);
-      if (idx !== -1) messages.splice(idx, 1);
-      if (aiRow && aiRow.parentNode) aiRow.remove();
-      persistMessages();
-      decayActiveMemory();
-      if (parts.length > 0) renderSplitBubbles(parts, 0);
-      checkAutoArchive();
-      refreshTokenEstimate();
-      return;
+      const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages();
+      decayActiveMemory(); if (parts.length > 0) renderSplitBubbles(parts, 0); checkAutoArchive(); refreshTokenEstimate(); return;
     }
-
-    if (isReroll) {
-      const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText;
-      aiMsg.versions.push(joined);
-      aiMsg.versionIndex = aiMsg.versions.length - 1;
-      aiMsg.text = joined;
-      aiMsg.time = timeStr();
-      aiMsg.thinking = thinking;
-    } else {
-      aiMsg.versions[0] = cleanText;
-      aiMsg.versionIndex = 0;
-      aiMsg.text = cleanText;
-      aiMsg.archived = false;
-      aiMsg.thinking = thinking;
-    }
-    persistMessages();
-    refreshRow(aiMsg, mainCtx);
-    scrollToBottom(chatScroll, 'page-chat');
-    decayActiveMemory();
-    checkAutoArchive();
-    refreshTokenEstimate();
+    if (isReroll) { const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText; aiMsg.versions.push(joined); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.text = joined; aiMsg.time = timeStr(); aiMsg.thinking = thinking; }
+    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.archived = false; aiMsg.thinking = thinking; }
+    persistMessages(); refreshRow(aiMsg, mainCtx); scrollToBottom(chatScroll, 'page-chat');
+    decayActiveMemory(); checkAutoArchive(); refreshTokenEstimate();
   }
 
   try {
+    const useStream = cfg.stream !== false;
+    const temp = cfg.temp != null ? cfg.temp : 0.9;
     const res = await fetch(cfg.endpoint + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
-      body: JSON.stringify({ model:cfg.model, stream:true, messages:apiMessages }),
+      body: JSON.stringify({ model:cfg.model, stream:useStream, temperature:temp, messages:apiMessages }),
       signal: controller.signal
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream:true }).split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') break;
-        try {
-          const deltaObj = JSON.parse(data).choices?.[0]?.delta || {};
-          const delta = deltaObj.content || '';
-          const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || '';
-          if (reasoningDelta) accumulatedReasoning += reasoningDelta;
-          accumulated += delta;
-          renderer.push(accumulated);
-        } catch(_) {}
+    if (useStream) {
+      const reader = res.body.getReader(); const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break;
+        for (const line of decoder.decode(value, { stream:true }).split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim(); if (data === '[DONE]') break;
+          try { const deltaObj = JSON.parse(data).choices?.[0]?.delta || {}; const delta = deltaObj.content || ''; const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || ''; if (reasoningDelta) accumulatedReasoning += reasoningDelta; accumulated += delta; renderer.push(accumulated); } catch(_) {}
+        }
       }
-    }
-
-    finishWith(accumulated, accumulatedReasoning);
-
-  } catch(err) {
-    if (err.name === 'AbortError') {
-      finishWith(accumulated, accumulatedReasoning);
     } else {
-      console.error(err);
-      finishWith(accumulated, accumulatedReasoning);
-      showToast('⚠️ 连接失败，请检查网络或API配置', 3500);
+      const json = await res.json(); const msgObj = json.choices?.[0]?.message || {};
+      accumulated = msgObj.content || ''; accumulatedReasoning = msgObj.reasoning_content || msgObj.reasoning || '';
     }
-  } finally {
-    mainGenerating = false;
-    mainAbortController = null;
-    sendBtnEl.textContent = '发送';
-  }
+    finishWith(accumulated, accumulatedReasoning);
+  } catch(err) {
+    if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
+    else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
+  } finally { mainGenerating = false; mainAbortController = null; sendBtnEl.textContent = '发送'; }
 }
 
 /* ============================================================
@@ -3326,9 +2581,7 @@ API 调用：副聊天
 async function callSubChatAPI(rerollTarget) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
-  const sc = subChats.find(s => s.id === currentSubChatId);
-  if (!sc) return;
-
+  const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
   const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
   const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
@@ -3336,133 +2589,76 @@ async function callSubChatAPI(rerollTarget) {
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
-
   if (isReroll) {
-    aiMsg = rerollTarget;
-    aiRow = subchatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
+    aiMsg = rerollTarget; aiRow = subchatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
     if (!aiRow) { aiRow = appendSubChatMessage(aiMsg); }
-    aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
     aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), thinking:'' };
-    sc.messages.push(aiMsg); persistSubChats();
-    aiRow = appendSubChatMessage(aiMsg);
-    aiBubble = aiRow.querySelector('.msg-bubble');
+    sc.messages.push(aiMsg); persistSubChats(); aiRow = appendSubChatMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
 
   const sendBtnEl = document.getElementById('subchatSendBtn');
-  const controller = new AbortController();
-  subAbortController = controller;
-  subGenerating = true;
-  sendBtnEl.textContent = '■';
-
+  const controller = new AbortController(); subAbortController = controller; subGenerating = true; sendBtnEl.textContent = '■';
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(subchatScroll, 'page-subchat'));
-  let accumulated = '';
-  let accumulatedReasoning = '';
+  let accumulated = '', accumulatedReasoning = '';
 
   function finishWith(rawText, reasoningText) {
     if (!rawText || !rawText.trim()) {
-      if (isReroll) {
-        refreshRow(aiMsg, subCtx);
-      } else {
-        const idx = sc.messages.findIndex(m => m.id === aiMsg.id);
-        if (idx !== -1) sc.messages.splice(idx, 1);
-        if (aiRow && aiRow.parentNode) aiRow.remove();
-        persistSubChats();
-      }
+      if (isReroll) { refreshRow(aiMsg, subCtx); }
+      else { const idx = sc.messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) sc.messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistSubChats(); }
       return;
     }
-
-    let thinking = reasoningText || '';
-    let bodyText = rawText;
-    if (!thinking) {
-      const extracted = extractThinking(rawText);
-      thinking = extracted.thinking;
-      bodyText = extracted.cleanText;
-    }
-
-    if (isReroll) {
-      aiMsg.versions.push(bodyText);
-      aiMsg.versionIndex = aiMsg.versions.length - 1;
-      aiMsg.time = timeStr();
-      aiMsg.thinking = thinking;
-    } else {
-      aiMsg.versions[0] = bodyText;
-      aiMsg.versionIndex = 0;
-      aiMsg.thinking = thinking;
-    }
-    aiMsg.text = bodyText;
-    persistSubChats();
-    refreshRow(aiMsg, subCtx);
-    scrollToBottom(subchatScroll, 'page-subchat');
+    let thinking = reasoningText || '', bodyText = rawText;
+    if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
+    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; }
+    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; }
+    aiMsg.text = bodyText; persistSubChats(); refreshRow(aiMsg, subCtx); scrollToBottom(subchatScroll, 'page-subchat');
   }
 
   try {
+    const useStream = cfg.stream !== false;
+    const temp = cfg.temp != null ? cfg.temp : 0.9;
     const res = await fetch(cfg.endpoint + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
-      body: JSON.stringify({ model:cfg.model, stream:true, messages:apiMessages }),
+      body: JSON.stringify({ model:cfg.model, stream:useStream, temperature:temp, messages:apiMessages }),
       signal: controller.signal
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-
-    const reader  = res.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value, { stream:true }).split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') break;
-        try {
-          const deltaObj = JSON.parse(data).choices?.[0]?.delta || {};
-          const delta = deltaObj.content || '';
-          const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || '';
-          if (reasoningDelta) accumulatedReasoning += reasoningDelta;
-          accumulated += delta;
-          renderer.push(accumulated);
-        } catch(_) {}
+    if (useStream) {
+      const reader = res.body.getReader(); const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break;
+        for (const line of decoder.decode(value, { stream:true }).split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim(); if (data === '[DONE]') break;
+          try { const deltaObj = JSON.parse(data).choices?.[0]?.delta || {}; const delta = deltaObj.content || ''; const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || ''; if (reasoningDelta) accumulatedReasoning += reasoningDelta; accumulated += delta; renderer.push(accumulated); } catch(_) {}
+        }
       }
-    }
-
-    finishWith(accumulated, accumulatedReasoning);
-
-  } catch(err) {
-    if (err.name === 'AbortError') {
-      finishWith(accumulated, accumulatedReasoning);
     } else {
-      console.error(err);
-      finishWith(accumulated, accumulatedReasoning);
-      showToast('⚠️ 连接失败，请检查网络或API配置', 3500);
+      const json = await res.json(); const msgObj = json.choices?.[0]?.message || {};
+      accumulated = msgObj.content || ''; accumulatedReasoning = msgObj.reasoning_content || msgObj.reasoning || '';
     }
-  } finally {
-    subGenerating = false;
-    subAbortController = null;
-    sendBtnEl.textContent = '发送';
-  }
+    finishWith(accumulated, accumulatedReasoning);
+  } catch(err) {
+    if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
+    else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
+  } finally { subGenerating = false; subAbortController = null; sendBtnEl.textContent = '发送'; }
 }
 
 /* ============================================================
 消息数组上下文
 ============================================================ */
 const mainCtx = {
-  getArray: () => messages,
-  persist: persistMessages,
-  renderAll: renderAllMessages,
-  callAPI: (target) => callAPI(target),
-  container: chatScroll,
-  pageId: 'page-chat'
+  getArray: () => messages, persist: persistMessages, renderAll: renderAllMessages,
+  callAPI: (target) => callAPI(target), container: chatScroll, pageId: 'page-chat'
 };
 const subCtx = {
   getArray: () => { const sc = subChats.find(s => s.id === currentSubChatId); return sc ? sc.messages : []; },
-  persist: persistSubChats,
-  renderAll: renderSubChatMessages,
-  callAPI: (target) => callSubChatAPI(target),
-  container: subchatScroll,
-  pageId: 'page-subchat'
+  persist: persistSubChats, renderAll: renderSubChatMessages,
+  callAPI: (target) => callSubChatAPI(target), container: subchatScroll, pageId: 'page-subchat'
 };
 
 /* ============================================================
@@ -3470,27 +2666,20 @@ const subCtx = {
 ============================================================ */
 const textInput = document.getElementById('textInput');
 const sendBtn   = document.getElementById('sendBtn');
-
-textInput.addEventListener('input', () => {
-  textInput.style.height = 'auto';
-  textInput.style.height = Math.min(textInput.scrollHeight, 100) + 'px';
-});
-
+textInput.addEventListener('input', () => { textInput.style.height = 'auto'; textInput.style.height = Math.min(textInput.scrollHeight, 100) + 'px'; });
 async function sendMessage() {
   const text = textInput.value.trim();
   if (!text && pendingAttachments.length === 0) return;
   const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
   const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
-  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), archived:false };
+  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), archived:false, quote: quotedMain || undefined };
+  quotedMain = null; renderQuoteBar(true);
   messages.push(userMsg); persistMessages(); appendMessage(userMsg);
   textInput.value = ''; textInput.style.height = 'auto';
   pendingAttachments = []; renderAttachPreview();
   await callAPI();
 }
-sendBtn.addEventListener('click', () => {
-  if (mainGenerating) { if (mainAbortController) mainAbortController.abort(); }
-  else { sendMessage(); }
-});
+sendBtn.addEventListener('click', () => { if (mainGenerating) { if (mainAbortController) mainAbortController.abort(); } else { sendMessage(); } });
 textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 
 /* ============================================================
@@ -3498,26 +2687,17 @@ textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey)
 ============================================================ */
 const subchatTextInput = document.getElementById('subchatTextInput');
 const subchatSendBtn   = document.getElementById('subchatSendBtn');
-
-subchatTextInput.addEventListener('input', () => {
-  subchatTextInput.style.height = 'auto';
-  subchatTextInput.style.height = Math.min(subchatTextInput.scrollHeight, 100) + 'px';
-});
-
+subchatTextInput.addEventListener('input', () => { subchatTextInput.style.height = 'auto'; subchatTextInput.style.height = Math.min(subchatTextInput.scrollHeight, 100) + 'px'; });
 async function sendSubChatMessage() {
-  const text = subchatTextInput.value.trim();
-  if (!text) return;
-  const sc = subChats.find(s => s.id === currentSubChatId);
-  if (!sc) return;
-  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr() };
+  const text = subchatTextInput.value.trim(); if (!text) return;
+  const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
+  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), quote: quotedSub || undefined };
+  quotedSub = null; renderQuoteBar(false);
   sc.messages.push(userMsg); persistSubChats(); appendSubChatMessage(userMsg);
   subchatTextInput.value = ''; subchatTextInput.style.height = 'auto';
   await callSubChatAPI();
 }
-subchatSendBtn.addEventListener('click', () => {
-  if (subGenerating) { if (subAbortController) subAbortController.abort(); }
-  else { sendSubChatMessage(); }
-});
+subchatSendBtn.addEventListener('click', () => { if (subGenerating) { if (subAbortController) subAbortController.abort(); } else { sendSubChatMessage(); } });
 subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSubChatMessage(); } });
 
 /* ============================================================
@@ -3533,6 +2713,9 @@ loadPlans();
 loadDiaries();
 loadTopicStart();
 appPersona = buildPersonaFromPresets() || appPersona;
+loadChatSettings();
+applyAvatar();
+applyBg();
 switchPage('chat');
 renderAllMessages();
 renderMemoryList();
@@ -3540,6 +2723,5 @@ renderSubChatSidebarList();
 applyGlobalNames();
 checkAutoArchive();
 </script>
-
 </body>
 </html>
