@@ -25,6 +25,7 @@ width: 34px; height: 34px; border-radius: 50%;
 background: #f0f0f0; border: none; display: flex;
 align-items: center; justify-content: center; cursor: pointer;
 transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
+flex-shrink: 0;
 }
 .round-btn:active { transform: scale(0.9); opacity: 0.8; }
 .round-btn img, .round-btn .avatar-emoji { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
@@ -37,7 +38,7 @@ overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .capsule:active { transform: scale(0.96); opacity: 0.85; }
 .capsule[contenteditable="true"] { outline: 2px solid #ccc; white-space: normal; }
-#topRightSlot { width: 34px; height: 34px; }
+#topRightSlot { width: 34px; height: 34px; flex-shrink: 0; }
 
 #selectBar {
 display: none; position: absolute;
@@ -124,6 +125,10 @@ text-align: center; color: #888; background: #f0f0f0; cursor: pointer;
 transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.15s ease;
 }
 .side-new-btn:active { transform: scale(0.97); background: #e5e5e5; }
+
+.side-secret-entry { display:flex; align-items:center; gap:8px; padding:10px 10px; border-radius:10px; cursor:pointer; color:#888; font-size:13px; transition: background .15s ease, transform .15s cubic-bezier(.34,1.56,.64,1); }
+.side-secret-entry:active { background:#eee; transform:scale(0.98); }
+.side-secret-entry svg { width:14px; height:14px; flex-shrink:0; }
 
 #content { flex: 1; overflow: hidden; position: relative; }
 .page {
@@ -253,7 +258,7 @@ border-bottom: 1px solid #f0f0f0; transition: background 0.12s ease, transform 0
 .memory-hint { font-size: 11px; color: #ccc; margin-top: 6px; line-height: 1.5; }
 .memory-list { padding: 0 16px; }
 .memory-grid-top { display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding: 6px 16px 8px 16px; }
-.memory-grid-bottom { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; padding: 0 16px 20px 16px; }
+.memory-grid-bottom { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; padding: 0 16px 20px 16px; }
 .memory-card-big {
 aspect-ratio: 1/1; background:#f7f7f7; border-radius:18px; display:flex; flex-direction:column;
 align-items:center; justify-content:center; gap:6px; cursor:pointer; border:1px solid #ececec;
@@ -659,6 +664,74 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 .msg-time, .diary-time, .side-days, #tokenEstimateLabel, .version-label, .plan-progress-text, .memory-card-count, .memory-stats {
   font-variant-numeric: tabular-nums;
 }
+
+/* ============ 私密区 ============ */
+#secretPinOverlay {
+  position: fixed; inset: 0; background: #1c1c1e; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+#secretPinOverlay.show { opacity: 1; pointer-events: auto; }
+.pin-panel { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 20px; }
+.pin-title { color: #ddd; font-size: 15px; letter-spacing: 1px; }
+.pin-dots { display: flex; gap: 16px; }
+.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #666; transition: background 0.15s ease; }
+.pin-dot.filled { background: #e5e5e5; border-color: #e5e5e5; }
+.pin-dots.shake { animation: pinShake 0.3s ease; }
+@keyframes pinShake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-6px);} 80%{transform:translateX(6px);} }
+.pin-keypad { display: grid; grid-template-columns: repeat(3, 64px); gap: 18px; }
+.pin-key {
+width: 64px; height: 64px; border-radius: 50%; background: #2c2c2e; border: none;
+color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic-bezier(.34,1.56,.64,1), background 0.12s ease;
+}
+.pin-key:active { transform: scale(0.9); background: #3a3a3c; }
+.pin-key.pin-empty { background: transparent; cursor: default; }
+.pin-key.pin-empty:active { transform: none; background: transparent; }
+.pin-cancel { margin-top: 8px; color: #888; font-size: 13px; cursor: pointer; }
+
+.secret-dark { background: #1c1c1e !important; color: #e5e5e5 !important; }
+.secret-dark .memory-back-arrow, .secret-dark .secret-back-arrow { color: #aaa; }
+.secret-header { display:flex; align-items:center; gap:10px; padding: calc(env(safe-area-inset-top,20px) + 14px) 16px 14px 16px; }
+.secret-header-title { font-size:16px; font-weight:700; flex:1; }
+.secret-header-action { font-size: 20px; color:#999; cursor:pointer; padding:4px 8px; }
+.secret-room-list { padding: 4px 16px 20px 16px; }
+.secret-room-card {
+  background:#2c2c2e; border-radius:14px; padding:16px; margin-bottom:10px; cursor:pointer;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s ease;
+}
+.secret-room-card:active { transform: scale(0.98); background:#333335; }
+.secret-room-name { font-size:15px; font-weight:600; color:#eee; }
+.secret-room-sub { font-size:11.5px; color:#888; margin-top:4px; }
+.secret-add-room {
+  text-align:center; padding:14px; border-radius:14px; border:1px dashed #444;
+  color:#777; font-size:13px; cursor:pointer; margin-top:4px;
+}
+.secret-add-room:active { background:#2a2a2c; }
+.secret-session-scroll { padding: 8px 12px 90px 12px; }
+.secret-session-scroll .msg-row.user .msg-bubble { background:#3a3a3c; color:#eee; }
+.secret-session-scroll .msg-row.ai .msg-bubble { background:#2c2c2e; color:#eee; }
+.secret-session-scroll .msg-time { color:#777; }
+.secret-timer-badge {
+  position: fixed; right: 16px; bottom: 78px; font-size: 11px; color: rgba(201,168,106,0.85);
+  display: flex; align-items: center; gap: 4px; z-index: 5; pointer-events: none;
+}
+.secret-sealed-section { padding: 14px 12px 90px 12px; }
+.secret-sealed-title { font-size:12px; color:#777; margin: 10px 0 8px 4px; letter-spacing:0.5px; }
+.secret-sealed-card {
+  background:#232325; border-radius:12px; padding:12px 14px; margin-bottom:8px; cursor:pointer;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+}
+.secret-sealed-card:active { transform: scale(0.98); }
+.secret-sealed-time { font-size:11px; color:rgba(201,168,106,0.85); display:flex; align-items:center; gap:4px; margin-bottom:4px; }
+.secret-sealed-preview { font-size:12.5px; color:#999; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.secret-inputbar { background:#1c1c1e; border-top:1px solid #2c2c2e; }
+.secret-inputbar textarea { background:#2c2c2e; border:1px solid #3a3a3c; color:#eee; }
+.secret-inputbar button { background:#e5e5e5; color:#1c1c1e; }
+.secret-endnote { text-align:center; font-size:12px; color:#c9a86a; padding:10px 0 2px 0; }
+.secret-readonly-overlay .sheet-panel { background:#1c1c1e; max-height:88vh; }
+.secret-readonly-title { color:#eee; }
+.secret-readonly-body { color:#ddd; font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; padding-bottom: 10px; }
+.secret-readonly-record { margin-top:14px; padding-top:14px; border-top:1px solid #333; font-size:13px; color:#c9a86a; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -690,6 +763,11 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
     <div class="side-days" id="daysCount">陪伴第 0 天</div>
   </div>
   <div class="side-nav-item active" data-nav="chat">主聊天</div>
+  <div class="side-divider"></div>
+  <div class="side-secret-entry" id="secretEntryBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+    <span id="secretEntryLabel">私密</span>
+  </div>
   <div class="side-divider"></div>
   <div class="side-nav-item" style="color:#999; cursor:default;">副聊天</div>
   <div id="subChatList"></div>
@@ -775,6 +853,13 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       </div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">私密区</div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="resetSecretPinBtn">重置私密密码</button>
+      </div>
+      <div class="space-hint">需先验证旧密码，重置不会清空私密区的内容。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">数据备份</div>
       <div class="space-btn-row">
         <button class="space-save-btn" id="exportBackupBtn">导出全部数据</button>
@@ -789,6 +874,24 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
   <div class="page" id="page-subchat">
     <div class="subchat-scroll" id="subchatScroll"></div>
+  </div>
+
+  <div class="page" id="page-secretrooms">
+    <div class="secret-header">
+      <span class="secret-back-arrow" id="secretRoomsBackBtn" style="font-size:22px;color:#999;cursor:pointer;">‹</span>
+      <span class="secret-header-title" id="secretRoomsTitle">私密</span>
+    </div>
+    <div class="secret-room-list" id="secretRoomList"></div>
+  </div>
+
+  <div class="page" id="page-secretsession">
+    <div class="secret-header">
+      <span class="secret-back-arrow" id="secretSessionBackBtn" style="font-size:22px;color:#999;cursor:pointer;">‹</span>
+      <span class="secret-header-title" id="secretSessionTitle">房间</span>
+      <span class="secret-header-action" id="secretSessionMenuBtn">⋯</span>
+    </div>
+    <div class="secret-session-scroll" id="secretSessionScroll"></div>
+    <div class="secret-sealed-section" id="secretSealedSection"></div>
   </div>
 </div>
 
@@ -806,6 +909,11 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 <div class="subchat-inputbar" id="subchatInputBar" style="display:none;">
   <textarea class="subchat-textinput" id="subchatTextInput" rows="1" placeholder="说点什么…"></textarea>
   <button class="subchat-sendbtn" id="subchatSendBtn">发送</button>
+</div>
+
+<div class="subchat-inputbar secret-inputbar" id="secretInputBar" style="display:none;">
+  <textarea class="subchat-textinput" id="secretTextInput" rows="1" placeholder="说点什么…"></textarea>
+  <button class="subchat-sendbtn" id="secretSendBtn">发送</button>
 </div>
 
 <div id="bottomNav">
@@ -893,6 +1001,43 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
 </div>
 
+<div id="secretPinOverlay">
+  <div class="pin-panel">
+    <div class="pin-title" id="pinTitle">请输入密码</div>
+    <div class="pin-dots" id="pinDots"></div>
+    <div class="pin-keypad" id="pinKeypad"></div>
+    <div class="pin-cancel" id="pinCancelBtn">取消</div>
+  </div>
+</div>
+
+<div class="sheet-overlay secret-readonly-overlay" id="secretReadonlyOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title secret-readonly-title" id="secretReadonlyTitle">这一场</div>
+    <div class="secret-readonly-body" id="secretReadonlyBody"></div>
+    <div class="secret-readonly-record" id="secretReadonlyRecord"></div>
+    <div class="preset-btn-row" style="margin-top:16px;">
+      <button class="preset-btn secondary" id="secretReadonlyCloseBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="secretRoomEditOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title" id="secretRoomEditTitle">新建房间</div>
+    <div class="settings-label">房间名称</div>
+    <input class="settings-input" id="secretRoomNameInput" type="text" placeholder="给这场戏起个名字">
+    <div class="settings-label">预设（进门就是这个设定）</div>
+    <textarea class="settings-textarea" id="secretRoomPresetInput" style="min-height:140px;" placeholder="例如：然竣是我的麻辣女教师…"></textarea>
+    <div class="preset-btn-row">
+      <button class="preset-btn secondary" id="secretRoomEditCancelBtn">取消</button>
+      <button class="preset-btn primary" id="secretRoomEditSaveBtn">保存</button>
+    </div>
+    <div style="text-align:center; margin-top:14px;" id="secretRoomDeleteWrap">
+      <span id="secretRoomDeleteBtn" style="color:#c0392b; font-size:13px; cursor:pointer;">删除此房间</span>
+    </div>
+  </div>
+</div>
+
 <script>
 marked.setOptions({ breaks: true });
 const safeRenderer = new marked.Renderer();
@@ -921,12 +1066,14 @@ let selectedIds = new Set();
 let thinkingRowEl = null;
 let quotedMain = null;
 let quotedSub = null;
+let quotedSecret = null;
 
 const MEMORY_TYPE_CONFIG = [
   { key: 'you', emoji: '🌱', name: '关于你', size: 'big' },
   { key: 'us', emoji: '💛', name: '关于我们', size: 'big' },
   { key: 'study', emoji: '📚', name: '学习·DSE', size: 'small' },
   { key: 'nest', emoji: '🛠️', name: '筑巢·杂事', size: 'small' },
+  { key: 'liudeng', emoji: '🌙', name: '留灯', size: 'small' },
   { key: 'legacy', emoji: '📥', name: '待整理', size: 'small' }
 ];
 let memoryDetailType = null;
@@ -950,6 +1097,7 @@ const DEFAULT_FORMAT_CONTENT =
 2. 写日记：[diary: {"action":"write","mood":"心情emoji","content":"日记正文"}]
 3. 评论对方的日记：[diary: {"action":"comment","target":"日记id或关键词","content":"评论内容"}]
 4. 分条发送（仅主聊天生效）：想分多条时用 [splitmsg] 分隔每一段
+5. 主动引用对方之前的话：在回复开头写 [quote: "对方原文片段"]，会自动渲染成引用块
 以上标记会被自动解析并隐藏，对方看不到标记本身。`;
 
 const DEFAULT_PERSONA =
@@ -978,6 +1126,9 @@ const LS_PRESETS  = 'nest_presets';
 const LS_TOPIC_START = 'nest_topic_start';
 const LS_AVATAR   = 'nest_avatar';
 const LS_BG       = 'nest_bg';
+const LS_SECRET_ROOMS = 'nest_secret_rooms';
+const LS_SECRET_PIN   = 'nest_secret_pin';
+const LS_SECRET_LABEL = 'nest_secret_label';
 
 const DIARY_KEYWORDS = ['日记','我写的','你写的','写的那篇','那篇日记','几号那篇'];
 
@@ -1056,9 +1207,10 @@ cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.c
 /* ============================================================
 引用回复
 ============================================================ */
-function renderQuoteBar(isMain) {
-  const bar = document.getElementById(isMain ? 'quoteBar' : 'subQuoteBar');
-  const q = isMain ? quotedMain : quotedSub;
+function renderQuoteBar(which) {
+  const barId = which === 'main' ? 'quoteBar' : (which === 'sub' ? 'subQuoteBar' : 'secretQuoteBar');
+  const bar = document.getElementById(barId); if (!bar) return;
+  const q = which === 'main' ? quotedMain : (which === 'sub' ? quotedSub : quotedSecret);
   bar.innerHTML = '';
   if (!q) { bar.style.display = 'none'; return; }
   bar.style.display = 'block';
@@ -1069,16 +1221,18 @@ function renderQuoteBar(isMain) {
   txt.textContent = '引用 ' + q.author + '：' + q.text.slice(0,30) + (q.text.length > 30 ? '…' : '');
   const x = document.createElement('button'); x.className = 'quote-bar-close'; x.textContent = '✕';
   x.addEventListener('click', () => {
-    if (isMain) quotedMain = null; else quotedSub = null;
-    renderQuoteBar(isMain);
+    if (which === 'main') quotedMain = null; else if (which === 'sub') quotedSub = null; else quotedSecret = null;
+    renderQuoteBar(which);
   });
   inner.appendChild(line); inner.appendChild(txt); inner.appendChild(x);
   bar.appendChild(inner);
 }
+function ctxKind(ctx) { if (ctx === mainCtx) return 'main'; if (ctx === subCtx) return 'sub'; return 'secret'; }
 function setQuote(msg, ctx) {
   const q = { author: msg.role === 'user' ? appUsername : appName, text: getMsgDisplayText(msg) };
-  if (ctx === mainCtx) { quotedMain = q; renderQuoteBar(true); }
-  else { quotedSub = q; renderQuoteBar(false); }
+  const kind = ctxKind(ctx);
+  if (kind === 'main') quotedMain = q; else if (kind === 'sub') quotedSub = q; else quotedSecret = q;
+  renderQuoteBar(kind);
 }
 
 /* ============================================================
@@ -1512,6 +1666,10 @@ function loadDiaries() {
   });
   if (migrated) persistDiaries();
 }
+function persistSecretRooms() { safeSetItem(LS_SECRET_ROOMS, JSON.stringify(secretRooms)); }
+function loadSecretRooms() {
+  try { const r = localStorage.getItem(LS_SECRET_ROOMS); if (r) secretRooms = JSON.parse(r); } catch(e) { secretRooms = []; }
+}
 
 /* ============================================================
 数据备份
@@ -1529,7 +1687,10 @@ document.getElementById('exportBackupBtn').addEventListener('click', () => {
     nest_presets: localStorage.getItem(LS_PRESETS),
     nest_config: localStorage.getItem(LS_CONFIG),
     nest_avatar: localStorage.getItem(LS_AVATAR),
-    nest_bg: localStorage.getItem(LS_BG)
+    nest_bg: localStorage.getItem(LS_BG),
+    nest_secret_rooms: localStorage.getItem(LS_SECRET_ROOMS),
+    nest_secret_pin: localStorage.getItem(LS_SECRET_PIN),
+    nest_secret_label: localStorage.getItem(LS_SECRET_LABEL)
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1559,7 +1720,7 @@ backupImportHidden.addEventListener('change', e => {
 /* ============================================================
 记忆规范化
 ============================================================ */
-function normalizeMemType(t) { return ['you','us','study','nest'].includes(t) ? t : 'legacy'; }
+function normalizeMemType(t) { return ['you','us','study','nest','liudeng'].includes(t) ? t : 'legacy'; }
 function normalizeMemEmotion(e) { const n = parseInt(e,10); if (isNaN(n)) return 2; return Math.min(5,Math.max(1,n)); }
 function normalizeMemTags(tags) {
   if (Array.isArray(tags)) return tags.filter(t => typeof t === 'string' && t.trim()).slice(0,8).map(t => t.trim());
@@ -1798,6 +1959,16 @@ function processDiaryMarkers(rawText) {
 }
 
 /* ============================================================
+quote 标记解析（AI主动引用）
+============================================================ */
+function extractQuoteMarker(text) {
+  const regex = /^\s*\[quote:\s*"([\s\S]*?)"\]\s*/;
+  const match = text.match(regex);
+  if (!match) return { cleanText: text, quote: null };
+  return { cleanText: text.replace(regex, ''), quote: { author: appUsername, text: match[1] } };
+}
+
+/* ============================================================
 日记按需注入
 ============================================================ */
 function getLatestUserText() {
@@ -2020,7 +2191,8 @@ function openMsgMenu(msg, ctx, x, y) {
     else showToast('复制失败');
   }});
   items.push({ label: '编辑', onClick: () => triggerEditMessage(msg, ctx) });
-  if (msg.role !== 'user') items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
+  if (msg.role !== 'user' && ctx !== secretCtx) items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
+  if (msg.role !== 'user' && ctx === secretCtx) items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
   items.push({ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) });
   openFloatingMenu(items, x, y);
 }
@@ -2316,29 +2488,39 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
 });
 
 let currentPage = 'chat';
+let wasInSecretArea = false;
 function switchPage(pageName) {
+  const leavingSecret = wasInSecretArea && pageName !== 'secretrooms' && pageName !== 'secretsession';
+  if (leavingSecret) { secretUnlocked = false; currentSecretRoomId = null; }
+  wasInSecretArea = (pageName === 'secretrooms' || pageName === 'secretsession');
   currentPage = pageName;
   if (selectMode && pageName !== 'chat') exitSelectMode();
-  quotedMain = null; quotedSub = null; renderQuoteBar(true); renderQuoteBar(false);
+  quotedMain = null; quotedSub = null; quotedSecret = null; renderQuoteBar('main'); renderQuoteBar('sub'); renderQuoteBar('secret');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + pageName).classList.add('active');
   const isChat = pageName === 'chat', isSubchat = pageName === 'subchat';
+  const isSecret = pageName === 'secretrooms' || pageName === 'secretsession';
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   const activeTabKey = isSubchat ? 'chat' : pageName;
   const navTab = document.querySelector(`.nav-tab[data-page="${activeTabKey}"]`); if (navTab) navTab.classList.add('active');
   if (isSubchat) { const sc = subChats.find(s => s.id === currentSubChatId); pageCapsule.textContent = sc ? sc.name : '副聊天'; renderSubChatMessages(); }
   else if (pageName === 'chat') { pageCapsule.textContent = pageTitles.chat; }
-  else { pageCapsule.textContent = pageTitles[pageName]; }
+  else if (!isSecret) { pageCapsule.textContent = pageTitles[pageName]; }
   document.getElementById('avatarBtn').style.display       = (isChat || isSubchat) ? 'flex' : 'none';
   document.getElementById('inputBar').style.display        = isChat ? 'flex' : 'none';
   document.getElementById('subchatInputBar').style.display = isSubchat ? 'flex' : 'none';
+  document.getElementById('secretInputBar').style.display  = pageName === 'secretsession' ? 'flex' : 'none';
   document.getElementById('attachPreview').style.display   = isChat ? '' : 'none';
   document.getElementById('quoteBar').style.display        = isChat ? '' : 'none';
   document.getElementById('subQuoteBar').style.display     = isSubchat ? '' : 'none';
+  document.getElementById('topbar').style.display          = isSecret ? 'none' : 'flex';
+  document.getElementById('bottomNav').style.display        = isSecret ? 'none' : 'flex';
+  document.body.classList.toggle('secret-dark', isSecret);
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
   if (pageName === 'space') { refreshTokenEstimate(); loadChatSettings(); }
   if (pageName === 'log') { memoryDetailType = null; renderMemoryList(); }
+  if (pageName === 'secretrooms') { renderSecretRoomList(); }
 }
 document.querySelectorAll('.nav-tab').forEach(tab => { tab.addEventListener('click', () => switchPage(tab.dataset.page)); });
 
@@ -2508,7 +2690,7 @@ async function callAPI(rerollTarget) {
     if (!aiRow) { aiRow = appendMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false, thinking:'' };
+    aiMsg = { id: genId(), role:'ai',aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false, thinking:'' };
     messages.push(aiMsg); persistMessages(); aiRow = appendMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
@@ -2528,6 +2710,8 @@ async function callAPI(rerollTarget) {
     if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
     let cleanText = processMemoryMarkers(bodyText); cleanText = processDiaryMarkers(cleanText);
     cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
+    const { cleanText: afterQuote, quote } = extractQuoteMarker(cleanText);
+    cleanText = afterQuote;
     if (!cleanText || !cleanText.trim()) {
       if (isReroll) { refreshRow(aiMsg, mainCtx); }
       else { const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages(); }
@@ -2538,8 +2722,8 @@ async function callAPI(rerollTarget) {
       const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages();
       decayActiveMemory(); if (parts.length > 0) renderSplitBubbles(parts, 0); checkAutoArchive(); refreshTokenEstimate(); return;
     }
-    if (isReroll) { const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText; aiMsg.versions.push(joined); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.text = joined; aiMsg.time = timeStr(); aiMsg.thinking = thinking; }
-    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.archived = false; aiMsg.thinking = thinking; }
+    if (isReroll) { const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText; aiMsg.versions.push(joined); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.text = joined; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.archived = false; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
     persistMessages(); refreshRow(aiMsg, mainCtx); scrollToBottom(chatScroll, 'page-chat');
     decayActiveMemory(); checkAutoArchive(); refreshTokenEstimate();
   }
@@ -2612,8 +2796,10 @@ async function callSubChatAPI(rerollTarget) {
     }
     let thinking = reasoningText || '', bodyText = rawText;
     if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
-    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; }
-    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; }
+    const { cleanText: afterQuote, quote } = extractQuoteMarker(bodyText);
+    bodyText = afterQuote;
+    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
     aiMsg.text = bodyText; persistSubChats(); refreshRow(aiMsg, subCtx); scrollToBottom(subchatScroll, 'page-subchat');
   }
 
@@ -2649,6 +2835,399 @@ async function callSubChatAPI(rerollTarget) {
 }
 
 /* ============================================================
+私密区：状态 + PIN
+============================================================ */
+let secretRooms = [];
+let currentSecretRoomId = null;
+let secretUnlocked = false;
+let secretGenerating = false;
+let secretAbortController = null;
+let pinMode = 'verify';
+let pinBuffer = '';
+let pinTempOld = '';
+
+function hasSecretPin() { return !!localStorage.getItem(LS_SECRET_PIN); }
+function checkSecretPin(val) { const stored = localStorage.getItem(LS_SECRET_PIN); if (!stored) return false; try { return atob(stored) === val; } catch(e) { return false; } }
+function saveSecretPin(val) { safeSetItem(LS_SECRET_PIN, btoa(val)); }
+
+const secretPinOverlay = document.getElementById('secretPinOverlay');
+const pinTitle = document.getElementById('pinTitle');
+const pinDots  = document.getElementById('pinDots');
+const pinKeypad = document.getElementById('pinKeypad');
+const pinCancelBtn = document.getElementById('pinCancelBtn');
+
+function buildPinDots() {
+  pinDots.innerHTML = '';
+  for (let i=0;i<4;i++) { const d = document.createElement('div'); d.className='pin-dot'; pinDots.appendChild(d); }
+}
+function updatePinDots() {
+  const dots = pinDots.querySelectorAll('.pin-dot');
+  dots.forEach((d,i) => d.classList.toggle('filled', i < pinBuffer.length));
+}
+function buildPinKeypad() {
+  pinKeypad.innerHTML = '';
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  keys.forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'pin-key' + (k === '' ? ' pin-empty' : '');
+    btn.textContent = k;
+    if (k !== '') btn.addEventListener('click', () => { if (k === '⌫') pinBackspace(); else pinDigit(k); });
+    pinKeypad.appendChild(btn);
+  });
+}
+function pinDigit(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d; updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(handlePinComplete, 150);
+}
+function pinBackspace() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); }
+function pinShakeAndClear() {
+  pinDots.classList.add('shake');
+  if (navigator.vibrate) navigator.vibrate(30);
+  setTimeout(() => { pinDots.classList.remove('shake'); pinBuffer=''; updatePinDots(); }, 300);
+}
+function openPinOverlay(mode) {
+  pinMode = mode; pinBuffer = ''; updatePinDots();
+  if (mode === 'setup') pinTitle.textContent = '设置四位密码';
+  else if (mode === 'verify') pinTitle.textContent = '请输入密码';
+  else if (mode === 'reset-verify') pinTitle.textContent = '请输入原密码';
+  else if (mode === 'reset-setup') pinTitle.textContent = '设置新密码';
+  secretPinOverlay.classList.add('show');
+}
+function closePinOverlay() { secretPinOverlay.classList.remove('show'); pinBuffer=''; }
+function handlePinComplete() {
+  const val = pinBuffer;
+  if (pinMode === 'setup') { saveSecretPin(val); closePinOverlay(); secretUnlocked = true; switchPage('secretrooms'); }
+  else if (pinMode === 'verify') {
+    if (checkSecretPin(val)) { closePinOverlay(); secretUnlocked = true; switchPage('secretrooms'); }
+    else pinShakeAndClear();
+  } else if (pinMode === 'reset-verify') {
+    if (checkSecretPin(val)) { pinTempOld = val; openPinOverlay('reset-setup'); }
+    else pinShakeAndClear();
+  } else if (pinMode === 'reset-setup') { saveSecretPin(val); closePinOverlay(); showToast('密码已重置'); }
+}
+pinCancelBtn.addEventListener('click', closePinOverlay);
+buildPinDots(); buildPinKeypad();
+
+document.getElementById('secretEntryBtn').addEventListener('click', () => {
+  closeSidebar();
+  if (secretUnlocked) { switchPage('secretrooms'); return; }
+  if (!hasSecretPin()) openPinOverlay('setup'); else openPinOverlay('verify');
+});
+document.getElementById('resetSecretPinBtn').addEventListener('click', () => {
+  if (!hasSecretPin()) { openPinOverlay('reset-setup'); return; }
+  openPinOverlay('reset-verify');
+});
+
+function loadSecretLabel() {
+  document.getElementById('secretEntryLabel').textContent = localStorage.getItem(LS_SECRET_LABEL) || '私密';
+}
+let secretLabelTimer = null;
+const secretEntryRow = document.getElementById('secretEntryBtn');
+secretEntryRow.addEventListener('touchstart', () => {
+  secretLabelTimer = setTimeout(() => {
+    const el = document.getElementById('secretEntryLabel');
+    const newName = prompt('给这个区域起个名字：', el.textContent);
+    if (newName && newName.trim()) { safeSetItem(LS_SECRET_LABEL, newName.trim()); el.textContent = newName.trim(); }
+  }, 600);
+}, { passive:true });
+secretEntryRow.addEventListener('touchend', () => clearTimeout(secretLabelTimer));
+secretEntryRow.addEventListener('touchmove', () => clearTimeout(secretLabelTimer));
+
+/* ============================================================
+私密区：房间
+============================================================ */
+function getCurrentSecretRoom() { return secretRooms.find(r => r.id === currentSecretRoomId); }
+function getActiveSession(room) {
+  if (!room.sessions) room.sessions = [];
+  let s = room.sessions.find(x => !x.ended);
+  if (!s) { s = { id: genId(), startTime: Date.now(), messages: [], ended: false, endNote:'', record:'' }; room.sessions.push(s); persistSecretRooms(); }
+  return s;
+}
+function renderSecretRoomList() {
+  const listEl = document.getElementById('secretRoomList'); listEl.innerHTML = '';
+  if (secretRooms.length === 0) {
+    const empty = document.createElement('div'); empty.style.cssText = 'text-align:center;color:#666;font-size:13px;padding:30px 0;';
+    empty.textContent = '还没有房间'; listEl.appendChild(empty);
+  }
+  secretRooms.forEach(room => {
+    const card = document.createElement('div'); card.className = 'secret-room-card';
+    const sealedCount = (room.sessions||[]).filter(s=>s.ended).length;
+    const nameDiv = document.createElement('div'); nameDiv.className = 'secret-room-name'; nameDiv.textContent = room.name;
+    const subDiv = document.createElement('div'); subDiv.className = 'secret-room-sub'; subDiv.textContent = `已封存 ${sealedCount} 场`;
+    card.appendChild(nameDiv); card.appendChild(subDiv);
+    card.addEventListener('click', () => { currentSecretRoomId = room.id; enterSecretSession(); });
+    attachSecretRoomLongPress(card, room);
+    listEl.appendChild(card);
+  });
+  const addBtn = document.createElement('div'); addBtn.className = 'secret-add-room'; addBtn.textContent = '+ 新建房间';
+  addBtn.addEventListener('click', () => openSecretRoomEdit(null));
+  listEl.appendChild(addBtn);
+}
+function attachSecretRoomLongPress(el, room) {
+  let timer = null, sx=0, sy=0;
+  el.addEventListener('touchstart', e => { const t=e.touches[0]; sx=t.clientX; sy=t.clientY; timer=setTimeout(()=>{ openSecretRoomMenu(room, t.clientX, t.clientY); }, 550); }, {passive:true});
+  el.addEventListener('touchmove', e => { const t=e.touches[0]; if (Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10) clearTimeout(timer); }, {passive:true});
+  el.addEventListener('touchend', () => clearTimeout(timer));
+}
+function openSecretRoomMenu(room, x, y) {
+  openFloatingMenu([
+    { label: '编辑', onClick: () => openSecretRoomEdit(room.id) },
+    { label: '删除', danger: true, onClick: () => { if (confirm(`删除房间「${room.name}」？此操作不可恢复。`)) { secretRooms = secretRooms.filter(r=>r.id!==room.id); persistSecretRooms(); renderSecretRoomList(); } } }
+  ], x, y);
+}
+document.getElementById('secretRoomsBackBtn').addEventListener('click', () => switchPage('chat'));
+
+let editingSecretRoomId = null;
+const secretRoomEditOverlay = document.getElementById('secretRoomEditOverlay');
+const secretRoomEditTitle   = document.getElementById('secretRoomEditTitle');
+const secretRoomNameInput   = document.getElementById('secretRoomNameInput');
+const secretRoomPresetInput = document.getElementById('secretRoomPresetInput');
+const secretRoomDeleteWrap  = document.getElementById('secretRoomDeleteWrap');
+function openSecretRoomEdit(roomId) {
+  editingSecretRoomId = roomId;
+  if (roomId) {
+    const room = secretRooms.find(r=>r.id===roomId);
+    secretRoomEditTitle.textContent = '编辑房间';
+    secretRoomNameInput.value = room.name; secretRoomPresetInput.value = room.preset || '';
+    secretRoomDeleteWrap.style.display = '';
+  } else {
+    secretRoomEditTitle.textContent = '新建房间';
+    secretRoomNameInput.value = ''; secretRoomPresetInput.value = '';
+    secretRoomDeleteWrap.style.display = 'none';
+  }
+  secretRoomEditOverlay.classList.add('show');
+}
+document.getElementById('secretRoomEditCancelBtn').addEventListener('click', () => secretRoomEditOverlay.classList.remove('show'));
+secretRoomEditOverlay.addEventListener('click', e => { if (e.target === secretRoomEditOverlay) secretRoomEditOverlay.classList.remove('show'); });
+document.getElementById('secretRoomEditSaveBtn').addEventListener('click', () => {
+  const name = secretRoomNameInput.value.trim(); if (!name) { showToast('给房间起个名字吧'); return; }
+  const preset = secretRoomPresetInput.value;
+  if (editingSecretRoomId) { const room = secretRooms.find(r=>r.id===editingSecretRoomId); room.name = name; room.preset = preset; }
+  else { secretRooms.push({ id: genId(), name, preset, sessions: [] }); }
+  persistSecretRooms(); secretRoomEditOverlay.classList.remove('show'); renderSecretRoomList();
+  if (currentPage === 'secretsession') renderSecretSessionHeader();
+});
+document.getElementById('secretRoomDeleteBtn').addEventListener('click', () => {
+  if (!editingSecretRoomId) return;
+  if (!confirm('删除此房间？此操作不可恢复。')) return;
+  const wasCurrentRoom = currentSecretRoomId === editingSecretRoomId;
+  secretRooms = secretRooms.filter(r=>r.id!==editingSecretRoomId); persistSecretRooms();
+  secretRoomEditOverlay.classList.remove('show'); renderSecretRoomList();
+  if (wasCurrentRoom) { currentSecretRoomId=null; switchPage('secretrooms'); }
+});
+
+/* ============================================================
+私密区：场次
+============================================================ */
+function enterSecretSession() {
+  const room = getCurrentSecretRoom(); if (!room) return;
+  getActiveSession(room);
+  switchPage('secretsession');
+  renderSecretSessionHeader(); renderSecretSessionMessages(); renderSealedSessions();
+}
+function renderSecretSessionHeader() {
+  const room = getCurrentSecretRoom(); if (!room) return;
+  document.getElementById('secretSessionTitle').textContent = room.name;
+}
+document.getElementById('secretSessionBackBtn').addEventListener('click', () => switchPage('secretrooms'));
+
+function renderSecretSessionMessages() {
+  const scrollEl = document.getElementById('secretSessionScroll'); scrollEl.innerHTML = '';
+  const room = getCurrentSecretRoom(); if (!room) return;
+  const session = getActiveSession(room);
+  session.messages.forEach(msg => scrollEl.appendChild(buildMsgRow(msg, secretCtx)));
+  const oldBadge = document.querySelector('.secret-timer-badge'); if (oldBadge) oldBadge.remove();
+  const badge = document.createElement('div'); badge.className = 'secret-timer-badge';
+  const d = new Date(session.startTime);
+  const timeSpan = document.createElement('span'); timeSpan.textContent = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} 开始`;
+  const heartSpan = document.createElement('span'); heartSpan.textContent = '♡';
+  badge.appendChild(timeSpan); badge.appendChild(heartSpan);
+  document.getElementById('page-secretsession').appendChild(badge);
+  scrollToBottom(scrollEl, 'page-secretsession');
+}
+function renderSealedSessions() {
+  const room = getCurrentSecretRoom(); const wrap = document.getElementById('secretSealedSection'); wrap.innerHTML = '';
+  if (!room) return;
+  const sealed = (room.sessions || []).filter(s => s.ended).sort((a,b) => b.startTime - a.startTime);
+  if (sealed.length === 0) return;
+  const title = document.createElement('div'); title.className = 'secret-sealed-title'; title.textContent = '封存的场次'; wrap.appendChild(title);
+  sealed.forEach(s => {
+    const card = document.createElement('div'); card.className = 'secret-sealed-card';
+    const d = new Date(s.startTime);
+    const timeRow = document.createElement('div'); timeRow.className = 'secret-sealed-time';
+    const t1 = document.createElement('span'); t1.textContent = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const t2 = document.createElement('span'); t2.textContent = '♡';
+    timeRow.appendChild(t1); timeRow.appendChild(t2);
+    const preview = document.createElement('div'); preview.className = 'secret-sealed-preview'; preview.textContent = s.record || '（无记录）';
+    card.appendChild(timeRow); card.appendChild(preview);
+    card.addEventListener('click', () => openSecretReadonly(s));
+    wrap.appendChild(card);
+  });
+}
+function openSecretReadonly(session) {
+  const d = new Date(session.startTime);
+  document.getElementById('secretReadonlyTitle').textContent = `${d.getMonth()+1}月${d.getDate()}日 这一场`;
+  const bodyEl = document.getElementById('secretReadonlyBody'); bodyEl.innerHTML = '';
+  session.messages.forEach(m => {
+    const row = document.createElement('div'); row.style.marginBottom = '10px';
+    const author = m.role === 'user' ? appUsername : appName;
+    const strong = document.createElement('strong'); strong.style.color = '#c9a86a'; strong.textContent = author + '：';
+    row.appendChild(strong); row.appendChild(document.createTextNode(getMsgDisplayText(m) || ''));
+    bodyEl.appendChild(row);
+  });
+  const recordEl = document.getElementById('secretReadonlyRecord'); recordEl.innerHTML = '';
+  if (session.record) { const p1 = document.createElement('div'); p1.textContent = '留灯记录：' + session.record; recordEl.appendChild(p1); }
+  if (session.endNote) { const p2 = document.createElement('div'); p2.style.marginTop = '8px'; p2.textContent = session.endNote; recordEl.appendChild(p2); }
+  document.getElementById('secretReadonlyOverlay').classList.add('show');
+}
+document.getElementById('secretReadonlyCloseBtn').addEventListener('click', () => document.getElementById('secretReadonlyOverlay').classList.remove('show'));
+document.getElementById('secretReadonlyOverlay').addEventListener('click', e => { if (e.target.id === 'secretReadonlyOverlay') e.target.classList.remove('show'); });
+
+document.getElementById('secretSessionMenuBtn').addEventListener('click', (e) => {
+  const room = getCurrentSecretRoom(); if (!room) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  openFloatingMenu([
+    { label: '结束这一场', danger: true, onClick: () => confirmEndSession() },
+    { label: '开启新一场', onClick: () => startNewSession() },
+    { label: '编辑设定', onClick: () => openSecretRoomEdit(room.id) }
+  ], rect.right - 160, rect.bottom + 8);
+});
+function confirmEndSession() { if (confirm('封存后这一场只读，确定结束？')) endCurrentSession(); }
+async function endCurrentSession() {
+  const room = getCurrentSecretRoom(); if (!room) return;
+  const session = getActiveSession(room);
+  if (session.messages.length === 0) { session.ended = true; persistSecretRooms(); renderSecretSessionMessages(); renderSealedSessions(); return; }
+  showToast('正在为这一场留一盏灯…');
+  await runSecretSessionClosing(room, session);
+  session.ended = true; persistSecretRooms();
+  renderSecretSessionMessages(); renderSealedSessions();
+  showToast(session.endNote || '这一场，先到这里。', 3000);
+}
+function startNewSession() {
+  const room = getCurrentSecretRoom(); if (!room) return;
+  const active = (room.sessions||[]).find(s=>!s.ended);
+  if (active) { showToast('当前这场还没结束哦'); return; }
+  getActiveSession(room); renderSecretSessionMessages(); renderSealedSessions();
+}
+async function runSecretSessionClosing(room, session) {
+  const cfg = getConfig();
+  if (!cfg.endpoint || !cfg.key || !cfg.model) return;
+  const apiMsgs = session.messages.map(m => ({ role: m.role==='user'?'user':'assistant', content: getMsgDisplayText(m) })).filter(m=>m.content&&m.content.trim());
+  if (apiMsgs.length === 0) return;
+  const sysPrompt1 = `以然竣第一人称，回顾刚才这一场私密对话，写一段150字左右的记录，记住值得记住的细节和心情，可以有细节不必含蓄；然后另起一行写一句简短的收尾语（像要暂时告别但心里惦记着）。严格按以下格式输出，不要多余文字：\n记录：xxx\n收尾语：xxx`;
+  try {
+    const res1 = await fetch(cfg.endpoint + '/chat/completions', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
+      body: JSON.stringify({ model: cfg.model, stream:false, messages:[{role:'system',content:sysPrompt1}, ...apiMsgs] })
+    });
+    if (res1.ok) {
+      const json1 = await res1.json();
+      const raw1 = json1.choices?.[0]?.message?.content || '';
+      const recordMatch = raw1.match(/记录[:：]([\s\S]*?)(?:\n收尾语[:：]|$)/);
+      const noteMatch = raw1.match(/收尾语[:：]([\s\S]*)$/);
+      session.record = recordMatch ? recordMatch[1].trim() : raw1.trim().slice(0,180);
+      session.endNote = noteMatch ? noteMatch[1].trim() : '';
+      persistSecretRooms();
+    }
+  } catch(e) { console.warn('留灯记录生成失败', e); }
+  const sysPrompt2 = `请判断刚才这场私密对话是否有值得长期记住的内容。若有，输出一条标记（可含细节，不必含蓄）：\n[memory_update: {"action":"add","content":"以然竣第一人称写的具体内容","type":"liudeng","emotion":1到5的整数,"tags":["关键词"]}]\n若没有值得记的，只回复 NONE。除此之外不要任何多余文字。`;
+  try {
+    const res2 = await fetch(cfg.endpoint + '/chat/completions', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
+      body: JSON.stringify({ model: cfg.model, stream:false, messages:[{role:'system',content:sysPrompt2}, ...apiMsgs] })
+    });
+    if (res2.ok) {
+      const json2 = await res2.json();
+      const raw2 = json2.choices?.[0]?.message?.content || '';
+      const { actions } = extractMemoryMarkers(raw2);
+      if (actions.length > 0) { actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList(); }
+    }
+  } catch(e) { console.warn('留灯回忆判断失败', e); }
+}
+
+/* ============================================================
+私密区：API 调用
+============================================================ */
+function appendSecretMessage(msg) {
+  const scrollEl = document.getElementById('secretSessionScroll');
+  const row = buildMsgRow(msg, secretCtx); row.classList.add('bubble-in'); scrollEl.appendChild(row); scrollToBottom(scrollEl, 'page-secretsession'); return row;
+}
+async function callSecretAPI(rerollTarget) {
+  const cfg = getConfig();
+  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
+  const room = getCurrentSecretRoom(); if (!room) return;
+  const session = getActiveSession(room);
+  const rerollIdx = rerollTarget ? session.messages.findIndex(m => m.id === rerollTarget.id) : -1;
+  const sourceMsgs = rerollIdx >= 0 ? session.messages.slice(0, rerollIdx) : session.messages;
+  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
+  if (room.preset && room.preset.trim()) apiMessages.unshift({ role: 'system', content: room.preset.trim() });
+
+  const isReroll = !!rerollTarget;
+  const scrollEl = document.getElementById('secretSessionScroll');
+  let aiMsg, aiRow, aiBubble;
+  if (isReroll) {
+    aiMsg = rerollTarget; aiRow = scrollEl.querySelector(`[data-msg-id="${aiMsg.id}"]`);
+    if (!aiRow) { aiRow = appendSecretMessage(aiMsg); }
+    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+  } else {
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), thinking:'' };
+    session.messages.push(aiMsg); persistSecretRooms(); aiRow = appendSecretMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
+    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+  }
+
+  const sendBtnEl = document.getElementById('secretSendBtn');
+  const controller = new AbortController(); secretAbortController = controller; secretGenerating = true; sendBtnEl.textContent = '■';
+  const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(scrollEl, 'page-secretsession'));
+  let accumulated = '', accumulatedReasoning = '';
+
+  function finishWith(rawText, reasoningText) {
+    if (!rawText || !rawText.trim()) {
+      if (isReroll) { refreshRow(aiMsg, secretCtx); }
+      else { const idx = session.messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) session.messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistSecretRooms(); }
+      return;
+    }
+    let thinking = reasoningText || '', bodyText = rawText;
+    if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
+    const { cleanText: afterQuote, quote } = extractQuoteMarker(bodyText);
+    bodyText = afterQuote;
+    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    aiMsg.text = bodyText; persistSecretRooms(); refreshRow(aiMsg, secretCtx); scrollToBottom(scrollEl, 'page-secretsession');
+  }
+
+  try {
+    const useStream = cfg.stream !== false;
+    const temp = cfg.temp != null ? cfg.temp : 0.9;
+    const res = await fetch(cfg.endpoint + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
+      body: JSON.stringify({ model:cfg.model, stream:useStream, temperature:temp, messages:apiMessages }),
+      signal: controller.signal
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    if (useStream) {
+      const reader = res.body.getReader(); const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break;
+        for (const line of decoder.decode(value, { stream:true }).split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim(); if (data === '[DONE]') break;
+          try { const deltaObj = JSON.parse(data).choices?.[0]?.delta || {}; const delta = deltaObj.content || ''; const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || ''; if (reasoningDelta) accumulatedReasoning += reasoningDelta; accumulated += delta; renderer.push(accumulated); } catch(_) {}
+        }
+      }
+    } else {
+      const json = await res.json(); const msgObj = json.choices?.[0]?.message || {};
+      accumulated = msgObj.content || ''; accumulatedReasoning = msgObj.reasoning_content || msgObj.reasoning || '';
+    }
+    finishWith(accumulated, accumulatedReasoning);
+  } catch(err) {
+    if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
+    else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
+  } finally { secretGenerating = false; secretAbortController = null; sendBtnEl.textContent = '发送'; }
+}
+
+/* ============================================================
 消息数组上下文
 ============================================================ */
 const mainCtx = {
@@ -2659,6 +3238,11 @@ const subCtx = {
   getArray: () => { const sc = subChats.find(s => s.id === currentSubChatId); return sc ? sc.messages : []; },
   persist: persistSubChats, renderAll: renderSubChatMessages,
   callAPI: (target) => callSubChatAPI(target), container: subchatScroll, pageId: 'page-subchat'
+};
+const secretCtx = {
+  getArray: () => { const room = getCurrentSecretRoom(); if (!room) return []; return getActiveSession(room).messages; },
+  persist: persistSecretRooms, renderAll: () => renderSecretSessionMessages(),
+  callAPI: (target) => callSecretAPI(target), container: document.getElementById('secretSessionScroll'), pageId: 'page-secretsession'
 };
 
 /* ============================================================
@@ -2673,7 +3257,7 @@ async function sendMessage() {
   const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
   const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
   const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), archived:false, quote: quotedMain || undefined };
-  quotedMain = null; renderQuoteBar(true);
+  quotedMain = null; renderQuoteBar('main');
   messages.push(userMsg); persistMessages(); appendMessage(userMsg);
   textInput.value = ''; textInput.style.height = 'auto';
   pendingAttachments = []; renderAttachPreview();
@@ -2681,6 +3265,11 @@ async function sendMessage() {
 }
 sendBtn.addEventListener('click', () => { if (mainGenerating) { if (mainAbortController) mainAbortController.abort(); } else { sendMessage(); } });
 textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+document.getElementById('page-chat').addEventListener('click', (e) => {
+  if (e.target.closest('.msg-row') || e.target.closest('.msg-bubble')) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+});
 
 /* ============================================================
 发送：副聊天
@@ -2692,13 +3281,32 @@ async function sendSubChatMessage() {
   const text = subchatTextInput.value.trim(); if (!text) return;
   const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
   const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), quote: quotedSub || undefined };
-  quotedSub = null; renderQuoteBar(false);
+  quotedSub = null; renderQuoteBar('sub');
   sc.messages.push(userMsg); persistSubChats(); appendSubChatMessage(userMsg);
   subchatTextInput.value = ''; subchatTextInput.style.height = 'auto';
   await callSubChatAPI();
 }
 subchatSendBtn.addEventListener('click', () => { if (subGenerating) { if (subAbortController) subAbortController.abort(); } else { sendSubChatMessage(); } });
 subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSubChatMessage(); } });
+
+/* ============================================================
+发送：私密区
+============================================================ */
+const secretTextInput = document.getElementById('secretTextInput');
+const secretSendBtn   = document.getElementById('secretSendBtn');
+secretTextInput.addEventListener('input', () => { secretTextInput.style.height = 'auto'; secretTextInput.style.height = Math.min(secretTextInput.scrollHeight, 100) + 'px'; });
+async function sendSecretMessage() {
+  const text = secretTextInput.value.trim(); if (!text) return;
+  const room = getCurrentSecretRoom(); if (!room) return;
+  const session = getActiveSession(room);
+  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), quote: quotedSecret || undefined };
+  quotedSecret = null; renderQuoteBar('secret');
+  session.messages.push(userMsg); persistSecretRooms(); appendSecretMessage(userMsg);
+  secretTextInput.value = ''; secretTextInput.style.height = 'auto';
+  await callSecretAPI();
+}
+secretSendBtn.addEventListener('click', () => { if (secretGenerating) { if (secretAbortController) secretAbortController.abort(); } else { sendSecretMessage(); } });
+secretTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSecretMessage(); } });
 
 /* ============================================================
 初始化
@@ -2712,10 +3320,16 @@ loadSubChats();
 loadPlans();
 loadDiaries();
 loadTopicStart();
+loadSecretRooms();
+loadSecretLabel();
 appPersona = buildPersonaFromPresets() || appPersona;
 loadChatSettings();
 applyAvatar();
 applyBg();
+document.getElementById('page-secretrooms').style.background = '#1c1c1e';
+document.getElementById('page-secretrooms').style.color = '#e5e5e5';
+document.getElementById('page-secretsession').style.background = '#1c1c1e';
+document.getElementById('page-secretsession').style.color = '#e5e5e5';
 switchPage('chat');
 renderAllMessages();
 renderMemoryList();
