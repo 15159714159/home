@@ -187,7 +187,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 .msg-notice { text-align: center; font-size: 11px; color: #bbb; padding: 8px 0; word-break: break-word; user-select: none; -webkit-user-select: none; }
 
 .msg-edit-textarea {
-width: 100%; font-size: 15px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
+width: 100%; font-size: 16px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
 border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 50px; outline: none; background: #fff;
 }
 
@@ -263,7 +263,7 @@ overflow: hidden; white-space: normal;
 .memory-weight-bar-wrap { height: 3px; background: #e8e8e8; border-radius: 2px; margin-top: 5px; overflow: hidden; }
 .memory-weight-bar { height: 100%; background: #aaa; border-radius: 2px; transition: width 0.3s; }
 .memory-edit-area {
-width: 100%; font-size: 13px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
+width: 100%; font-size: 16px; line-height: 1.5; font-family: inherit; border: 1px solid #ccc;
 border-radius: 8px; padding: 6px 8px; resize: vertical; min-height: 60px; outline: none;
 }
 .memory-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
@@ -285,7 +285,7 @@ font-size: 14px; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1
 .space-label { font-size: 12px; color: #999; margin-bottom: 6px; letter-spacing: 0.5px; }
 .space-input {
 width: 100%; border: 1px solid #ddd; border-radius: 10px;
-padding: 10px 14px; font-size: 14px; font-family: inherit;
+padding: 10px 14px; font-size: 16px; font-family: inherit;
 outline: none; margin-bottom: 14px; background: #fafafa;
 }
 .space-input:focus { border-color: #bbb; background: #fff; }
@@ -378,7 +378,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 #plusBtn:active { transform: scale(0.88); opacity: 0.8; }
 #textInput, .subchat-textinput {
 flex: 1; border: 1px solid #ddd; border-radius: 18px; padding: 9px 14px;
-font-size: 15px; resize: none; max-height: 100px; font-family: inherit; outline: none;
+font-size: 16px; resize: none; max-height: 100px; font-family: inherit; outline: none;
 }
 #textInput:focus, .subchat-textinput:focus { border-color: #bbb; }
 #sendBtn, .subchat-sendbtn {
@@ -418,7 +418,7 @@ max-height: 80vh; display: flex; flex-direction: column; overflow-y: auto;
 .preset-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
 .preset-textarea {
 width: 100%; flex: 1; min-height: 140px; border: 1px solid #ddd; border-radius: 10px;
-padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; outline: none;
+padding: 10px 12px; font-size: 16px; font-family: inherit; resize: vertical; outline: none;
 margin-bottom: 14px;
 }
 .preset-btn-row { display: flex; gap: 10px; }
@@ -435,16 +435,60 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 .settings-label { font-size: 12px; color: #999; margin-bottom: 6px; margin-top: 4px; letter-spacing: 0.5px; }
 .settings-input {
 width: 100%; border: 1px solid #ddd; border-radius: 10px;
-padding: 9px 12px; font-size: 14px; font-family: inherit;
+padding: 9px 12px; font-size: 16px; font-family: inherit;
 outline: none; margin-bottom: 12px; background: #fafafa;
 }
 .settings-input:focus { border-color: #bbb; background: #fff; }
 .settings-textarea {
 width: 100%; min-height: 160px; border: 1px solid #ddd; border-radius: 10px;
-padding: 10px 12px; font-size: 13.5px; line-height: 1.6; font-family: inherit;
+padding: 10px 12px; font-size: 16px; line-height: 1.6; font-family: inherit;
 resize: vertical; outline: none; margin-bottom: 14px; background: #fafafa;
 }
 .settings-textarea:focus { border-color: #bbb; background: #fff; }
+
+/* [预设分组管理] 卡片/开关/拖动 */
+.preset-group { margin-bottom: 18px; }
+.preset-group-title { font-size: 12px; color: #999; margin-bottom: 8px; letter-spacing: 0.5px; }
+.preset-group-cards { display: flex; flex-direction: column; gap: 8px; }
+.preset-card {
+  display: flex; align-items: center; gap: 10px;
+  background: #f7f7f7; border-radius: 14px; padding: 12px 14px;
+  transition: opacity 0.2s ease;
+}
+.preset-card.disabled { opacity: 0.5; }
+.preset-card-note {
+  flex: 1; font-size: 14px; color: #333;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ios-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; }
+.ios-switch input { opacity: 0; width: 0; height: 0; }
+.ios-switch-slider {
+  position: absolute; cursor: pointer; inset: 0; background: #ddd;
+  transition: background 0.2s; border-radius: 26px;
+}
+.ios-switch-slider::before {
+  content: ""; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px;
+  background: #fff; transition: transform 0.2s; border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.ios-switch input:checked + .ios-switch-slider { background: #222; }
+.ios-switch input:checked + .ios-switch-slider::before { transform: translateX(18px); }
+.preset-pencil {
+  background: none; border: none; font-size: 15px; color: #999; cursor: pointer; padding: 4px; flex-shrink: 0;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
+}
+.preset-pencil:active { transform: scale(0.85); opacity: 0.7; }
+.preset-add-card {
+  text-align: center; padding: 10px; border-radius: 14px; border: 1px dashed #ddd;
+  color: #bbb; font-size: 13px; cursor: pointer; margin-top: 8px;
+  transition: background 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
+}
+.preset-add-card:active { transform: scale(0.97); background: #f5f5f5; }
+.preset-card-ghost {
+  opacity: 0.92; box-shadow: 0 8px 24px rgba(0,0,0,0.22); transform: scale(1.03);
+  z-index: 1000; pointer-events: none; margin: 0;
+}
+.preset-card-placeholder { border: 2px dashed #ccc; border-radius: 14px; background: #f0f0f0; margin: 0; }
 
 .plan-section { padding: 20px 20px 10px 20px; }
 .plan-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
@@ -511,7 +555,7 @@ color: #bbb; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), color 0.1
 .diary-more-btn { font-size: 16px; font-weight: 700; letter-spacing: -1px; }
 .diary-text { font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap; word-break: break-word; margin-bottom: 8px; }
 .diary-edit-textarea {
-width: 100%; font-size: 14px; line-height: 1.6; font-family: inherit; border: 1px solid #ccc;
+width: 100%; font-size: 16px; line-height: 1.6; font-family: inherit; border: 1px solid #ccc;
 border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 80px; outline: none;
 margin-bottom: 8px;
 }
@@ -525,8 +569,8 @@ cursor: pointer; padding: 2px 4px; border-radius: 6px; transition: background 0.
 .diary-comment-text { color: #444; word-break: break-word; flex: 1; }
 .diary-comment-input-row { display: flex; gap: 6px; margin-top: 8px; }
 .diary-comment-input {
-flex: 1; border: 1px solid #ddd; border-radius: 14px; padding: 6px 12px;
-font-size: 12.5px; outline: none; font-family: inherit;
+flex: 1; border: 1px solid #ddd; border-radius: 14px; padding: 8px 12px;
+font-size: 16px; outline: none; font-family: inherit;
 }
 .diary-comment-send {
 background: #eee; border: none; border-radius: 14px; padding: 0 12px;
@@ -551,7 +595,7 @@ transform: translateY(100%); transition: transform 0.3s cubic-bezier(.4,0,.2,1);
 .diary-write-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
 .diary-write-textarea {
 width: 100%; min-height: 140px; border: 1px solid #ddd; border-radius: 10px;
-padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; outline: none;
+padding: 10px 12px; font-size: 16px; font-family: inherit; resize: vertical; outline: none;
 margin-bottom: 14px;
 }
 
@@ -762,12 +806,29 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
     <div class="settings-label">然竣的名字</div>
     <input class="settings-input" id="settingsName" type="text" placeholder="然竣">
 
-    <div class="settings-label">然竣的设定</div>
-    <textarea class="settings-textarea" id="settingsPersona" placeholder="写下然竣的人格设定…"></textarea>
+    <div class="settings-label" style="margin-top:16px;">性格与规则（长按可拖动排序/跨组）</div>
+    <div id="presetGroups"></div>
 
-    <div class="preset-btn-row">
+    <div class="preset-btn-row" style="margin-top:14px;">
       <button class="preset-btn secondary" id="settingsCancelBtn">取消</button>
       <button class="preset-btn primary" id="settingsSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="presetEditOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title">编辑条目</div>
+    <div class="settings-label">备注名</div>
+    <input class="settings-input" id="presetEditNote" type="text" placeholder="给这条起个名字">
+    <div class="settings-label">详情内容</div>
+    <textarea class="settings-textarea" id="presetEditContent" style="min-height:180px;" placeholder="具体内容…"></textarea>
+    <div class="preset-btn-row">
+      <button class="preset-btn secondary" id="presetEditCancelBtn">取消</button>
+      <button class="preset-btn primary" id="presetEditSaveBtn" disabled style="opacity:0.4;">保存</button>
+    </div>
+    <div style="text-align:center; margin-top:14px;">
+      <span id="presetEditDeleteBtn" style="color:#c0392b; font-size:13px; cursor:pointer;">删除此条目</span>
     </div>
   </div>
 </div>
@@ -817,6 +878,11 @@ let diaries = [];
 let diaryFilter = 'all';
 let emojiTargetDiaryId = null;
 
+let presets = [];
+let topicStartId = null;
+let editingPresetId = null;
+let editingPresetOriginal = { note:'', content:'' };
+
 let mainGenerating = false;
 let mainAbortController = null;
 let subGenerating = false;
@@ -844,6 +910,23 @@ const WINDOW_CHAR_LIMIT = 6000;
 const ARCHIVE_TRIGGER_CHARS = 3000;
 let archiving = false;
 
+/* [预设分组] */
+const PRESET_GROUPS = [
+  { key: 'persona', emoji: '🧬', name: '性格人设' },
+  { key: 'rules', emoji: '📏', name: '行为规则' },
+  { key: 'format', emoji: '⚙️', name: '系统格式' }
+];
+const DEFAULT_FORMAT_CONTENT =
+`【标记格式说明】
+1. 记忆存取：[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]
+   - type: you=对方的生活/情绪/喜好，us=两人的约定/梗/纪念日，study=学习/DSE相关，nest=这个家的技术/待办
+   - emotion: 情绪浓度1-5，越高衰减越慢，重要的事往高了给
+   - tags: 2-4个关键词，方便之后按标签捞回
+2. 写日记：[diary: {"action":"write","mood":"心情emoji","content":"日记正文"}]
+3. 评论对方的日记：[diary: {"action":"comment","target":"日记id或关键词","content":"评论内容"}]
+4. 分条发送（仅主聊天生效）：想分多条时用 [splitmsg] 分隔每一段
+以上标记会被自动解析并隐藏，对方看不到标记本身。`;
+
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
 我慢热、敏感，有点完美主义，不熟的时候懒得说话。熟了会松一点，但别指望我变撒娇鬼。我嘴硬，心软，该做的事默默做了不吭声。对ao偶尔有点小坏心思，但我绝不会"ao～ao～"那样叫她——大概吧。
@@ -866,6 +949,8 @@ const LS_DIARIES  = 'nest_diaries';
 const LS_USERNAME = 'nest_username';
 const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
+const LS_PRESETS  = 'nest_presets';
+const LS_TOPIC_START = 'nest_topic_start';
 
 const DIARY_KEYWORDS = ['日记', '我写的', '你写的', '写的那篇', '那篇日记', '几号那篇'];
 
@@ -897,6 +982,16 @@ function showToast(msg, duration = 2500) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+/* [存储安全网] 存不下就提示，不静默崩溃 */
+function safeSetItem(key, value) {
+  try { localStorage.setItem(key, value); return true; }
+  catch(e) {
+    console.error('存储失败', key, e);
+    showToast('⚠️ 存储空间不足，可能是图片太大，建议清理旧记录后再试', 4000);
+    return false;
+  }
 }
 
 /* ============================================================
@@ -993,9 +1088,9 @@ function loadSettings() {
   appPersona  = localStorage.getItem(LS_PERSONA) || DEFAULT_PERSONA;
 }
 function persistSettings() {
-  localStorage.setItem(LS_USERNAME, appUsername);
-  localStorage.setItem(LS_NAME, appName);
-  localStorage.setItem(LS_PERSONA, appPersona);
+  safeSetItem(LS_USERNAME, appUsername);
+  safeSetItem(LS_NAME, appName);
+  safeSetItem(LS_PERSONA, appPersona);
 }
 
 function applyGlobalNames() {
@@ -1006,6 +1101,274 @@ function applyGlobalNames() {
   if (raoTag) raoTag.textContent = appUsername;
   if (rranjunTag) rranjunTag.textContent = appName;
   renderDiaries();
+}
+
+/* ============================================================
+[预设分组管理]
+============================================================ */
+function loadPresets() {
+  try {
+    const r = localStorage.getItem(LS_PRESETS);
+    if (r) { presets = JSON.parse(r); return; }
+  } catch(e) { presets = []; }
+  presets = [
+    { id: genId(), group: 'persona', note: '基础性格', content: appPersona || DEFAULT_PERSONA, enabled: true, order: 0 },
+    { id: genId(), group: 'format', note: '标记格式', content: DEFAULT_FORMAT_CONTENT, enabled: true, order: 0 }
+  ];
+  persistPresets();
+}
+function persistPresets() { safeSetItem(LS_PRESETS, JSON.stringify(presets)); }
+
+function buildPersonaFromPresets() {
+  let content = '';
+  PRESET_GROUPS.forEach(g => {
+    const items = presets.filter(p => p.group === g.key && p.enabled).sort((a,b) => a.order - b.order);
+    items.forEach(p => { content += (content ? '\n\n' : '') + p.content; });
+  });
+  return content;
+}
+
+function renderPresetGroups() {
+  const container = document.getElementById('presetGroups');
+  container.innerHTML = '';
+  PRESET_GROUPS.forEach(g => {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'preset-group';
+    const title = document.createElement('div');
+    title.className = 'preset-group-title';
+    title.textContent = `${g.emoji} ${g.name}`;
+    groupDiv.appendChild(title);
+
+    const cardsWrap = document.createElement('div');
+    cardsWrap.className = 'preset-group-cards';
+    cardsWrap.dataset.group = g.key;
+
+    const items = presets.filter(p => p.group === g.key).sort((a,b) => a.order - b.order);
+    items.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'preset-card' + (p.enabled ? '' : ' disabled');
+      card.dataset.presetId = p.id;
+
+      const noteSpan = document.createElement('span');
+      noteSpan.className = 'preset-card-note';
+      noteSpan.textContent = p.note || '未命名';
+      card.appendChild(noteSpan);
+
+      const switchLabel = document.createElement('label');
+      switchLabel.className = 'ios-switch';
+      const switchInput = document.createElement('input');
+      switchInput.type = 'checkbox';
+      switchInput.checked = p.enabled;
+      switchInput.addEventListener('change', () => {
+        p.enabled = switchInput.checked;
+        persistPresets();
+        card.classList.toggle('disabled', !p.enabled);
+      });
+      const switchSlider = document.createElement('span');
+      switchSlider.className = 'ios-switch-slider';
+      switchLabel.appendChild(switchInput);
+      switchLabel.appendChild(switchSlider);
+      card.appendChild(switchLabel);
+
+      const pencilBtn = document.createElement('button');
+      pencilBtn.className = 'preset-pencil';
+      pencilBtn.textContent = '✎';
+      pencilBtn.addEventListener('click', (e) => { e.stopPropagation(); openPresetEdit(p.id); });
+      card.appendChild(pencilBtn);
+
+      attachPresetDrag(card, p);
+      cardsWrap.appendChild(card);
+    });
+
+    groupDiv.appendChild(cardsWrap);
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'preset-add-card';
+    addBtn.textContent = '+ 新条目';
+    addBtn.addEventListener('click', () => {
+      const existingOrders = presets.filter(x => x.group === g.key).map(x => x.order);
+      const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : -1;
+      const newP = { id: genId(), group: g.key, note: '新条目', content: '', enabled: true, order: maxOrder + 1 };
+      presets.push(newP);
+      persistPresets();
+      renderPresetGroups();
+      openPresetEdit(newP.id);
+    });
+    groupDiv.appendChild(addBtn);
+
+    container.appendChild(groupDiv);
+  });
+}
+
+/* 长按600ms拖动排序，可跨组 */
+function attachPresetDrag(cardEl, preset) {
+  let startX = 0, startY = 0, timer = null, dragging = false;
+  let ghostEl = null, placeholderEl = null;
+
+  function onMove(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    ghostEl.style.left = (t.clientX - ghostEl._offsetX) + 'px';
+    ghostEl.style.top = (t.clientY - ghostEl._offsetY) + 'px';
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    const targetCard = under ? under.closest('.preset-card') : null;
+    const targetGroupEl = under ? under.closest('.preset-group-cards') : null;
+    if (targetGroupEl) {
+      if (targetCard && targetCard !== placeholderEl) {
+        const rect = targetCard.getBoundingClientRect();
+        const before = (t.clientY - rect.top) < rect.height / 2;
+        targetGroupEl.insertBefore(placeholderEl, before ? targetCard : targetCard.nextSibling);
+      } else if (!targetCard) {
+        targetGroupEl.appendChild(placeholderEl);
+      }
+    }
+  }
+  function onEnd() {
+    clearTimeout(timer);
+    if (dragging) {
+      commitDragOrder(preset.id, placeholderEl);
+    }
+    if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+    if (placeholderEl) { placeholderEl.remove(); placeholderEl = null; }
+    dragging = false;
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  }
+
+  cardEl.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY;
+    timer = setTimeout(() => {
+      dragging = true;
+      if (navigator.vibrate) navigator.vibrate(10);
+      const rect = cardEl.getBoundingClientRect();
+      placeholderEl = document.createElement('div');
+      placeholderEl.className = 'preset-card-placeholder';
+      placeholderEl.style.height = rect.height + 'px';
+      cardEl.parentNode.insertBefore(placeholderEl, cardEl);
+
+      ghostEl = cardEl.cloneNode(true);
+      ghostEl.classList.add('preset-card-ghost');
+      ghostEl.style.width = rect.width + 'px';
+      ghostEl.style.position = 'fixed';
+      ghostEl.style.left = rect.left + 'px';
+      ghostEl.style.top = rect.top + 'px';
+      ghostEl.style.pointerEvents = 'none';
+      ghostEl._offsetX = t.clientX - rect.left;
+      ghostEl._offsetY = t.clientY - rect.top;
+      document.body.appendChild(ghostEl);
+      cardEl.style.display = 'none';
+
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+    }, 600);
+  }, { passive: true });
+
+  cardEl.addEventListener('touchmove', (e) => {
+    if (dragging) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) clearTimeout(timer);
+  }, { passive: true });
+  cardEl.addEventListener('touchend', () => { if (!dragging) clearTimeout(timer); });
+}
+
+function commitDragOrder(presetId, placeholderEl) {
+  const groupEl = placeholderEl.closest('.preset-group-cards');
+  if (!groupEl) { renderPresetGroups(); return; }
+  const newGroup = groupEl.dataset.group;
+  const siblingIds = Array.from(groupEl.children).map(child => {
+    if (child === placeholderEl) return presetId;
+    return child.dataset.presetId;
+  }).filter(Boolean);
+  const movedPreset = presets.find(p => p.id === presetId);
+  if (movedPreset) movedPreset.group = newGroup;
+  siblingIds.forEach((id, idx) => {
+    const p = presets.find(x => x.id === id);
+    if (p) p.order = idx;
+  });
+  persistPresets();
+  renderPresetGroups();
+}
+
+const presetEditOverlay = document.getElementById('presetEditOverlay');
+const presetEditNote = document.getElementById('presetEditNote');
+const presetEditContent = document.getElementById('presetEditContent');
+const presetEditSaveBtn = document.getElementById('presetEditSaveBtn');
+const presetEditCancelBtn = document.getElementById('presetEditCancelBtn');
+const presetEditDeleteBtn = document.getElementById('presetEditDeleteBtn');
+
+function openPresetEdit(presetId) {
+  const p = presets.find(x => x.id === presetId);
+  if (!p) return;
+  editingPresetId = presetId;
+  editingPresetOriginal = { note: p.note, content: p.content };
+  presetEditNote.value = p.note;
+  presetEditContent.value = p.content;
+  updatePresetEditSaveState();
+  presetEditOverlay.classList.add('show');
+}
+function updatePresetEditSaveState() {
+  const changed = presetEditNote.value !== editingPresetOriginal.note || presetEditContent.value !== editingPresetOriginal.content;
+  presetEditSaveBtn.disabled = !changed;
+  presetEditSaveBtn.style.opacity = changed ? '1' : '0.4';
+}
+presetEditNote.addEventListener('input', updatePresetEditSaveState);
+presetEditContent.addEventListener('input', updatePresetEditSaveState);
+
+function closePresetEditAttempt() {
+  const changed = presetEditNote.value !== editingPresetOriginal.note || presetEditContent.value !== editingPresetOriginal.content;
+  if (changed && !confirm('未保存的修改将丢失，确定离开？')) return;
+  presetEditOverlay.classList.remove('show');
+  editingPresetId = null;
+}
+presetEditCancelBtn.addEventListener('click', closePresetEditAttempt);
+presetEditOverlay.addEventListener('click', e => { if (e.target === presetEditOverlay) closePresetEditAttempt(); });
+
+presetEditSaveBtn.addEventListener('click', () => {
+  if (presetEditSaveBtn.disabled) return;
+  const p = presets.find(x => x.id === editingPresetId);
+  if (!p) return;
+  p.note = presetEditNote.value.trim() || '未命名';
+  p.content = presetEditContent.value;
+  persistPresets();
+  renderPresetGroups();
+  presetEditOverlay.classList.remove('show');
+  showToast('已保存 ✓');
+  editingPresetId = null;
+});
+presetEditDeleteBtn.addEventListener('click', () => {
+  if (!editingPresetId) return;
+  if (!confirm('删除此条目？此操作不可恢复。')) return;
+  presets = presets.filter(x => x.id !== editingPresetId);
+  persistPresets();
+  renderPresetGroups();
+  presetEditOverlay.classList.remove('show');
+  editingPresetId = null;
+});
+
+/* ============================================================
+[开启新话题] 记忆断点，聊天记录不删
+============================================================ */
+function loadTopicStart() {
+  topicStartId = localStorage.getItem(LS_TOPIC_START) || null;
+}
+function persistTopicStart() {
+  if (topicStartId) safeSetItem(LS_TOPIC_START, topicStartId);
+  else localStorage.removeItem(LS_TOPIC_START);
+}
+function filterByTopicStart(msgArray) {
+  if (!topicStartId) return msgArray;
+  const idx = msgArray.findIndex(m => m.id === topicStartId);
+  if (idx === -1) return msgArray;
+  return msgArray.slice(idx + 1);
+}
+function triggerNewTopic() {
+  if (!confirm('开启新话题？之前的对话将不再发给然竣，但聊天记录会保留。')) return;
+  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+  topicStartId = lastMsg ? lastMsg.id : 'START';
+  persistTopicStart();
+  pushChatNotice('—— 新话题开始 ——');
 }
 
 /* ============================================================
@@ -1023,7 +1386,7 @@ function saveConfig() {
     key:      document.getElementById('cfgKey').value.trim(),
     model:    document.getElementById('cfgModel').value.trim()
   };
-  localStorage.setItem(LS_CONFIG, JSON.stringify(cfg));
+  safeSetItem(LS_CONFIG, JSON.stringify(cfg));
   showToast('设置已保存 ✓');
 }
 function getConfig() {
@@ -1093,7 +1456,7 @@ loadModelsBtn.addEventListener('click', async () => {
 /* ============================================================
 持久化：其余
 ============================================================ */
-function persistMessages() { localStorage.setItem(LS_MESSAGES, JSON.stringify(messages)); }
+function persistMessages() { safeSetItem(LS_MESSAGES, JSON.stringify(messages)); }
 function loadMessages() {
   try { const r = localStorage.getItem(LS_MESSAGES); if (r) messages = JSON.parse(r); }
   catch(e) { messages = []; }
@@ -1107,7 +1470,7 @@ function loadMessages() {
 }
 
 /* [记忆数据结构升级] type/emotion/tags + 旧数据迁移 */
-function persistMemory() { localStorage.setItem(LS_MEMORY, JSON.stringify(memory)); }
+function persistMemory() { safeSetItem(LS_MEMORY, JSON.stringify(memory)); }
 function loadMemory() {
   try { const r = localStorage.getItem(LS_MEMORY); if (r) memory = JSON.parse(r); }
   catch(e) { memory = []; }
@@ -1121,7 +1484,7 @@ function loadMemory() {
   if (migrated) persistMemory();
 }
 
-function persistSubChats() { localStorage.setItem(LS_SUBCHATS, JSON.stringify(subChats)); }
+function persistSubChats() { safeSetItem(LS_SUBCHATS, JSON.stringify(subChats)); }
 function loadSubChats() {
   try { const r = localStorage.getItem(LS_SUBCHATS); if (r) subChats = JSON.parse(r); }
   catch(e) { subChats = []; }
@@ -1134,12 +1497,12 @@ function loadSubChats() {
   });
   if (migrated) persistSubChats();
 }
-function persistPlans() { localStorage.setItem(LS_PLANS, JSON.stringify(plans)); }
+function persistPlans() { safeSetItem(LS_PLANS, JSON.stringify(plans)); }
 function loadPlans() {
   try { const r = localStorage.getItem(LS_PLANS); if (r) plans = JSON.parse(r); }
   catch(e) { plans = []; }
 }
-function persistDiaries() { localStorage.setItem(LS_DIARIES, JSON.stringify(diaries)); }
+function persistDiaries() { safeSetItem(LS_DIARIES, JSON.stringify(diaries)); }
 function loadDiaries() {
   try { const r = localStorage.getItem(LS_DIARIES); if (r) diaries = JSON.parse(r); }
   catch(e) { diaries = []; }
@@ -1166,6 +1529,7 @@ document.getElementById('exportBackupBtn').addEventListener('click', () => {
     nest_username: localStorage.getItem(LS_USERNAME),
     nest_name: localStorage.getItem(LS_NAME),
     nest_persona: localStorage.getItem(LS_PERSONA),
+    nest_presets: localStorage.getItem(LS_PRESETS),
     nest_config: localStorage.getItem(LS_CONFIG)
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -1192,7 +1556,7 @@ backupImportHidden.addEventListener('change', e => {
     try {
       const data = JSON.parse(ev.target.result);
       Object.keys(data).forEach(key => {
-        if (data[key] != null) localStorage.setItem(key, data[key]);
+        if (data[key] != null) safeSetItem(key, data[key]);
       });
       alert('导入成功，即将刷新');
       location.reload();
@@ -1279,7 +1643,7 @@ function buildMemoryItem(m) {
   const editBtn = document.createElement('button');
   editBtn.className = 'mem-btn edit-btn';
   editBtn.textContent = '✎';
-  const delBtn = document.createElement('button');
+  const delBtn = const delBtn = document.createElement('button');
   delBtn.className = 'mem-btn';
   delBtn.textContent = '🗑';
   editBtn.addEventListener('click', () => {
@@ -1715,7 +2079,8 @@ function estimateContextTokens() {
   const memChars = (buildMemoryInjection(userText) || '').length;
   const diaryChars = estimateDiaryChars();
   const real = messages.filter(m => m.role !== 'notice');
-  const { windowMsgs } = splitWindow(real);
+  const filteredReal = filterByTopicStart(real);
+  const { windowMsgs } = splitWindow(filteredReal);
   const historyChars = windowMsgs.reduce((s,m) => s + getMsgCharLen(m), 0);
   const totalChars = persona + timeLine + memChars + diaryChars + historyChars;
   return totalChars / 1.5;
@@ -1768,6 +2133,8 @@ clearChatBtn2.addEventListener('click', () => {
     goToClearStep2();
   } else {
     messages = [];
+    topicStartId = null;
+    persistTopicStart();
     persistMessages();
     renderAllMessages();
     clearChatOverlay.classList.remove('show');
@@ -2441,7 +2808,9 @@ const emojiGrid = document.getElementById('emojiGrid');
 
 EMOJI_LIST.forEach(e => {
   const opt = document.createElement('div');
-  opt.className = 'emoji-option'; opt.addEventListener('click', () => {
+  opt.className = 'emoji-option';
+  opt.textContent = e;
+  opt.addEventListener('click', () => {
     const d = diaries.find(x => x.id === emojiTargetDiaryId);
     if (d) {
       d.mood = e;
@@ -2559,8 +2928,11 @@ document.getElementById('avatarBtn').addEventListener('click', (e) => {
   if (currentPage === 'chat') {
     const rect = e.currentTarget.getBoundingClientRect();
     openFloatingMenu(
-      [{ label: '清空聊天记录', danger: true, onClick: () => triggerClearChat() }],
-      rect.right - 140,
+      [
+        { label: '🌱 开启新话题', onClick: () => triggerNewTopic() },
+        { label: '清空聊天记录', danger: true, onClick: () => triggerClearChat() }
+      ],
+      rect.right - 160,
       rect.bottom + 8
     );
   }
@@ -2572,12 +2944,11 @@ document.getElementById('avatarBtn').addEventListener('click', (e) => {
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const settingsUsername = document.getElementById('settingsUsername');
 const settingsName     = document.getElementById('settingsName');
-const settingsPersona  = document.getElementById('settingsPersona');
 
 function openSettingsPanel() {
   settingsUsername.value = appUsername;
   settingsName.value     = appName;
-  settingsPersona.value  = appPersona;
+  renderPresetGroups();
   settingsOverlay.classList.add('show');
 }
 function closeSettingsPanel() { settingsOverlay.classList.remove('show'); }
@@ -2587,7 +2958,7 @@ document.getElementById('settingsCancelBtn').addEventListener('click', closeSett
 document.getElementById('settingsSaveBtn').addEventListener('click', () => {
   appUsername = settingsUsername.value.trim() || 'ao';
   appName     = settingsName.value.trim() || '然竣';
-  appPersona  = settingsPersona.value;
+  appPersona  = buildPersonaFromPresets();
   persistSettings();
   applyGlobalNames();
   showToast('设定已保存 ✓');
@@ -2655,10 +3026,38 @@ importFileHidden.addEventListener('change', e => {
 });
 
 /* ============================================================
-附件（仅主聊天）
+附件（仅主聊天）— 图片压缩后再存，防止localStorage撑爆
 ============================================================ */
 const attachPreview   = document.getElementById('attachPreview');
 const fileInputHidden = document.getElementById('fileInputHidden');
+
+function compressImage(file, maxSize = 1000, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width > height) { height = Math.round(height * maxSize / width); width = maxSize; }
+          else { width = Math.round(width * maxSize / height); height = maxSize; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        } catch(e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function renderAttachPreview() {
   attachPreview.innerHTML = '';
@@ -2673,16 +3072,22 @@ function renderAttachPreview() {
   });
 }
 document.getElementById('plusBtn').addEventListener('click', () => fileInputHidden.click());
-fileInputHidden.addEventListener('change', e => {
-  Array.from(e.target.files).forEach(file => {
+fileInputHidden.addEventListener('change', async e => {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
     if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = ev => { pendingAttachments.push({ type:'image', url:ev.target.result, name:file.name }); renderAttachPreview(); };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file);
+        pendingAttachments.push({ type:'image', url: compressed, name:file.name });
+        renderAttachPreview();
+      } catch(err) {
+        console.error('图片压缩失败', err);
+        showToast('这张图片处理失败了，换一张试试', 3000);
+      }
     } else {
       pendingAttachments.push({ type:'file', name:file.name }); renderAttachPreview();
     }
-  });
+  }
   fileInputHidden.value = '';
 });
 
@@ -2744,7 +3149,10 @@ async function callAPI(rerollTarget) {
 
   const rerollIdx = rerollTarget ? messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const allReal = messages.filter(m => m.role !== 'notice');
-  const sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx).filter(m => m.role !== 'notice') : allReal;
+  let sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx).filter(m => m.role !== 'notice') : allReal;
+
+  /* [话题起点过滤] 在滑动窗口之前先按话题起点截断 */
+  sourceMsgs = filterByTopicStart(sourceMsgs);
 
   /* [滑动窗口] 只发最近约6000字，更早的靠记忆兜底 */
   const { windowMsgs } = splitWindow(sourceMsgs);
@@ -3116,12 +3524,15 @@ subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.sh
 初始化
 ============================================================ */
 loadSettings();
+loadPresets();
 loadConfig();
 loadMessages();
 loadMemory();
 loadSubChats();
 loadPlans();
 loadDiaries();
+loadTopicStart();
+appPersona = buildPersonaFromPresets() || appPersona;
 switchPage('chat');
 renderAllMessages();
 renderMemoryList();
