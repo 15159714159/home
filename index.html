@@ -2690,7 +2690,7 @@ async function callAPI(rerollTarget) {
     if (!aiRow) { aiRow = appendMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai',aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false, thinking:'' };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false, thinking:'' };
     messages.push(aiMsg); persistMessages(); aiRow = appendMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
