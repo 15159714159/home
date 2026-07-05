@@ -847,10 +847,19 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
         <input type="range" class="setting-slider" id="cfgCtx" min="2000" max="12000" step="1000" value="6000">
         <span class="setting-row-value" id="cfgCtxVal">6000字</span>
       </div>
-      <div class="setting-row" style="border-bottom:none;">
+      <div class="setting-row">
         <span class="setting-row-label">流式输出</span>
         <label class="ios-switch"><input type="checkbox" id="cfgStream" checked><span class="ios-switch-slider"></span></label>
       </div>
+      <div class="setting-row">
+        <span class="setting-row-label">Claude 原生格式</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgClaudeNative"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">max_tokens</span>
+        <input class="space-input" id="cfgMaxTokens" type="number" min="256" max="32000" step="256" value="4096" style="width:110px; margin-bottom:0; text-align:right;">
+      </div>
+      <div class="space-hint">开启后走 Claude 原生 /messages 接口并启用提示词缓存，需端点支持该协议；max_tokens 为原生格式必填的单次回复上限。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">私密区</div>
@@ -1184,6 +1193,8 @@ const cfgTempVal  = document.getElementById('cfgTempVal');
 const cfgCtxEl    = document.getElementById('cfgCtx');
 const cfgCtxVal   = document.getElementById('cfgCtxVal');
 const cfgStreamEl = document.getElementById('cfgStream');
+const cfgClaudeNativeEl = document.getElementById('cfgClaudeNative');
+const cfgMaxTokensEl    = document.getElementById('cfgMaxTokens');
 
 function patchConfig(key, val) {
   const c = getConfig();
@@ -1197,12 +1208,16 @@ function loadChatSettings() {
   cfgCtxEl.value = c.ctxLimit || 6000;
   cfgCtxVal.textContent = cfgCtxEl.value + '字';
   cfgStreamEl.checked = c.stream !== false;
+  cfgClaudeNativeEl.checked = !!c.claudeNative;
+  cfgMaxTokensEl.value = c.maxTokens || 4096;
 }
 cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
 cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
 cfgCtxEl.addEventListener('input', () => { cfgCtxVal.textContent = cfgCtxEl.value + '字'; });
 cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCtxEl.value)); refreshTokenEstimate(); });
 cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.checked));
+cfgClaudeNativeEl.addEventListener('change', () => patchConfig('claudeNative', cfgClaudeNativeEl.checked));
+cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(cfgMaxTokensEl.value) || 4096));
 
 /* ============================================================
 引用回复
@@ -2034,13 +2049,12 @@ async function tryArchiveOnce(msgsToArchive) {
   if (apiMsgs.length === 0) { msgsToArchive.forEach(m => m.archived = true); persistMessages(); return true; }
   const sysPrompt = `请以第一人称（我=${appName}）阅读下面这段我和${appUsername}的对话，把值得长期记住的事写成2-4条备忘录式记忆条目（客观记录事实/约定/情绪变化，不是写给${appUsername}看的话）。每条严格用下面格式单独一行输出，除此之外不要任何多余文字：\n[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]`;
   try {
-    const res = await fetch(cfg.endpoint + '/chat/completions', {
-      method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
-      body: JSON.stringify({ model: cfg.model, stream: false, messages: [{ role:'system', content: sysPrompt }, ...apiMsgs] })
-    });
+    const useNative = isClaudeNative(cfg);
+    const req = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: sysPrompt, cache: false }], stream: false });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
     if (!res.ok) return false;
     const json = await res.json();
-    const raw = json.choices?.[0]?.message?.content || '';
+    const raw = parseChatNonStream(json, useNative).text;
     const { actions } = extractMemoryMarkers(raw);
     if (actions.length === 0) return false;
     actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList();
@@ -2663,6 +2677,109 @@ function buildApiContent(m) {
 }
 
 /* ============================================================
+统一请求封装：OpenAI 兼容格式 与 Claude 原生格式（含 prompt caching）
+说明：systemBlocks 是 [{text, cache}] 数组，cache:true 的块会在原生格式下
+打 cache_control 断点；同一段文本在两种格式下应产出等价的请求内容，
+关闭"Claude 原生格式"开关时行为与改动前完全一致。
+============================================================ */
+function isClaudeNative(cfg) { return !!cfg.claudeNative; }
+
+function dataUrlToNativeImage(url) {
+  const m = /^data:([^;]+);base64,([\s\S]*)$/.exec(url || '');
+  if (!m) return null;
+  return { type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } };
+}
+function toNativeContent(content) {
+  if (typeof content === 'string') return [{ type: 'text', text: content }];
+  const parts = [];
+  (content || []).forEach(part => {
+    if (part.type === 'text') parts.push({ type: 'text', text: part.text });
+    else if (part.type === 'image_url') {
+      const img = dataUrlToNativeImage(part.image_url && part.image_url.url);
+      if (img) parts.push(img);
+    }
+  });
+  return parts.length ? parts : [{ type: 'text', text: '' }];
+}
+function buildNativeMessages(apiMessages) {
+  const native = apiMessages.map(m => ({ role: m.role, content: toNativeContent(m.content) }));
+  const cacheIdx = native.length - 2;
+  if (cacheIdx >= 0 && native[cacheIdx].content.length > 0) {
+    const blocks = native[cacheIdx].content;
+    blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: { type: 'ephemeral' } };
+  }
+  return native;
+}
+function buildNativeSystem(systemBlocks) {
+  return systemBlocks.filter(b => b.text && b.text.trim()).map(b => {
+    const block = { type: 'text', text: b.text };
+    if (b.cache) block.cache_control = { type: 'ephemeral' };
+    return block;
+  });
+}
+function buildLegacySystemContent(systemBlocks) {
+  return systemBlocks.filter(b => b.text && b.text.trim()).map(b => b.text).join('\n\n');
+}
+function buildChatRequest({ cfg, apiMessages, systemBlocks, stream }) {
+  const temp = cfg.temp != null ? cfg.temp : 0.9;
+  if (isClaudeNative(cfg)) {
+    const maxTokens = cfg.maxTokens || 4096;
+    return {
+      url: cfg.endpoint + '/messages',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: cfg.model, stream, max_tokens: maxTokens, temperature: temp,
+        system: buildNativeSystem(systemBlocks),
+        messages: buildNativeMessages(apiMessages)
+      })
+    };
+  }
+  const legacyMessages = [...apiMessages];
+  const sysContent = buildLegacySystemContent(systemBlocks);
+  if (sysContent) legacyMessages.unshift({ role: 'system', content: sysContent });
+  return {
+    url: cfg.endpoint + '/chat/completions',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+    body: JSON.stringify({ model: cfg.model, stream, temperature: temp, messages: legacyMessages })
+  };
+}
+async function readChatStream(res, useNative, onDelta) {
+  const reader = res.body.getReader(); const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim(); if (!data || data === '[DONE]') continue;
+      let obj; try { obj = JSON.parse(data); } catch(_) { continue; }
+      if (useNative) {
+        if (obj.type === 'content_block_delta' && obj.delta) {
+          if (obj.delta.type === 'text_delta') onDelta(obj.delta.text || '', '');
+          else if (obj.delta.type === 'thinking_delta') onDelta('', obj.delta.thinking || '');
+        }
+      } else {
+        const deltaObj = obj.choices?.[0]?.delta || {};
+        onDelta(deltaObj.content || '', deltaObj.reasoning_content || deltaObj.reasoning || '');
+      }
+    }
+  }
+}
+function parseChatNonStream(json, useNative) {
+  if (useNative) {
+    let text = '', thinking = '';
+    (json.content || []).forEach(b => {
+      if (b.type === 'text') text += b.text || '';
+      else if (b.type === 'thinking') thinking += b.thinking || '';
+    });
+    return { text, reasoning: thinking };
+  }
+  const msgObj = json.choices?.[0]?.message || {};
+  return { text: msgObj.content || '', reasoning: msgObj.reasoning_content || msgObj.reasoning || '' };
+}
+
+/* ============================================================
 API 调用：主聊天
 ============================================================ */
 async function callAPI(rerollTarget) {
@@ -2675,13 +2792,15 @@ async function callAPI(rerollTarget) {
   const { windowMsgs } = splitWindow(sourceMsgs);
   const apiMessages = windowMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
   const userText = getLatestUserText();
-  let systemContent = appPersona ? appPersona.trim() : '';
-  systemContent += (systemContent ? '\n\n' : '') + '【当前时间】' + currentTimeLabel();
+  let dynamicTail = '【当前时间】' + currentTimeLabel();
   const memInjection = buildMemoryInjection(userText);
-  if (memInjection) systemContent += memInjection;
+  if (memInjection) dynamicTail += memInjection;
   const diaryInjection = buildDiaryInjection(userText);
-  if (diaryInjection) systemContent += diaryInjection;
-  apiMessages.unshift({ role: 'system', content: systemContent });
+  if (diaryInjection) dynamicTail += diaryInjection;
+  const systemBlocks = [
+    { text: appPersona ? appPersona.trim() : '', cache: true },
+    { text: dynamicTail, cache: false }
+  ];
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -2730,27 +2849,19 @@ async function callAPI(rerollTarget) {
 
   try {
     const useStream = cfg.stream !== false;
-    const temp = cfg.temp != null ? cfg.temp : 0.9;
-    const res = await fetch(cfg.endpoint + '/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
-      body: JSON.stringify({ model:cfg.model, stream:useStream, temperature:temp, messages:apiMessages }),
-      signal: controller.signal
-    });
+    const useNative = isClaudeNative(cfg);
+    const req = buildChatRequest({ cfg, apiMessages, systemBlocks, stream: useStream });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     if (useStream) {
-      const reader = res.body.getReader(); const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read(); if (done) break;
-        for (const line of decoder.decode(value, { stream:true }).split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim(); if (data === '[DONE]') break;
-          try { const deltaObj = JSON.parse(data).choices?.[0]?.delta || {}; const delta = deltaObj.content || ''; const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || ''; if (reasoningDelta) accumulatedReasoning += reasoningDelta; accumulated += delta; renderer.push(accumulated); } catch(_) {}
-        }
-      }
+      await readChatStream(res, useNative, (delta, reasoningDelta) => {
+        if (reasoningDelta) accumulatedReasoning += reasoningDelta;
+        accumulated += delta; renderer.push(accumulated);
+      });
     } else {
-      const json = await res.json(); const msgObj = json.choices?.[0]?.message || {};
-      accumulated = msgObj.content || ''; accumulatedReasoning = msgObj.reasoning_content || msgObj.reasoning || '';
+      const json = await res.json();
+      const parsed = parseChatNonStream(json, useNative);
+      accumulated = parsed.text; accumulatedReasoning = parsed.reasoning;
     }
     finishWith(accumulated, accumulatedReasoning);
   } catch(err) {
@@ -2769,7 +2880,7 @@ async function callSubChatAPI(rerollTarget) {
   const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
   const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
-  if (sc.preset && sc.preset.trim()) apiMessages.unshift({ role: 'system', content: sc.preset.trim() });
+  const systemBlocks = [{ text: sc.preset ? sc.preset.trim() : '', cache: true }];
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -2805,27 +2916,19 @@ async function callSubChatAPI(rerollTarget) {
 
   try {
     const useStream = cfg.stream !== false;
-    const temp = cfg.temp != null ? cfg.temp : 0.9;
-    const res = await fetch(cfg.endpoint + '/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
-      body: JSON.stringify({ model:cfg.model, stream:useStream, temperature:temp, messages:apiMessages }),
-      signal: controller.signal
-    });
+    const useNative = isClaudeNative(cfg);
+    const req = buildChatRequest({ cfg, apiMessages, systemBlocks, stream: useStream });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     if (useStream) {
-      const reader = res.body.getReader(); const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read(); if (done) break;
-        for (const line of decoder.decode(value, { stream:true }).split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim(); if (data === '[DONE]') break;
-          try { const deltaObj = JSON.parse(data).choices?.[0]?.delta || {}; const delta = deltaObj.content || ''; const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || ''; if (reasoningDelta) accumulatedReasoning += reasoningDelta; accumulated += delta; renderer.push(accumulated); } catch(_) {}
-        }
-      }
+      await readChatStream(res, useNative, (delta, reasoningDelta) => {
+        if (reasoningDelta) accumulatedReasoning += reasoningDelta;
+        accumulated += delta; renderer.push(accumulated);
+      });
     } else {
-      const json = await res.json(); const msgObj = json.choices?.[0]?.message || {};
-      accumulated = msgObj.content || ''; accumulatedReasoning = msgObj.reasoning_content || msgObj.reasoning || '';
+      const json = await res.json();
+      const parsed = parseChatNonStream(json, useNative);
+      accumulated = parsed.text; accumulatedReasoning = parsed.reasoning;
     }
     finishWith(accumulated, accumulatedReasoning);
   } catch(err) {
@@ -3113,17 +3216,16 @@ function startNewSession() {
 async function runSecretSessionClosing(room, session) {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) return;
+  const useNative = isClaudeNative(cfg);
   const apiMsgs = session.messages.map(m => ({ role: m.role==='user'?'user':'assistant', content: getMsgDisplayText(m) })).filter(m=>m.content&&m.content.trim());
   if (apiMsgs.length === 0) return;
   const sysPrompt1 = `以然竣第一人称，回顾刚才这一场私密对话，写一段150字左右的记录，记住值得记住的细节和心情，可以有细节不必含蓄；然后另起一行写一句简短的收尾语（像要暂时告别但心里惦记着）。严格按以下格式输出，不要多余文字：\n记录：xxx\n收尾语：xxx`;
   try {
-    const res1 = await fetch(cfg.endpoint + '/chat/completions', {
-      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
-      body: JSON.stringify({ model: cfg.model, stream:false, messages:[{role:'system',content:sysPrompt1}, ...apiMsgs] })
-    });
+    const req1 = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: sysPrompt1, cache: false }], stream: false });
+    const res1 = await fetch(req1.url, { method: 'POST', headers: req1.headers, body: req1.body });
     if (res1.ok) {
       const json1 = await res1.json();
-      const raw1 = json1.choices?.[0]?.message?.content || '';
+      const raw1 = parseChatNonStream(json1, useNative).text;
       const recordMatch = raw1.match(/记录[:：]([\s\S]*?)(?:\n收尾语[:：]|$)/);
       const noteMatch = raw1.match(/收尾语[:：]([\s\S]*)$/);
       session.record = recordMatch ? recordMatch[1].trim() : raw1.trim().slice(0,180);
@@ -3133,13 +3235,11 @@ async function runSecretSessionClosing(room, session) {
   } catch(e) { console.warn('留灯记录生成失败', e); }
   const sysPrompt2 = `请判断刚才这场私密对话是否有值得长期记住的内容。若有，输出一条标记（可含细节，不必含蓄）：\n[memory_update: {"action":"add","content":"以然竣第一人称写的具体内容","type":"liudeng","emotion":1到5的整数,"tags":["关键词"]}]\n若没有值得记的，只回复 NONE。除此之外不要任何多余文字。`;
   try {
-    const res2 = await fetch(cfg.endpoint + '/chat/completions', {
-      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
-      body: JSON.stringify({ model: cfg.model, stream:false, messages:[{role:'system',content:sysPrompt2}, ...apiMsgs] })
-    });
+    const req2 = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: sysPrompt2, cache: false }], stream: false });
+    const res2 = await fetch(req2.url, { method: 'POST', headers: req2.headers, body: req2.body });
     if (res2.ok) {
       const json2 = await res2.json();
-      const raw2 = json2.choices?.[0]?.message?.content || '';
+      const raw2 = parseChatNonStream(json2, useNative).text;
       const { actions } = extractMemoryMarkers(raw2);
       if (actions.length > 0) { actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList(); }
     }
@@ -3161,7 +3261,7 @@ async function callSecretAPI(rerollTarget) {
   const rerollIdx = rerollTarget ? session.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? session.messages.slice(0, rerollIdx) : session.messages;
   const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
-  if (room.preset && room.preset.trim()) apiMessages.unshift({ role: 'system', content: room.preset.trim() });
+  const systemBlocks = [{ text: room.preset ? room.preset.trim() : '', cache: true }];
 
   const isReroll = !!rerollTarget;
   const scrollEl = document.getElementById('secretSessionScroll');
@@ -3198,27 +3298,19 @@ async function callSecretAPI(rerollTarget) {
 
   try {
     const useStream = cfg.stream !== false;
-    const temp = cfg.temp != null ? cfg.temp : 0.9;
-    const res = await fetch(cfg.endpoint + '/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + cfg.key },
-      body: JSON.stringify({ model:cfg.model, stream:useStream, temperature:temp, messages:apiMessages }),
-      signal: controller.signal
-    });
+    const useNative = isClaudeNative(cfg);
+    const req = buildChatRequest({ cfg, apiMessages, systemBlocks, stream: useStream });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     if (useStream) {
-      const reader = res.body.getReader(); const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read(); if (done) break;
-        for (const line of decoder.decode(value, { stream:true }).split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim(); if (data === '[DONE]') break;
-          try { const deltaObj = JSON.parse(data).choices?.[0]?.delta || {}; const delta = deltaObj.content || ''; const reasoningDelta = deltaObj.reasoning_content || deltaObj.reasoning || ''; if (reasoningDelta) accumulatedReasoning += reasoningDelta; accumulated += delta; renderer.push(accumulated); } catch(_) {}
-        }
-      }
+      await readChatStream(res, useNative, (delta, reasoningDelta) => {
+        if (reasoningDelta) accumulatedReasoning += reasoningDelta;
+        accumulated += delta; renderer.push(accumulated);
+      });
     } else {
-      const json = await res.json(); const msgObj = json.choices?.[0]?.message || {};
-      accumulated = msgObj.content || ''; accumulatedReasoning = msgObj.reasoning_content || msgObj.reasoning || '';
+      const json = await res.json();
+      const parsed = parseChatNonStream(json, useNative);
+      accumulated = parsed.text; accumulatedReasoning = parsed.reasoning;
     }
     finishWith(accumulated, accumulatedReasoning);
   } catch(err) {
