@@ -2042,31 +2042,52 @@ function splitWindow(msgArray) {
   }
   return { windowMsgs: msgArray.slice(startIdx), overflowMsgs: msgArray.slice(0, startIdx) };
 }
+const ARCHIVE_BATCH_SIZE = 16;
 async function tryArchiveOnce(msgsToArchive) {
   const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) return false;
-  const apiMsgs = msgsToArchive.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: getMsgDisplayText(m) })).filter(m => m.content && m.content.trim());
-  if (apiMsgs.length === 0) { msgsToArchive.forEach(m => m.archived = true); persistMessages(); return true; }
-  const sysPrompt = `请以第一人称（我=${appName}）阅读下面这段我和${appUsername}的对话，把值得长期记住的事写成2-4条备忘录式记忆条目（客观记录事实/约定/情绪变化，不是写给${appUsername}看的话）。每条严格用下面格式单独一行输出，除此之外不要任何多余文字：\n[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]`;
+  if (!cfg.endpoint || !cfg.key || !cfg.model) return { ok: false, retry: false };
+  const transcript = msgsToArchive
+    .map(m => (m.role === 'user' ? appUsername : appName) + '：' + getMsgDisplayText(m))
+    .filter(line => line.trim())
+    .join('\n');
+  if (!transcript.trim()) { msgsToArchive.forEach(m => m.archived = true); persistMessages(); return { ok: true, retry: false }; }
+  const sysPrompt = `你是一个记忆归档助手，唯一任务是阅读下面这段${appUsername}和${appName}的对话记录，提取值得长期记住的关键信息（生活、情绪、喜好、约定、学习相关内容），忽略纯闲聊和废话。不要续写对话，不要扮演${appName}回复，不要输出任何问候或评论。
+
+如果有值得记住的内容，每条严格用下面格式单独一行输出：
+[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]
+
+如果没有值得记录的内容，什么都不要输出。除了上述标记行，不要输出任何其他文字。`;
+  const apiMsgs = [{ role: 'user', content: `以下是一段对话记录：\n\n${transcript}` }];
   try {
     const useNative = isClaudeNative(cfg);
     const req = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: sysPrompt, cache: false }], stream: false });
     const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => '');
+      console.warn('归档请求失败', res.status, bodyText);
+      return { ok: false, retry: res.status >= 500 || res.status === 429 };
+    }
     const json = await res.json();
     const raw = parseChatNonStream(json, useNative).text;
     const { actions } = extractMemoryMarkers(raw);
-    if (actions.length === 0) return false;
+    if (actions.length === 0) {
+      console.warn('归档响应未包含记忆标记（判定为prompt/格式问题，不重试）：', raw.slice(0, 200));
+      msgsToArchive.forEach(m => m.archived = true); persistMessages();
+      return { ok: true, retry: false };
+    }
     actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList();
     msgsToArchive.forEach(m => m.archived = true); persistMessages();
     showToast('家猫悄悄把这段对话记进了脑子里');
-    return true;
-  } catch(e) { console.warn('归档请求出错', e); return false; }
+    return { ok: true, retry: false };
+  } catch(e) { console.warn('归档请求出错', e); return { ok: false, retry: true }; }
 }
 async function runArchive(msgsToArchive) {
-  let ok = await tryArchiveOnce(msgsToArchive);
-  if (!ok) { await new Promise(r => setTimeout(r, 2500)); ok = await tryArchiveOnce(msgsToArchive); }
-  if (!ok) showToast('归档失败，稍后自动重试', 3000);
+  let result = await tryArchiveOnce(msgsToArchive);
+  if (!result.ok && result.retry) {
+    await new Promise(r => setTimeout(r, 2500));
+    result = await tryArchiveOnce(msgsToArchive);
+  }
+  if (!result.ok) showToast('归档失败，稍后自动重试', 3000);
 }
 async function checkAutoArchive() {
   if (archiving) return;
@@ -2075,8 +2096,9 @@ async function checkAutoArchive() {
   const unarchived = overflowMsgs.filter(m => !m.archived);
   const totalChars = unarchived.reduce((s,m) => s + getMsgCharLen(m), 0);
   if (totalChars < 3000 || unarchived.length === 0) return;
+  const batch = unarchived.slice(0, ARCHIVE_BATCH_SIZE);
   archiving = true;
-  try { await runArchive(unarchived); } finally { archiving = false; }
+  try { await runArchive(batch); } finally { archiving = false; }
 }
 
 /* ============================================================
