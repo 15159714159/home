@@ -862,6 +862,16 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
       <div class="space-hint">开启后走 Claude 原生 /messages 接口并启用提示词缓存，需端点支持该协议；max_tokens 为原生格式必填的单次回复上限。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">记忆归档 API（留空则使用上方主配置）</div>
+      <div class="space-label">归档端点</div>
+      <input class="space-input" id="cfgArchiveEndpoint" type="text" placeholder="留空=使用主端点">
+      <div class="space-label">归档 Key</div>
+      <input class="space-input" id="cfgArchiveKey" type="password" placeholder="留空=使用主Key">
+      <div class="space-label">归档模型</div>
+      <input class="space-input" id="cfgArchiveModel" type="text" placeholder="留空=使用主模型">
+      <div class="space-hint">自动整理记忆的请求可以单独指定更便宜的端点/模型，不影响主聊天。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">私密区</div>
       <div class="space-btn-row">
         <button class="space-save-btn" id="resetSecretPinBtn">重置私密密码</button>
@@ -1195,6 +1205,9 @@ const cfgCtxVal   = document.getElementById('cfgCtxVal');
 const cfgStreamEl = document.getElementById('cfgStream');
 const cfgClaudeNativeEl = document.getElementById('cfgClaudeNative');
 const cfgMaxTokensEl    = document.getElementById('cfgMaxTokens');
+const cfgArchiveEndpointEl = document.getElementById('cfgArchiveEndpoint');
+const cfgArchiveKeyEl      = document.getElementById('cfgArchiveKey');
+const cfgArchiveModelEl    = document.getElementById('cfgArchiveModel');
 
 function patchConfig(key, val) {
   const c = getConfig();
@@ -1210,6 +1223,9 @@ function loadChatSettings() {
   cfgStreamEl.checked = c.stream !== false;
   cfgClaudeNativeEl.checked = !!c.claudeNative;
   cfgMaxTokensEl.value = c.maxTokens || 4096;
+  cfgArchiveEndpointEl.value = c.archiveEndpoint || '';
+  cfgArchiveKeyEl.value      = c.archiveKey || '';
+  cfgArchiveModelEl.value    = c.archiveModel || '';
 }
 cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
 cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
@@ -1218,6 +1234,9 @@ cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCt
 cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.checked));
 cfgClaudeNativeEl.addEventListener('change', () => patchConfig('claudeNative', cfgClaudeNativeEl.checked));
 cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(cfgMaxTokensEl.value) || 4096));
+cfgArchiveEndpointEl.addEventListener('change', () => patchConfig('archiveEndpoint', cfgArchiveEndpointEl.value.trim()));
+cfgArchiveKeyEl.addEventListener('change', () => patchConfig('archiveKey', cfgArchiveKeyEl.value.trim()));
+cfgArchiveModelEl.addEventListener('change', () => patchConfig('archiveModel', cfgArchiveModelEl.value.trim()));
 
 /* ============================================================
 引用回复
@@ -2043,8 +2062,17 @@ function splitWindow(msgArray) {
   return { windowMsgs: msgArray.slice(startIdx), overflowMsgs: msgArray.slice(0, startIdx) };
 }
 const ARCHIVE_BATCH_SIZE = 16;
+function getArchiveConfig() {
+  const c = getConfig();
+  return {
+    ...c,
+    endpoint: c.archiveEndpoint || c.endpoint,
+    key: c.archiveKey || c.key,
+    model: c.archiveModel || c.model
+  };
+}
 async function tryArchiveOnce(msgsToArchive) {
-  const cfg = getConfig();
+  const cfg = getArchiveConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) return { ok: false, retry: false };
   const transcript = msgsToArchive
     .map(m => (m.role === 'user' ? appUsername : appName) + '：' + getMsgDisplayText(m))
