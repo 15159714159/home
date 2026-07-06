@@ -3454,4 +3454,159 @@ async function callSecretAPI(rerollTarget) {
   }
 
   const sendBtnEl = document.getElementById('secretSendBtn');
-  const controller = new AbortController(); secretAbortController = controller; secretGenerating = true; sendBtnEl.textC
+  const controller = new AbortController(); secretAbortController = controller; secretGenerating = true; sendBtnEl.textContent = '■';
+  const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(scrollEl, 'page-secretsession'));
+  let accumulated = '', accumulatedReasoning = '';
+
+  function finishWith(rawText, reasoningText) {
+    if (!rawText || !rawText.trim()) {
+      if (isReroll) { refreshRow(aiMsg, secretCtx); }
+      else { const idx = session.messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) session.messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistSecretRooms(); }
+      return;
+    }
+    let thinking = reasoningText || '', bodyText = rawText;
+    if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
+    const { cleanText: afterQuote, quote } = extractQuoteMarker(bodyText);
+    bodyText = afterQuote;
+    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    aiMsg.text = bodyText; persistSecretRooms(); refreshRow(aiMsg, secretCtx); scrollToBottom(scrollEl, 'page-secretsession');
+  }
+
+  try {
+    const useStream = cfg.stream !== false;
+    const useNative = isClaudeNative(cfg);
+    const req = buildChatRequest({ cfg, apiMessages, systemBlocks, stream: useStream, tailText: dynamicTail });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    if (useStream) {
+      await readChatStream(res, useNative, (delta, reasoningDelta) => {
+        if (reasoningDelta) accumulatedReasoning += reasoningDelta;
+        accumulated += delta; renderer.push(accumulated);
+      });
+    } else {
+      const json = await res.json();
+      const parsed = parseChatNonStream(json, useNative);
+      accumulated = parsed.text; accumulatedReasoning = parsed.reasoning;
+    }
+    finishWith(accumulated, accumulatedReasoning);
+  } catch(err) {
+    if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
+    else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
+  } finally { secretGenerating = false; secretAbortController = null; sendBtnEl.textContent = '发送'; }
+}
+
+/* ============================================================
+消息数组上下文
+============================================================ */
+const mainCtx = {
+  getArray: () => messages, persist: persistMessages, renderAll: renderAllMessages,
+  callAPI: (target) => callAPI(target), container: chatScroll, pageId: 'page-chat'
+};
+const subCtx = {
+  getArray: () => { const sc = subChats.find(s => s.id === currentSubChatId); return sc ? sc.messages : []; },
+  persist: persistSubChats, renderAll: renderSubChatMessages,
+  callAPI: (target) => callSubChatAPI(target), container: subchatScroll, pageId: 'page-subchat'
+};
+const secretCtx = {
+  getArray: () => { const room = getCurrentSecretRoom(); if (!room) return []; return getActiveSession(room).messages; },
+  persist: persistSecretRooms, renderAll: () => renderSecretSessionMessages(),
+  callAPI: (target) => callSecretAPI(target), container: document.getElementById('secretSessionScroll'), pageId: 'page-secretsession'
+};
+
+/* ============================================================
+发送：主聊天
+============================================================ */
+const textInput = document.getElementById('textInput');
+const sendBtn   = document.getElementById('sendBtn');
+textInput.addEventListener('input', () => { textInput.style.height = 'auto'; textInput.style.height = Math.min(textInput.scrollHeight, 100) + 'px'; });
+async function sendMessage() {
+  const text = textInput.value.trim();
+  if (!text && pendingAttachments.length === 0) return;
+  const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
+  const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
+  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), archived:false, quote: quotedMain || undefined };
+  quotedMain = null; renderQuoteBar('main');
+  messages.push(userMsg); persistMessages(); appendMessage(userMsg);
+  textInput.value = ''; textInput.style.height = 'auto';
+  pendingAttachments = []; renderAttachPreview();
+  await callAPI();
+}
+sendBtn.addEventListener('click', () => { if (mainGenerating) { if (mainAbortController) mainAbortController.abort(); } else { sendMessage(); } });
+textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+document.getElementById('page-chat').addEventListener('click', (e) => {
+  if (e.target.closest('.msg-row') || e.target.closest('.msg-bubble')) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+});
+
+/* ============================================================
+发送：副聊天
+============================================================ */
+const subchatTextInput = document.getElementById('subchatTextInput');
+const subchatSendBtn   = document.getElementById('subchatSendBtn');
+subchatTextInput.addEventListener('input', () => { subchatTextInput.style.height = 'auto'; subchatTextInput.style.height = Math.min(subchatTextInput.scrollHeight, 100) + 'px'; });
+async function sendSubChatMessage() {
+  const text = subchatTextInput.value.trim(); if (!text) return;
+  const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
+  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), quote: quotedSub || undefined };
+  quotedSub = null; renderQuoteBar('sub');
+  sc.messages.push(userMsg); persistSubChats(); appendSubChatMessage(userMsg);
+  subchatTextInput.value = ''; subchatTextInput.style.height = 'auto';
+  await callSubChatAPI();
+}
+subchatSendBtn.addEventListener('click', () => { if (subGenerating) { if (subAbortController) subAbortController.abort(); } else { sendSubChatMessage(); } });
+subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSubChatMessage(); } });
+
+/* ============================================================
+发送：私密区
+============================================================ */
+const secretTextInput = document.getElementById('secretTextInput');
+const secretSendBtn   = document.getElementById('secretSendBtn');
+secretTextInput.addEventListener('input', () => { secretTextInput.style.height = 'auto'; secretTextInput.style.height = Math.min(secretTextInput.scrollHeight, 100) + 'px'; });
+async function sendSecretMessage() {
+  const text = secretTextInput.value.trim(); if (!text) return;
+  const room = getCurrentSecretRoom(); if (!room) return;
+  const session = getActiveSession(room);
+  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), quote: quotedSecret || undefined };
+  quotedSecret = null; renderQuoteBar('secret');
+  session.messages.push(userMsg); persistSecretRooms(); appendSecretMessage(userMsg);
+  secretTextInput.value = ''; secretTextInput.style.height = 'auto';
+  await callSecretAPI();
+}
+secretSendBtn.addEventListener('click', () => { if (secretGenerating) { if (secretAbortController) secretAbortController.abort(); } else { sendSecretMessage(); } });
+secretTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSecretMessage(); } });
+
+/* ============================================================
+初始化
+============================================================ */
+loadSettings();
+loadPresets();
+loadConfig();
+loadMessages();
+loadMemory();
+loadSubChats();
+loadPlans();
+loadDiaries();
+loadTopicStart();
+loadWindowStart();
+loadSecretRooms();
+loadSecretLabel();
+appPersona = buildPersonaFromPresets() || appPersona;
+loadChatSettings();
+applyAvatar();
+applyBg();
+document.getElementById('page-secretrooms').style.background = '#1c1c1e';
+document.getElementById('page-secretrooms').style.color = '#e5e5e5';
+document.getElementById('page-secretsession').style.background = '#1c1c1e';
+document.getElementById('page-secretsession').style.color = '#e5e5e5';
+switchPage('chat');
+renderAllMessages();
+renderMemoryList();
+renderSubChatSidebarList();
+applyGlobalNames();
+checkAutoArchive();
+</script>
+</body>
+</html>
+
