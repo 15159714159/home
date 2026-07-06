@@ -868,7 +868,11 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
       <div class="space-label">归档 Key</div>
       <input class="space-input" id="cfgArchiveKey" type="password" placeholder="留空=使用主Key">
       <div class="space-label">归档模型</div>
-      <input class="space-input" id="cfgArchiveModel" type="text" placeholder="留空=使用主模型">
+      <div class="model-row">
+        <input class="space-input" id="cfgArchiveModel" type="text" placeholder="留空=使用主模型">
+        <button class="load-model-btn" id="loadArchiveModelsBtn">获取列表</button>
+      </div>
+      <div id="archiveModelDropdown"></div>
       <div class="space-hint">自动整理记忆的请求可以单独指定更便宜的端点/模型，不影响主聊天。</div>
 
       <div class="space-divider"></div>
@@ -1097,8 +1101,6 @@ const MEMORY_TYPE_CONFIG = [
 ];
 let memoryDetailType = null;
 
-const STUDY_KEYWORDS = ['学习','英语','DSE','补习','作业','考试','单词','语法','阅读','写作','听力','温习','复习'];
-const NEST_KEYWORDS = ['家','代码','bug','功能','筑巢','网页','前端','然竣和ao','这个页面'];
 const WINDOW_CHAR_LIMIT_DEFAULT = 6000;
 let archiving = false;
 
@@ -1616,15 +1618,10 @@ eyeBtn.addEventListener('click', () => {
   const show = cfgKey.type === 'password'; cfgKey.type = show ? 'text' : 'password'; eyeBtn.textContent = show ? '🙈' : '👁';
 });
 
-const loadModelsBtn = document.getElementById('loadModelsBtn');
-const modelDropdown = document.getElementById('modelDropdown');
-const cfgModelInput = document.getElementById('cfgModel');
-loadModelsBtn.addEventListener('click', async () => {
-  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-  const key      = document.getElementById('cfgKey').value.trim();
+async function fetchModelsInto(endpoint, key, inputEl, dropdownEl, btnEl) {
   if (!endpoint || !key) { showToast('先填端点和 Key'); return; }
-  loadModelsBtn.disabled = true; loadModelsBtn.textContent = '加载中…';
-  modelDropdown.style.display = 'none'; modelDropdown.innerHTML = '';
+  btnEl.disabled = true; btnEl.textContent = '加载中…';
+  dropdownEl.style.display = 'none'; dropdownEl.innerHTML = '';
   try {
     const res = await fetch(endpoint + '/models', { headers: { 'Authorization': 'Bearer ' + key } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1632,20 +1629,37 @@ loadModelsBtn.addEventListener('click', async () => {
     const list = (json.data || json.models || []).map(m => m.id || m).filter(Boolean).sort();
     if (list.length === 0) { showToast('没拿到模型，检查一下端点'); return; }
     showToast('加载了 ' + list.length + ' 个模型');
-    const current = cfgModelInput.value.trim();
+    const current = inputEl.value.trim();
     list.forEach(id => {
       const item = document.createElement('div'); item.className = 'model-option' + (id === current ? ' selected' : '');
       item.textContent = id;
       item.addEventListener('click', () => {
-        cfgModelInput.value = id;
-        modelDropdown.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
-        item.classList.add('selected'); modelDropdown.style.display = 'none';
+        inputEl.value = id;
+        dropdownEl.querySelectorAll('.model-option').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected'); dropdownEl.style.display = 'none';
       });
-      modelDropdown.appendChild(item);
+      dropdownEl.appendChild(item);
     });
-    modelDropdown.style.display = 'block';
+    dropdownEl.style.display = 'block';
   } catch(e) { showToast('获取失败：' + e.message, 4000); }
-  finally { loadModelsBtn.disabled = false; loadModelsBtn.textContent = '获取列表'; }
+  finally { btnEl.disabled = false; btnEl.textContent = '获取列表'; }
+}
+const loadModelsBtn = document.getElementById('loadModelsBtn');
+const modelDropdown = document.getElementById('modelDropdown');
+const cfgModelInput = document.getElementById('cfgModel');
+loadModelsBtn.addEventListener('click', () => {
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key      = document.getElementById('cfgKey').value.trim();
+  fetchModelsInto(endpoint, key, cfgModelInput, modelDropdown, loadModelsBtn);
+});
+
+const loadArchiveModelsBtn = document.getElementById('loadArchiveModelsBtn');
+const archiveModelDropdown = document.getElementById('archiveModelDropdown');
+const cfgArchiveModelInput = document.getElementById('cfgArchiveModel');
+loadArchiveModelsBtn.addEventListener('click', () => {
+  const endpoint = document.getElementById('cfgArchiveEndpoint').value.trim().replace(/\/$/,'') || document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key      = document.getElementById('cfgArchiveKey').value.trim() || document.getElementById('cfgKey').value.trim();
+  fetchModelsInto(endpoint, key, cfgArchiveModelInput, archiveModelDropdown, loadArchiveModelsBtn);
 });
 
 /* ============================================================
@@ -1920,34 +1934,25 @@ function decayActiveMemory() {
 记忆注入策略
 ============================================================ */
 function scoreMemory(m) { if (m.layer === 'long') return 1000 + (m.emotion || 2); return (m.weight != null ? m.weight : 1) * (m.emotion || 2); }
-function isMemoryTagHit(m, userText) {
-  if (!userText || !m.tags || m.tags.length === 0) return false;
-  return m.tags.some(tag => tag && userText.includes(tag));
-}
-function getTopByType(type, count, userText) {
+function getTopByType(type, count) {
   let pool = memory.filter(m => (m.type || 'legacy') === type);
-  pool = pool.filter(m => { if (m.layer === 'long') return true; const w = m.weight != null ? m.weight : 1; if (w >= 0.05) return true; return isMemoryTagHit(m, userText); });
+  pool = pool.filter(m => { if (m.layer === 'long') return true; const w = m.weight != null ? m.weight : 1; return w >= 0.05; });
   pool.sort((a,b) => scoreMemory(b) - scoreMemory(a));
   return pool.slice(0, count);
 }
-function checkCategoryHit(userText, type) {
-  if (!userText) return false;
-  const keywordMap = { study: STUDY_KEYWORDS, nest: NEST_KEYWORDS };
-  const keywords = keywordMap[type] || [];
-  if (keywords.some(k => userText.includes(k))) return true;
-  const typeItems = memory.filter(m => (m.type || 'legacy') === type);
-  return typeItems.some(m => isMemoryTagHit(m, userText));
-}
-function buildMemoryInjection(userText) {
+// 固定记忆池：内容只取决于 memory 数组本身，不随每条用户消息变化，才能作为缓存块命中前缀
+function buildMemoryInjection() {
   let content = '';
-  const youMem = getTopByType('you', 8, userText);
-  const usMem = getTopByType('us', 8, userText);
+  const youMem = getTopByType('you', 8);
+  const usMem = getTopByType('us', 8);
   if (youMem.length > 0) content += '\n\n【关于你】\n' + youMem.map(m => m.content).join('\n');
   if (usMem.length > 0) content += '\n\n【关于我们】\n' + usMem.map(m => m.content).join('\n');
-  const legacyMem = getTopByType('legacy', 5, userText);
+  const legacyMem = getTopByType('legacy', 5);
   if (legacyMem.length > 0) content += '\n\n【其他记忆】\n' + legacyMem.map(m => m.content).join('\n');
-  if (checkCategoryHit(userText, 'study')) { const studyMem = getTopByType('study', 5, userText); if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(m => m.content).join('\n'); }
-  if (checkCategoryHit(userText, 'nest')) { const nestMem = getTopByType('nest', 5, userText); if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(m => m.content).join('\n'); }
+  const studyMem = getTopByType('study', 5);
+  if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(m => m.content).join('\n');
+  const nestMem = getTopByType('nest', 5);
+  if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(m => m.content).join('\n');
   return content;
 }
 
@@ -2135,8 +2140,7 @@ token估算
 function estimateContextTokens() {
   const persona = (appPersona || '').length;
   const timeLine = 40;
-  const userText = getLatestUserText();
-  const memChars = (buildMemoryInjection(userText) || '').length;
+  const memChars = (buildMemoryInjection() || '').length;
   const diaryChars = estimateDiaryChars();
   const real = messages.filter(m => m.role !== 'notice');
   const filteredReal = filterByTopicStart(real);
@@ -2843,12 +2847,11 @@ async function callAPI(rerollTarget) {
   const apiMessages = windowMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
   const userText = getLatestUserText();
   let dynamicTail = '【当前时间】' + currentTimeLabel();
-  const memInjection = buildMemoryInjection(userText);
-  if (memInjection) dynamicTail += memInjection;
   const diaryInjection = buildDiaryInjection(userText);
   if (diaryInjection) dynamicTail += diaryInjection;
   const systemBlocks = [
     { text: appPersona ? appPersona.trim() : '', cache: true },
+    { text: buildMemoryInjection(), cache: true },
     { text: dynamicTail, cache: false }
   ];
 
