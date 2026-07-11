@@ -1939,7 +1939,7 @@ function buildMemoryItem(m) {
 }
 function attachMemoryDrag(itemEl, m) {
   const handle = itemEl.querySelector('.memory-drag-handle');
-  let startX = 0, startY = 0, dragging = false, ghostEl = null, placeholderEl = null;
+  let startX = 0, startY = 0, timer = null, dragging = false, ghostEl = null, placeholderEl = null;
   function onMove(e) {
     if (!dragging) return; e.preventDefault();
     const t = e.touches[0];
@@ -1955,6 +1955,7 @@ function attachMemoryDrag(itemEl, m) {
     } else if (!targetItem) { listEl.appendChild(placeholderEl); }
   }
   function onEnd() {
+    clearTimeout(timer);
     if (dragging) commitMemoryDragOrder(placeholderEl);
     if (ghostEl) { ghostEl.remove(); ghostEl = null; }
     if (placeholderEl) { placeholderEl.remove(); placeholderEl = null; }
@@ -1963,18 +1964,25 @@ function attachMemoryDrag(itemEl, m) {
   }
   handle.addEventListener('touchstart', (e) => {
     const t = e.touches[0]; startX = t.clientX; startY = t.clientY;
-    e.preventDefault();
-    dragging = true; if (navigator.vibrate) navigator.vibrate(10);
-    const rect = itemEl.getBoundingClientRect();
-    placeholderEl = document.createElement('div'); placeholderEl.className = 'memory-item-placeholder'; placeholderEl.dataset.memId = m.id;
-    placeholderEl.style.height = rect.height + 'px'; itemEl.parentNode.insertBefore(placeholderEl, itemEl);
-    ghostEl = itemEl.cloneNode(true); ghostEl.classList.add('preset-card-ghost');
-    ghostEl.style.width = rect.width + 'px'; ghostEl.style.position = 'fixed';
-    ghostEl.style.left = rect.left + 'px'; ghostEl.style.top = rect.top + 'px'; ghostEl.style.pointerEvents = 'none';
-    ghostEl._offsetX = t.clientX - rect.left; ghostEl._offsetY = t.clientY - rect.top;
-    document.body.appendChild(ghostEl); itemEl.style.display = 'none';
-    document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('touchend', onEnd);
-  }, { passive: false });
+    timer = setTimeout(() => {
+      dragging = true; if (navigator.vibrate) navigator.vibrate(10);
+      const rect = itemEl.getBoundingClientRect();
+      placeholderEl = document.createElement('div'); placeholderEl.className = 'memory-item-placeholder'; placeholderEl.dataset.memId = m.id;
+      placeholderEl.style.height = rect.height + 'px'; itemEl.parentNode.insertBefore(placeholderEl, itemEl);
+      ghostEl = itemEl.cloneNode(true); ghostEl.classList.add('preset-card-ghost');
+      ghostEl.style.width = rect.width + 'px'; ghostEl.style.position = 'fixed';
+      ghostEl.style.left = rect.left + 'px'; ghostEl.style.top = rect.top + 'px'; ghostEl.style.pointerEvents = 'none';
+      ghostEl._offsetX = t.clientX - rect.left; ghostEl._offsetY = t.clientY - rect.top;
+      document.body.appendChild(ghostEl); itemEl.style.display = 'none';
+      document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('touchend', onEnd);
+    }, 600);
+  }, { passive: true });
+  handle.addEventListener('touchmove', (e) => {
+    if (dragging) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) clearTimeout(timer);
+  }, { passive: true });
+  handle.addEventListener('touchend', () => { if (!dragging) clearTimeout(timer); });
 }
 function commitMemoryDragOrder(placeholderEl) {
   const listEl = placeholderEl.closest('.memory-list'); if (!listEl) { renderMemoryList(); return; }
