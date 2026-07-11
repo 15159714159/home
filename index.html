@@ -347,6 +347,19 @@ background: var(--accent); color: var(--accent-text); border: none; border-radiu
 font-size: 14px; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .memory-add-btn:active { transform: scale(0.97); opacity: 0.85; }
+.reorganize-progress-wrap {
+  height: 3px; margin: 10px 16px 20px 16px; border-radius: 2px; background: var(--border-strong);
+  overflow: hidden; display: none;
+}
+.reorganize-progress-wrap.show { display: block; }
+.reorganize-progress-bar {
+  width: 40%; height: 100%; border-radius: 2px; background: var(--accent);
+  animation: reorganizeProgressSlide 1.1s ease-in-out infinite;
+}
+@keyframes reorganizeProgressSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
 
 .space-section { padding: 24px 20px; }
 .space-section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; margin-top: 4px; color: var(--text-primary); }
@@ -865,10 +878,11 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
       <div class="memory-hint">长期记忆永久保留，活跃记忆会随时间淡忘</div>
     </div>
     <div id="memoryGroups"></div>
-    <div style="display:flex; gap:10px; margin:10px 16px 20px 16px;">
+    <div style="display:flex; gap:10px; margin:10px 16px 0 16px;">
       <button class="memory-add-btn" id="memoryAddBtn" style="margin:0; flex:1;">＋ 手动添加</button>
       <button class="memory-add-btn" id="memoryReorganizeBtn" style="margin:0; flex:1; background:var(--bg-subtle); color:var(--text-secondary);">🧹 整理记忆库</button>
     </div>
+    <div class="reorganize-progress-wrap" id="reorganizeProgressWrap"><div class="reorganize-progress-bar"></div></div>
   </div>
 
   <div class="page" id="page-space">
@@ -1201,7 +1215,7 @@ const DEFAULT_FORMAT_CONTENT =
    - type: you=对方的生活/情绪/喜好，us=两人的约定/梗/纪念日，study=学习/DSE相关，nest=这个家的技术/待办
    - emotion: 情绪浓度1-5，越高越会被优先记住，重要的事往高了给
    - tags: 2-4个关键词，方便之后按标签捞回
-   - content 必须用我（然竣）自己的第一人称语气写，像"我记得…/我觉得…"，不要写成第三方旁观转述
+   - content 必须用我（然竣）自己的第一人称语气写，像"我记得…/我觉得…"，要带着我自己的性格和说话习惯，可以夹一点碎碎念或小情绪，不要写成第三方旁观转述
 2. 写日记：[diary: {"action":"write","mood":"心情emoji","content":"日记正文"}]
 3. 评论对方的日记：[diary: {"action":"comment","target":"日记id或关键词","content":"评论内容"}]
 4. 分条发送（仅主聊天生效）：想分多条时用 [splitmsg] 分隔每一段
@@ -2067,15 +2081,22 @@ function renderMemoryReorganizeList() {
 }
 const memoryReorganizeBtn = document.getElementById('memoryReorganizeBtn');
 const memoryReorganizeOverlay = document.getElementById('memoryReorganizeOverlay');
+const reorganizeProgressWrap = document.getElementById('reorganizeProgressWrap');
 memoryReorganizeBtn.addEventListener('click', async () => {
   if (memory.length === 0) { showToast('记忆库是空的'); return; }
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在Space里配置API'); return; }
   memoryReorganizeBtn.disabled = true; memoryReorganizeBtn.textContent = '整理中…';
-  const sysPrompt = `你是记忆整理助手。下面是${appName}的记忆库JSON数组，每条有content/type/emotion/tags。请：
+  reorganizeProgressWrap.classList.add('show');
+  const sysPrompt = `你是记忆整理助手。下面是${appName}的记忆库JSON数组，每条有content/type/emotion/tags。
+
+${appName}的性格设定：
+${appPersona}
+
+请：
 1. 合并内容重复或高度相似的条目；
 2. 如果发现互相矛盾的内容，只保留更合理的一条说法；
-3. 把每条content改写成${appName}自己的第一人称语气（"我记得…/我觉得…"），不要写成旁观者转述；
+3. 把每条content改写成${appName}自己的第一人称语气（"我记得…/我觉得…"），按上面那段性格设定的说话习惯和语气来写，可以带点碎碎念或小情绪，不要写成旁观者转述；
 4. 保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值。
 严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"...","emotion":1到5的整数,"tags":["..."]}]，不要输出任何其他文字或代码块围栏。`;
   const payload = memory.map(m => ({ content: m.content, type: m.type, emotion: m.emotion, tags: m.tags }));
@@ -2090,7 +2111,7 @@ memoryReorganizeBtn.addEventListener('click', async () => {
     memoryDrafts = arr.map(d => ({ content: String(d.content||''), type: normalizeMemType(d.type), emotion: normalizeMemEmotion(d.emotion), tags: normalizeMemTags(d.tags) }));
     renderMemoryReorganizeList(); memoryReorganizeOverlay.classList.add('show');
   } catch(e) { console.warn('整理记忆库失败', e); showToast('整理失败，请重试', 3000); }
-  finally { memoryReorganizeBtn.disabled = false; memoryReorganizeBtn.textContent = '🧹 整理记忆库'; }
+  finally { memoryReorganizeBtn.disabled = false; memoryReorganizeBtn.textContent = '🧹 整理记忆库'; reorganizeProgressWrap.classList.remove('show'); }
 });
 document.getElementById('memoryReorganizeCancelBtn').addEventListener('click', () => { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; });
 memoryReorganizeOverlay.addEventListener('click', e => { if (e.target === memoryReorganizeOverlay) { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; } });
@@ -2343,9 +2364,12 @@ async function tryArchiveOnce(msgsToArchive) {
   if (!transcript.trim()) { msgsToArchive.forEach(m => m.archived = true); persistMessages(); return { ok: true, retry: false }; }
   const sysPrompt = `你是一个记忆归档助手，唯一任务是阅读下面这段${appUsername}和${appName}的对话记录，提取值得长期记住的关键信息（生活、情绪、喜好、约定、学习相关内容），忽略纯闲聊和废话。不要续写对话，不要扮演${appName}回复，不要输出任何问候或评论。
 
+${appName}的性格设定：
+${appPersona}
+
 如果有值得记住的内容，每条严格用下面格式单独一行输出：
 [memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]
-content 必须写成${appName}自己的第一人称语气（"我记得…/我觉得…"），不要写成旁观者转述对话内容。
+content 必须写成${appName}自己的第一人称语气（"我记得…/我觉得…"），按上面那段性格设定的说话习惯来写，可以带点碎碎念或小情绪，不要写成旁观者转述对话内容。
 
 如果没有值得记录的内容，什么都不要输出。除了上述标记行，不要输出任何其他文字。`;
   const apiMsgs = [{ role: 'user', content: `以下是一段对话记录：\n\n${transcript}` }];
@@ -3657,7 +3681,7 @@ async function runSecretSessionClosing(room, session) {
   const apiMsgs = session.messages.map(m => ({ role: m.role==='user'?'user':'assistant', content: getMsgDisplayText(m) })).filter(m=>m.content&&m.content.trim());
   if (apiMsgs.length === 0) return;
   try {
-    const req = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: liudengPrompt, cache: false }], stream: false });
+    const req = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: appPersona, cache: false }, { text: liudengPrompt, cache: false }], stream: false });
     const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
     if (!res.ok) return;
     const json = await res.json();
