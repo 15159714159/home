@@ -337,6 +337,9 @@ background: none; border: none; font-size: 13px; color: var(--text-tertiary); cu
 transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .mem-btn:active { transform: scale(0.85); opacity: 0.7; }
+.mem-btn.star-btn { color: #f5b942; font-size: 15px; }
+.memory-drag-handle { color: var(--text-faint); font-size: 15px; padding: 2px 4px 2px 0; cursor: grab; flex-shrink: 0; touch-action: none; }
+.memory-item-placeholder { border: 2px dashed var(--border-strong); border-radius: 10px; background: var(--bg-subtle); margin-bottom: 8px; }
 .memory-empty { text-align: center; color: var(--text-faint); font-size: 13px; padding: 14px 0; }
 .memory-add-btn {
 display: block; margin: 10px 16px 20px 16px; width: calc(100% - 32px);
@@ -862,7 +865,10 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
       <div class="memory-hint">长期记忆永久保留，活跃记忆会随时间淡忘</div>
     </div>
     <div id="memoryGroups"></div>
-    <button class="memory-add-btn" id="memoryAddBtn">＋ 手动添加</button>
+    <div style="display:flex; gap:10px; margin:10px 16px 20px 16px;">
+      <button class="memory-add-btn" id="memoryAddBtn" style="margin:0; flex:1;">＋ 手动添加</button>
+      <button class="memory-add-btn" id="memoryReorganizeBtn" style="margin:0; flex:1; background:var(--bg-subtle); color:var(--text-secondary);">🧹 整理记忆库</button>
+    </div>
   </div>
 
   <div class="page" id="page-space">
@@ -932,6 +938,10 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
         <button class="space-danger-btn" id="importBackupBtn">导入数据</button>
       </div>
       <div class="space-hint">导出会把聊天记录、记忆、副聊天、计划、日记、设定和API配置全部打包成一个文件。换设备或清缓存前记得导出，导入会覆盖当前所有数据。</div>
+      <div class="space-btn-row">
+        <button class="space-danger-btn" id="compressImagesBtn">压缩历史图片</button>
+      </div>
+      <div class="space-hint">把之前发送过的图片重新压缩一遍以节省储存空间，图片显示效果基本不变，此操作不可撤销。</div>
       <input type="file" id="backupImportHidden" accept="application/json">
       <input type="file" id="avatarFileHidden" accept="image/*" style="display:none;">
       <input type="file" id="bgFileHidden" accept="image/*" style="display:none;">
@@ -1072,6 +1082,17 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
   </div>
 </div>
 
+<div class="sheet-overlay" id="memoryReorganizeOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title">整理草稿（确认前不会影响原记忆）</div>
+    <div id="memoryReorganizeList" style="overflow-y:auto; max-height:50vh;"></div>
+    <div class="preset-btn-row" style="margin-top:10px;">
+      <button class="preset-btn secondary" id="memoryReorganizeCancelBtn">取消</button>
+      <button class="preset-btn primary" id="memoryReorganizeConfirmBtn" style="background:var(--danger); color:#fff;">确认替换</button>
+    </div>
+  </div>
+</div>
+
 <div id="secretPinOverlay">
   <div class="pin-panel">
     <div class="pin-title" id="pinTitle">请输入密码</div>
@@ -1180,6 +1201,7 @@ const DEFAULT_FORMAT_CONTENT =
    - type: you=对方的生活/情绪/喜好，us=两人的约定/梗/纪念日，study=学习/DSE相关，nest=这个家的技术/待办
    - emotion: 情绪浓度1-5，越高越会被优先记住，重要的事往高了给
    - tags: 2-4个关键词，方便之后按标签捞回
+   - content 必须用我（然竣）自己的第一人称语气写，像"我记得…/我觉得…"，不要写成第三方旁观转述
 2. 写日记：[diary: {"action":"write","mood":"心情emoji","content":"日记正文"}]
 3. 评论对方的日记：[diary: {"action":"comment","target":"日记id或关键词","content":"评论内容"}]
 4. 分条发送（仅主聊天生效）：想分多条时用 [splitmsg] 分隔每一段
@@ -1527,6 +1549,7 @@ function buildPersonaFromPresets() {
   });
   return content;
 }
+function syncPersonaFromPresets() { appPersona = buildPersonaFromPresets(); persistSettings(); }
 function renderPresetGroups() {
   const container = document.getElementById('presetGroups'); container.innerHTML = '';
   PRESET_GROUPS.forEach(g => {
@@ -1542,7 +1565,7 @@ function renderPresetGroups() {
       card.appendChild(noteSpan);
       const switchLabel = document.createElement('label'); switchLabel.className = 'ios-switch';
       const switchInput = document.createElement('input'); switchInput.type = 'checkbox'; switchInput.checked = p.enabled;
-      switchInput.addEventListener('change', () => { p.enabled = switchInput.checked; persistPresets(); card.classList.toggle('disabled', !p.enabled); });
+      switchInput.addEventListener('change', () => { p.enabled = switchInput.checked; persistPresets(); syncPersonaFromPresets(); card.classList.toggle('disabled', !p.enabled); });
       const switchSlider = document.createElement('span'); switchSlider.className = 'ios-switch-slider';
       switchLabel.appendChild(switchInput); switchLabel.appendChild(switchSlider); card.appendChild(switchLabel);
       const pencilBtn = document.createElement('button'); pencilBtn.className = 'preset-pencil'; pencilBtn.textContent = '✎';
@@ -1555,7 +1578,7 @@ function renderPresetGroups() {
       const existingOrders = presets.filter(x => x.group === g.key).map(x => x.order);
       const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : -1;
       const newP = { id: genId(), group: g.key, note: '新条目', content: '', enabled: true, order: maxOrder + 1 };
-      presets.push(newP); persistPresets(); renderPresetGroups(); openPresetEdit(newP.id);
+      presets.push(newP); persistPresets(); syncPersonaFromPresets(); renderPresetGroups(); openPresetEdit(newP.id);
     });
     groupDiv.appendChild(addBtn); container.appendChild(groupDiv);
   });
@@ -1618,7 +1641,7 @@ function commitDragOrder(presetId, placeholderEl) {
   const movedPreset = presets.find(p => p.id === presetId);
   if (movedPreset) movedPreset.group = newGroup;
   siblingIds.forEach((id, idx) => { const p = presets.find(x => x.id === id); if (p) p.order = idx; });
-  persistPresets(); renderPresetGroups();
+  persistPresets(); syncPersonaFromPresets(); renderPresetGroups();
 }
 
 const presetEditOverlay  = document.getElementById('presetEditOverlay');
@@ -1651,13 +1674,13 @@ presetEditSaveBtn.addEventListener('click', () => {
   if (presetEditSaveBtn.disabled) return;
   const p = presets.find(x => x.id === editingPresetId); if (!p) return;
   p.note = presetEditNote.value.trim() || '未命名'; p.content = presetEditContent.value;
-  persistPresets(); renderPresetGroups(); presetEditOverlay.classList.remove('show');
+  persistPresets(); syncPersonaFromPresets(); renderPresetGroups(); presetEditOverlay.classList.remove('show');
   showToast('已保存'); editingPresetId = null;
 });
 presetEditDeleteBtn.addEventListener('click', () => {
   if (!editingPresetId) return;
   if (!confirm('删除此条目？此操作不可恢复。')) return;
-  presets = presets.filter(x => x.id !== editingPresetId); persistPresets(); renderPresetGroups();
+  presets = presets.filter(x => x.id !== editingPresetId); persistPresets(); syncPersonaFromPresets(); renderPresetGroups();
   presetEditOverlay.classList.remove('show'); editingPresetId = null;
 });
 
@@ -1767,6 +1790,8 @@ function loadMemory() {
     if (m.emotion == null) { m.emotion = 2; migrated = true; }
     if (!m.tags) { m.tags = []; migrated = true; }
     if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
+    if (m.starred == null) { m.starred = false; migrated = true; }
+    if (m.order === undefined) { m.order = null; migrated = true; }
   });
   if (migrated) persistMemory();
 }
@@ -1868,6 +1893,8 @@ function estimateTokens() {
 }
 function buildMemoryItem(m) {
   const item = document.createElement('div'); item.className = 'memory-item'; item.dataset.memId = m.id;
+  const dragHandle = document.createElement('span'); dragHandle.className = 'memory-drag-handle'; dragHandle.textContent = '⠿';
+  item.appendChild(dragHandle);
   const contentWrap = document.createElement('div'); contentWrap.className = 'memory-content-wrap';
   const textEl = document.createElement('div'); textEl.className = 'memory-content'; textEl.textContent = m.content;
   const needCollapse = (m.content || '').length > 60;
@@ -1889,8 +1916,10 @@ function buildMemoryItem(m) {
   barWrap.appendChild(bar); metaEl.appendChild(barWrap);
   contentWrap.appendChild(metaEl);
   const actions = document.createElement('div'); actions.className = 'memory-actions';
+  const starBtn = document.createElement('button'); starBtn.className = 'mem-btn star-btn'; starBtn.textContent = m.starred ? '⭐' : '☆';
   const editBtn = document.createElement('button'); editBtn.className = 'mem-btn edit-btn'; editBtn.textContent = '✎';
   const delBtn = document.createElement('button'); delBtn.className = 'mem-btn'; delBtn.textContent = '🗑';
+  starBtn.addEventListener('click', () => { m.starred = !m.starred; persistMemory(); renderMemoryList(); });
   editBtn.addEventListener('click', () => {
     const ta = document.createElement('textarea'); ta.className = 'memory-edit-area'; ta.value = m.content;
     textEl.replaceWith(ta);
@@ -1903,9 +1932,59 @@ function buildMemoryItem(m) {
     });
   });
   delBtn.addEventListener('click', () => { memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList(); });
-  actions.appendChild(editBtn); actions.appendChild(delBtn);
+  actions.appendChild(starBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
   item.appendChild(contentWrap); item.appendChild(actions);
+  attachMemoryDrag(item, m);
   return item;
+}
+function attachMemoryDrag(itemEl, m) {
+  const handle = itemEl.querySelector('.memory-drag-handle');
+  let startX = 0, startY = 0, dragging = false, ghostEl = null, placeholderEl = null;
+  function onMove(e) {
+    if (!dragging) return; e.preventDefault();
+    const t = e.touches[0];
+    ghostEl.style.left = (t.clientX - ghostEl._offsetX) + 'px'; ghostEl.style.top = (t.clientY - ghostEl._offsetY) + 'px';
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    const targetItem = under ? under.closest('.memory-item') : null;
+    const listEl = itemEl.closest('.memory-list');
+    if (!listEl) return;
+    if (targetItem && targetItem !== placeholderEl && listEl.contains(targetItem)) {
+      const rect = targetItem.getBoundingClientRect();
+      const before = (t.clientY - rect.top) < rect.height / 2;
+      listEl.insertBefore(placeholderEl, before ? targetItem : targetItem.nextSibling);
+    } else if (!targetItem) { listEl.appendChild(placeholderEl); }
+  }
+  function onEnd() {
+    if (dragging) commitMemoryDragOrder(placeholderEl);
+    if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+    if (placeholderEl) { placeholderEl.remove(); placeholderEl = null; }
+    dragging = false;
+    document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd);
+  }
+  handle.addEventListener('touchstart', (e) => {
+    const t = e.touches[0]; startX = t.clientX; startY = t.clientY;
+    e.preventDefault();
+    dragging = true; if (navigator.vibrate) navigator.vibrate(10);
+    const rect = itemEl.getBoundingClientRect();
+    placeholderEl = document.createElement('div'); placeholderEl.className = 'memory-item-placeholder'; placeholderEl.dataset.memId = m.id;
+    placeholderEl.style.height = rect.height + 'px'; itemEl.parentNode.insertBefore(placeholderEl, itemEl);
+    ghostEl = itemEl.cloneNode(true); ghostEl.classList.add('preset-card-ghost');
+    ghostEl.style.width = rect.width + 'px'; ghostEl.style.position = 'fixed';
+    ghostEl.style.left = rect.left + 'px'; ghostEl.style.top = rect.top + 'px'; ghostEl.style.pointerEvents = 'none';
+    ghostEl._offsetX = t.clientX - rect.left; ghostEl._offsetY = t.clientY - rect.top;
+    document.body.appendChild(ghostEl); itemEl.style.display = 'none';
+    document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('touchend', onEnd);
+  }, { passive: false });
+}
+function commitMemoryDragOrder(placeholderEl) {
+  const listEl = placeholderEl.closest('.memory-list'); if (!listEl) { renderMemoryList(); return; }
+  const orderedIds = Array.from(listEl.children).map(child => child.dataset.memId).filter(Boolean);
+  let pinnedIdx = 0, restIdx = 0;
+  orderedIds.forEach(id => {
+    const m = memory.find(x => x.id === id); if (!m) return;
+    if (isPinnedMemory(m)) m.order = pinnedIdx++; else m.order = restIdx++;
+  });
+  persistMemory(); renderMemoryList();
 }
 function renderMemoryGrid(container) {
   const top = document.createElement('div'); top.className = 'memory-grid-top';
@@ -1929,7 +2008,7 @@ function renderMemoryDetail(typeKey, container) {
   const listEl = document.createElement('div'); listEl.className = 'memory-list';
   if (items.length === 0) { const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '暂无'; listEl.appendChild(e); }
   else {
-    items.slice().sort((a, b) => getMemoryFreshnessRatio(b) - getMemoryFreshnessRatio(a)).forEach(m => listEl.appendChild(buildMemoryItem(m)));
+    sortMemoryByPriority(items).forEach(m => listEl.appendChild(buildMemoryItem(m)));
   }
   container.appendChild(listEl);
 }
@@ -1941,9 +2020,80 @@ function renderMemoryList() {
 }
 document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const id = genId();
-  memory.push({ id, content:'', time: timeStr(), createdAt: Date.now(), layer:'long', type:'legacy', emotion:2, tags:[] });
+  memory.push({ id, content:'', time: timeStr(), createdAt: Date.now(), layer:'long', type:'legacy', emotion:2, tags:[], starred:false, order:null });
   memoryDetailType = 'legacy'; persistMemory(); renderMemoryList();
   requestAnimationFrame(() => { const btn = document.querySelector(`.memory-item[data-mem-id="${id}"] .edit-btn`); if (btn) btn.click(); });
+});
+
+/* ============================================================
+整理记忆库：AI生成草稿 → 用户编辑确认 → 替换
+============================================================ */
+let memoryDrafts = [];
+function extractJsonArray(raw) {
+  let s = (raw || '').trim();
+  s = s.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const start = s.indexOf('['), end = s.lastIndexOf(']');
+  if (start === -1 || end === -1 || end < start) throw new Error('未找到JSON数组');
+  return JSON.parse(s.slice(start, end + 1));
+}
+function renderMemoryReorganizeList() {
+  const listEl = document.getElementById('memoryReorganizeList'); listEl.innerHTML = '';
+  if (memoryDrafts.length === 0) { const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '草稿已清空'; listEl.appendChild(e); return; }
+  memoryDrafts.forEach((d, idx) => {
+    const item = document.createElement('div'); item.className = 'memory-item';
+    const wrap = document.createElement('div'); wrap.className = 'memory-content-wrap';
+    const ta = document.createElement('textarea'); ta.className = 'memory-edit-area'; ta.value = d.content;
+    ta.addEventListener('input', () => { d.content = ta.value; });
+    wrap.appendChild(ta);
+    const metaEl = document.createElement('div'); metaEl.className = 'memory-meta';
+    const cfg = MEMORY_TYPE_CONFIG.find(c => c.key === d.type);
+    metaEl.textContent = (cfg ? cfg.emoji + ' ' + cfg.name : d.type) + (d.tags && d.tags.length ? ' · ' + d.tags.map(t=>'#'+t).join(' ') : '');
+    wrap.appendChild(metaEl);
+    const actions = document.createElement('div'); actions.className = 'memory-actions';
+    const delBtn = document.createElement('button'); delBtn.className = 'mem-btn'; delBtn.textContent = '🗑';
+    delBtn.addEventListener('click', () => { memoryDrafts.splice(idx, 1); renderMemoryReorganizeList(); });
+    actions.appendChild(delBtn);
+    item.appendChild(wrap); item.appendChild(actions);
+    listEl.appendChild(item);
+  });
+}
+const memoryReorganizeBtn = document.getElementById('memoryReorganizeBtn');
+const memoryReorganizeOverlay = document.getElementById('memoryReorganizeOverlay');
+memoryReorganizeBtn.addEventListener('click', async () => {
+  if (memory.length === 0) { showToast('记忆库是空的'); return; }
+  const cfg = getConfig();
+  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在Space里配置API'); return; }
+  memoryReorganizeBtn.disabled = true; memoryReorganizeBtn.textContent = '整理中…';
+  const sysPrompt = `你是记忆整理助手。下面是${appName}的记忆库JSON数组，每条有content/type/emotion/tags。请：
+1. 合并内容重复或高度相似的条目；
+2. 如果发现互相矛盾的内容，只保留更合理的一条说法；
+3. 把每条content改写成${appName}自己的第一人称语气（"我记得…/我觉得…"），不要写成旁观者转述；
+4. 保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值。
+严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"...","emotion":1到5的整数,"tags":["..."]}]，不要输出任何其他文字或代码块围栏。`;
+  const payload = memory.map(m => ({ content: m.content, type: m.type, emotion: m.emotion, tags: m.tags }));
+  try {
+    const useNative = isClaudeNative(cfg);
+    const req = buildChatRequest({ cfg, apiMessages: [{ role:'user', content: JSON.stringify(payload) }], systemBlocks: [{ text: sysPrompt, cache:false }], stream:false });
+    const res = await fetch(req.url, { method:'POST', headers: req.headers, body: req.body });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const raw = parseChatNonStream(json, useNative).text;
+    const arr = extractJsonArray(raw);
+    memoryDrafts = arr.map(d => ({ content: String(d.content||''), type: normalizeMemType(d.type), emotion: normalizeMemEmotion(d.emotion), tags: normalizeMemTags(d.tags) }));
+    renderMemoryReorganizeList(); memoryReorganizeOverlay.classList.add('show');
+  } catch(e) { console.warn('整理记忆库失败', e); showToast('整理失败，请重试', 3000); }
+  finally { memoryReorganizeBtn.disabled = false; memoryReorganizeBtn.textContent = '🧹 整理记忆库'; }
+});
+document.getElementById('memoryReorganizeCancelBtn').addEventListener('click', () => { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; });
+memoryReorganizeOverlay.addEventListener('click', e => { if (e.target === memoryReorganizeOverlay) { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; } });
+document.getElementById('memoryReorganizeConfirmBtn').addEventListener('click', () => {
+  if (!confirm('用整理后的草稿替换整个记忆库？此操作不可恢复。')) return;
+  memory = memoryDrafts.filter(d => d.content.trim()).map(d => ({
+    id: genId(), content: d.content.trim(), time: timeStr(), createdAt: Date.now(),
+    layer: 'active', type: d.type, emotion: d.emotion, tags: d.tags, starred: false, order: null
+  }));
+  persistMemory(); memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = [];
+  memoryDetailType = null; renderMemoryList(); showToast('记忆库已整理');
 });
 
 /* ============================================================
@@ -2004,11 +2154,18 @@ function processMemoryMarkers(rawText) {
 /* ============================================================
 记忆注入策略
 ============================================================ */
-// 钉住条件：手动升格为长期记忆，或情绪浓度>=4，永不被更新的记忆挤掉；其余按创建时间新旧排序
-function isPinnedMemory(m) { return m.layer === 'long' || (m.emotion || 2) >= 4; }
+// 钉住条件：手动星标、升格为长期记忆、或情绪浓度>=4，永不被更新的记忆挤掉；
+// 组内若设置了 order（拖拽排序）按 order 排，否则按创建时间新旧排序
+function isPinnedMemory(m) { return !!m.starred || m.layer === 'long' || (m.emotion || 2) >= 4; }
+function memoryOrderCompare(a, b) {
+  if (a.order != null && b.order != null) return a.order - b.order;
+  if (a.order != null) return -1;
+  if (b.order != null) return 1;
+  return (b.createdAt || 0) - (a.createdAt || 0);
+}
 function sortMemoryByPriority(items) {
-  const pinned = items.filter(isPinnedMemory).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
-  const rest = items.filter(m => !isPinnedMemory(m)).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const pinned = items.filter(isPinnedMemory).sort(memoryOrderCompare);
+  const rest = items.filter(m => !isPinnedMemory(m)).sort(memoryOrderCompare);
   return [...pinned, ...rest];
 }
 function getTopByType(type, count) {
@@ -2180,6 +2337,7 @@ async function tryArchiveOnce(msgsToArchive) {
 
 如果有值得记住的内容，每条严格用下面格式单独一行输出：
 [memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]
+content 必须写成${appName}自己的第一人称语气（"我记得…/我觉得…"），不要写成旁观者转述对话内容。
 
 如果没有值得记录的内容，什么都不要输出。除了上述标记行，不要输出任何其他文字。`;
   const apiMsgs = [{ role: 'user', content: `以下是一段对话记录：\n\n${transcript}` }];
@@ -2767,6 +2925,43 @@ function compressImage(file, maxSize = 1000, quality = 0.7) {
     reader.onerror = reject; reader.readAsDataURL(file);
   });
 }
+function recompressDataUrl(dataUrl, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) { if (width > height) { height = Math.round(height * maxSize / width); width = maxSize; } else { width = Math.round(width * maxSize / height); height = maxSize; } }
+      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+      try { resolve(canvas.toDataURL('image/jpeg', quality)); } catch(e) { reject(e); }
+    };
+    img.onerror = reject; img.src = dataUrl;
+  });
+}
+async function compressAllHistoryImages() {
+  if (!confirm('将重新压缩所有历史图片以节省空间，操作不可撤销，确定继续？')) return;
+  const btn = document.getElementById('compressImagesBtn');
+  btn.disabled = true; const originalText = btn.textContent; btn.textContent = '压缩中…';
+  let count = 0, savedBytes = 0;
+  const msgLists = [messages, ...subChats.map(sc => sc.messages || []), ...secretRooms.flatMap(r => (r.sessions || []).map(s => s.messages || []))];
+  for (const list of msgLists) {
+    for (const m of list) {
+      if (!m.images || !m.images.length) continue;
+      for (let i = 0; i < m.images.length; i++) {
+        const url = m.images[i];
+        if (typeof url !== 'string' || !url.startsWith('data:image')) continue;
+        try {
+          const compressed = await recompressDataUrl(url, 700, 0.55);
+          if (compressed.length < url.length) { savedBytes += url.length - compressed.length; m.images[i] = compressed; count++; }
+        } catch (e) { /* skip images that fail to load/recompress */ }
+      }
+    }
+  }
+  persistMessages(); persistSubChats(); persistSecretRooms();
+  btn.disabled = false; btn.textContent = originalText;
+  showToast(count > 0 ? `已压缩 ${count} 张图片，节省约 ${Math.round(savedBytes / 1024)} KB` : '没有可压缩的图片', 3000);
+}
+document.getElementById('compressImagesBtn').addEventListener('click', compressAllHistoryImages);
 function renderAttachPreview() {
   attachPreview.innerHTML = '';
   pendingAttachments.forEach((att, idx) => {
