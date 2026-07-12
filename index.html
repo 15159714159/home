@@ -2120,8 +2120,8 @@ ${appPersona}
 4. 保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值。
 严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"...","emotion":1到5的整数,"tags":["..."]}]，不要输出任何其他文字或代码块围栏。`;
 }
-function updateReorganizeLiveText() {
-  reorganizeLiveText.textContent = reorganizeRawText;
+function updateReorganizeLiveText(previewText) {
+  reorganizeLiveText.textContent = previewText;
   reorganizeLiveText.scrollTop = reorganizeLiveText.scrollHeight;
 }
 function finalizeReorganizeAttempt() {
@@ -2137,26 +2137,52 @@ function finalizeReorganizeAttempt() {
     reorganizeContinueBtn.style.display = lengthCut ? '' : 'none';
   }
 }
-async function runReorganizeStream(apiMessages) {
+// 续写不一定真的被模型接受：有些接口收到"续写"请求会从头完整重写一遍而不是接着写，
+// 这种情况下不能把新内容直接拼在旧内容后面（会拼出两个数组，且越续越长）。
+// 用"新内容一开头就是数组/代码块"作为"模型重新写了一遍"的信号，命中则丢弃旧内容而不是追加。
+function looksLikeFreshRestart(segment) {
+  const t = segment.trim().replace(/^```(?:json)?/i, '').trim();
+  return t.startsWith('[') || t.startsWith('{');
+}
+async function runReorganizeStream(apiMessages, isContinuation) {
   const cfg = getConfig();
   const useNative = isClaudeNative(cfg);
   const maxTokensOverride = Number(reorganizeMaxTokensInput.value) || 8000;
+  const safetyCharCap = Math.max(reorganizePayloadContent.length, 500) * 4;
   reorganizeGenerating = true; memoryReorganizeBtn.textContent = '■ 停止';
   reorganizeLiveActions.classList.remove('show');
   reorganizeLiveWrap.classList.add('show');
   reorganizeLiveStatus.textContent = '整理中…';
   const controller = new AbortController(); reorganizeAbortController = controller;
+  let segmentText = '', abortedBySafetyCap = false;
   try {
     const req = buildChatRequest({ cfg, apiMessages, systemBlocks: [{ text: reorganizeSysPrompt, cache: false }], stream: true, maxTokensOverride });
     const res = await fetch(req.url, { method:'POST', headers: req.headers, body: req.body, signal: controller.signal });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     reorganizeStopReason = await readReorganizeStream(res, useNative, (delta) => {
-      reorganizeRawText += delta; updateReorganizeLiveText();
-      reorganizeLiveStatus.textContent = `整理中… 已生成约 ${Math.round(reorganizeRawText.length / 4)} tokens`;
+      segmentText += delta;
+      const combinedLen = reorganizeRawText.length + segmentText.length;
+      updateReorganizeLiveText(isContinuation ? reorganizeRawText + segmentText : segmentText);
+      reorganizeLiveStatus.textContent = `整理中… 已生成约 ${Math.round(combinedLen / 4)} tokens`;
+      if (combinedLen > safetyCharCap) { abortedBySafetyCap = true; controller.abort(); }
     });
+    if (isContinuation && looksLikeFreshRestart(segmentText)) {
+      reorganizeRawText = segmentText;
+      showToast('检测到模型重新写了一遍而不是接着写，已丢弃重复内容', 3500);
+    } else if (isContinuation) {
+      reorganizeRawText += segmentText;
+    } else {
+      reorganizeRawText = segmentText;
+    }
     finalizeReorganizeAttempt();
   } catch(e) {
-    if (e.name === 'AbortError') {
+    if (e.name === 'AbortError' && abortedBySafetyCap) {
+      reorganizeLiveStatus.textContent = '内容异常增长（可能续写没生效），已自动停止并丢弃这次结果';
+      reorganizeLiveActions.classList.add('show');
+      reorganizeContinueBtn.style.display = 'none';
+      updateReorganizeLiveText(reorganizeRawText);
+    } else if (e.name === 'AbortError') {
+      reorganizeRawText = isContinuation ? reorganizeRawText + segmentText : segmentText;
       reorganizeLiveStatus.textContent = '已停止，可以继续生成';
       reorganizeLiveActions.classList.add('show');
       reorganizeContinueBtn.style.display = reorganizeRawText ? '' : 'none';
@@ -2178,15 +2204,15 @@ memoryReorganizeBtn.addEventListener('click', () => {
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在Space里配置API'); return; }
   reorganizeSysPrompt = buildReorganizeSysPrompt();
   reorganizePayloadContent = JSON.stringify(memory.map(m => ({ content: m.content, type: m.type, emotion: m.emotion, tags: m.tags })));
-  reorganizeRawText = ''; reorganizeStopReason = null; updateReorganizeLiveText();
-  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }]);
+  reorganizeRawText = ''; reorganizeStopReason = null; updateReorganizeLiveText('');
+  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }], false);
 });
 reorganizeContinueBtn.addEventListener('click', () => {
-  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }, { role:'assistant', content: reorganizeRawText }]);
+  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }, { role:'assistant', content: reorganizeRawText }], true);
 });
 reorganizeRestartBtn.addEventListener('click', () => {
-  reorganizeRawText = ''; reorganizeStopReason = null; updateReorganizeLiveText();
-  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }]);
+  reorganizeRawText = ''; reorganizeStopReason = null; updateReorganizeLiveText('');
+  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }], false);
 });
 document.getElementById('memoryReorganizeCancelBtn').addEventListener('click', () => { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; });
 memoryReorganizeOverlay.addEventListener('click', e => { if (e.target === memoryReorganizeOverlay) { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; } });
