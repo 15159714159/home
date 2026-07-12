@@ -2208,6 +2208,9 @@ memoryReorganizeBtn.addEventListener('click', () => {
   runReorganizeStream([{ role:'user', content: reorganizePayloadContent }], false);
 });
 reorganizeContinueBtn.addEventListener('click', () => {
+  // Claude 原生接口要求最后一条assistant消息（prefill）不能以空白字符结尾，否则直接400
+  // 而AI输出的格式化JSON被截断时经常刚好停在换行/缩进空格上
+  reorganizeRawText = reorganizeRawText.replace(/\s+$/, '');
   runReorganizeStream([{ role:'user', content: reorganizePayloadContent }, { role:'assistant', content: reorganizeRawText }], true);
 });
 reorganizeRestartBtn.addEventListener('click', () => {
