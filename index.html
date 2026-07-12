@@ -338,6 +338,13 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .mem-btn:active { transform: scale(0.85); opacity: 0.7; }
 .mem-btn.star-btn { color: #f5b942; font-size: 15px; }
+.mem-btn.more-btn { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
+.action-sheet-item { padding: 15px 4px; font-size: 15px; text-align: center; border-bottom: 1px solid var(--border-color); cursor: pointer; color: var(--text-primary); }
+.action-sheet-item:active { background: var(--bg-hover); }
+.action-sheet-item:last-child { border-bottom: none; }
+.action-sheet-item.danger { color: var(--danger); }
+.action-sheet-cancel { margin-top: 8px; padding: 15px 4px; text-align: center; font-size: 15px; color: var(--text-tertiary); cursor: pointer; }
+.action-sheet-cancel:active { opacity: 0.7; }
 .memory-drag-handle { color: var(--text-faint); font-size: 15px; padding: 2px 4px 2px 0; cursor: grab; flex-shrink: 0; touch-action: none; }
 .memory-item-placeholder { border: 2px dashed var(--border-strong); border-radius: 10px; background: var(--bg-subtle); margin-bottom: 8px; }
 .memory-empty { text-align: center; color: var(--text-faint); font-size: 13px; padding: 14px 0; }
@@ -1116,6 +1123,24 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
     </div>
   </div>
 </div>
+
+<div class="sheet-overlay" id="memoryActionSheetOverlay">
+  <div class="sheet-panel">
+    <div class="action-sheet-item" id="memActionEdit">✎ 编辑</div>
+    <div class="action-sheet-item" id="memActionMove">📂 分类</div>
+    <div class="action-sheet-item danger" id="memActionDelete">🗑 删除</div>
+    <div class="action-sheet-cancel" id="memActionCancel">取消</div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="memoryTypePickerOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title">移动到</div>
+    <div id="memoryTypePickerList"></div>
+    <div class="action-sheet-cancel" id="memTypePickerCancel">取消</div>
+  </div>
+</div>
+
 
 <div id="secretPinOverlay">
   <div class="pin-panel">
@@ -1901,7 +1926,18 @@ backupImportHidden.addEventListener('change', e => {
 /* ============================================================
 记忆规范化
 ============================================================ */
-function normalizeMemType(t) { return ['you','us','study','nest','liudeng'].includes(t) ? t : 'legacy'; }
+const MEM_TYPE_ALIASES = {
+  you: 'you', '关于你': 'you',
+  us: 'us', '关于我们': 'us', we: 'us',
+  study: 'study', 'dse': 'study', '学习': 'study', '学习·dse': 'study',
+  nest: 'nest', '筑巢': 'nest', '筑巢·杂事': 'nest', chore: 'nest', chores: 'nest',
+  liudeng: 'liudeng', '留灯': 'liudeng',
+  legacy: 'legacy', '待整理': 'legacy'
+};
+function normalizeMemType(t) {
+  const key = String(t || '').trim().toLowerCase();
+  return MEM_TYPE_ALIASES[key] || 'legacy';
+}
 function normalizeMemEmotion(e) { const n = parseInt(e,10); if (isNaN(n)) return 2; return Math.min(5,Math.max(1,n)); }
 function normalizeMemTags(tags) {
   if (Array.isArray(tags)) return tags.filter(t => typeof t === 'string' && t.trim()).slice(0,8).map(t => t.trim());
@@ -1941,10 +1977,9 @@ function buildMemoryItem(m) {
   contentWrap.appendChild(metaEl);
   const actions = document.createElement('div'); actions.className = 'memory-actions';
   const starBtn = document.createElement('button'); starBtn.className = 'mem-btn star-btn'; starBtn.textContent = m.starred ? '⭐' : '☆';
-  const editBtn = document.createElement('button'); editBtn.className = 'mem-btn edit-btn'; editBtn.textContent = '✎';
-  const delBtn = document.createElement('button'); delBtn.className = 'mem-btn'; delBtn.textContent = '🗑';
+  const moreBtn = document.createElement('button'); moreBtn.className = 'mem-btn more-btn'; moreBtn.textContent = '⋯';
   starBtn.addEventListener('click', () => { m.starred = !m.starred; persistMemory(); renderMemoryList(); });
-  editBtn.addEventListener('click', () => {
+  function startEditMemory() {
     const ta = document.createElement('textarea'); ta.className = 'memory-edit-area'; ta.value = m.content;
     textEl.replaceWith(ta);
     const expandBtnEl = contentWrap.querySelector('.memory-expand-btn'); if (expandBtnEl) expandBtnEl.style.display = 'none';
@@ -1954,13 +1989,46 @@ function buildMemoryItem(m) {
       if (val === '') { memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList(); return; }
       m.content = val; persistMemory(); renderMemoryList();
     });
-  });
-  delBtn.addEventListener('click', () => { memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList(); });
-  actions.appendChild(starBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
+  }
+  moreBtn.addEventListener('click', () => openMemoryActionSheet(m, startEditMemory));
+  item._startEditMemory = startEditMemory;
+  actions.appendChild(starBtn); actions.appendChild(moreBtn);
   item.appendChild(contentWrap); item.appendChild(actions);
   attachMemoryDrag(item, m);
   return item;
 }
+const memoryActionSheetOverlay = document.getElementById('memoryActionSheetOverlay');
+const memoryTypePickerOverlay = document.getElementById('memoryTypePickerOverlay');
+let actionSheetTargetMem = null;
+function openMemoryActionSheet(m, startEditFn) {
+  actionSheetTargetMem = m;
+  document.getElementById('memActionEdit').onclick = () => { closeMemoryActionSheet(); startEditFn(); };
+  document.getElementById('memActionDelete').onclick = () => {
+    closeMemoryActionSheet();
+    memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList();
+  };
+  document.getElementById('memActionMove').onclick = () => { closeMemoryActionSheet(); openMemoryTypePicker(m); };
+  memoryActionSheetOverlay.classList.add('show');
+}
+function closeMemoryActionSheet() { memoryActionSheetOverlay.classList.remove('show'); actionSheetTargetMem = null; }
+document.getElementById('memActionCancel').addEventListener('click', closeMemoryActionSheet);
+memoryActionSheetOverlay.addEventListener('click', e => { if (e.target === memoryActionSheetOverlay) closeMemoryActionSheet(); });
+
+function openMemoryTypePicker(m) {
+  const listEl = document.getElementById('memoryTypePickerList'); listEl.innerHTML = '';
+  MEMORY_TYPE_CONFIG.forEach(cfg => {
+    const row = document.createElement('div'); row.className = 'action-sheet-item';
+    row.textContent = `${cfg.emoji} ${cfg.name}` + (m.type === cfg.key ? '（当前）' : '');
+    row.addEventListener('click', () => {
+      m.type = cfg.key; persistMemory(); closeMemoryTypePicker(); renderMemoryList();
+    });
+    listEl.appendChild(row);
+  });
+  memoryTypePickerOverlay.classList.add('show');
+}
+function closeMemoryTypePicker() { memoryTypePickerOverlay.classList.remove('show'); }
+document.getElementById('memTypePickerCancel').addEventListener('click', closeMemoryTypePicker);
+memoryTypePickerOverlay.addEventListener('click', e => { if (e.target === memoryTypePickerOverlay) closeMemoryTypePicker(); });
 function attachMemoryDrag(itemEl, m) {
   const handle = itemEl.querySelector('.memory-drag-handle');
   let startX = 0, startY = 0, timer = null, dragging = false, ghostEl = null, placeholderEl = null;
@@ -2054,7 +2122,7 @@ document.getElementById('memoryAddBtn').addEventListener('click', () => {
   const id = genId();
   memory.push({ id, content:'', time: timeStr(), createdAt: Date.now(), layer:'long', type:'legacy', emotion:2, tags:[], starred:false, order:null });
   memoryDetailType = 'legacy'; persistMemory(); renderMemoryList();
-  requestAnimationFrame(() => { const btn = document.querySelector(`.memory-item[data-mem-id="${id}"] .edit-btn`); if (btn) btn.click(); });
+  requestAnimationFrame(() => { const el = document.querySelector(`.memory-item[data-mem-id="${id}"]`); if (el && el._startEditMemory) el._startEditMemory(); });
 });
 
 /* ============================================================
@@ -2117,8 +2185,10 @@ ${appPersona}
 1. 合并内容重复或高度相似的条目；
 2. 如果发现互相矛盾的内容，只保留更合理的一条说法；
 3. 把每条content改写成${appName}自己的第一人称语气（"我记得…/我觉得…"），按上面那段性格设定的说话习惯和语气来写，可以带点碎碎念或小情绪，不要写成旁观者转述；
-4. 保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值。
-严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"...","emotion":1到5的整数,"tags":["..."]}]，不要输出任何其他文字或代码块围栏。`;
+4. type字段必须严格从这5个值里选一个，一字不改地原样输出，不要翻译、不要用中文名、不要自造新分类：you / us / study / nest / liudeng
+   （you=关于你，us=关于我们，study=学习·DSE，nest=筑巢·杂事，liudeng=留灯）
+   保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值。
+严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"you|us|study|nest|liudeng","emotion":1到5的整数,"tags":["..."]}]，不要输出任何其他文字或代码块围栏。`;
 }
 function updateReorganizeLiveText(previewText) {
   reorganizeLiveText.textContent = previewText;
