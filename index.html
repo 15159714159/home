@@ -1323,6 +1323,35 @@ function currentTimeLabel() {
   const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
   return `${y}年${mo}月${da}日 周${weekMap[d.getDay()]} ${hh}:${mm}`;
 }
+const MSG_GAP_DIVIDER_MS = 5 * 60 * 1000;
+function formatTimeDivider(createdAt) {
+  const d = new Date(createdAt), now = new Date();
+  const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
+  const dDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((nowDay - dDay) / (1000*60*60*24));
+  if (diffDays === 0) return `${hh}:${mm}`;
+  if (diffDays === 1) return `昨天 ${hh}:${mm}`;
+  if (diffDays > 1 && diffDays < 7) return `星期${['日','一','二','三','四','五','六'][d.getDay()]} ${hh}:${mm}`;
+  return `${d.getMonth()+1}月${d.getDate()}日 ${hh}:${mm}`;
+}
+function formatGapText(ms) {
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}分钟`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}小时`;
+  const days = Math.round(hours / 24);
+  return `${days}天`;
+}
+function formatMemoryAge(createdAt) {
+  if (createdAt == null) return '时间不详';
+  const days = Math.floor((Date.now() - createdAt) / (1000*60*60*24));
+  if (days <= 0) return '今天';
+  if (days === 1) return '昨天';
+  if (days < 30) return `${days}天前`;
+  if (days < 365) return `${Math.round(days / 30)}个月前`;
+  return `${Math.round(days / 365)}年前`;
+}
 document.getElementById('daysCount').textContent = '陪伴第 ' + calcDays() + ' 天';
 
 let toastTimer = null;
@@ -1826,6 +1855,7 @@ function loadMessages() {
     if (!m.id) { m.id = genId(); migrated = true; }
     if (m.role !== 'user' && m.role !== 'notice' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
     if (m.archived === undefined) { m.archived = true; migrated = true; }
+    if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
   });
   if (migrated) persistMessages();
 }
@@ -1852,6 +1882,7 @@ function loadSubChats() {
     (sc.messages || []).forEach(m => {
       if (!m.id) { m.id = genId(); migrated = true; }
       if (m.role !== 'user' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
+      if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
     });
   });
   if (migrated) persistSubChats();
@@ -1873,6 +1904,15 @@ function loadDiaries() {
 function persistSecretRooms() { safeSetItem(LS_SECRET_ROOMS, JSON.stringify(secretRooms)); }
 function loadSecretRooms() {
   try { const r = localStorage.getItem(LS_SECRET_ROOMS); if (r) secretRooms = JSON.parse(r); } catch(e) { secretRooms = []; }
+  let migrated = false;
+  secretRooms.forEach(room => {
+    (room.sessions || []).forEach(s => {
+      (s.messages || []).forEach(m => {
+        if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
+      });
+    });
+  });
+  if (migrated) persistSecretRooms();
 }
 
 /* ============================================================
@@ -2176,7 +2216,7 @@ reorganizeMaxTokensInput.value = getConfig().reorganizeMaxTokens || 8000;
 reorganizeMaxTokensInput.addEventListener('change', () => patchConfig('reorganizeMaxTokens', Number(reorganizeMaxTokensInput.value) || 8000));
 
 function buildReorganizeSysPrompt() {
-  return `你是记忆整理助手。下面是${appName}的记忆库JSON数组，每条有content/type/emotion/tags。
+  return `你是记忆整理助手。下面是${appName}的记忆库JSON数组，每条有id/content/type/emotion/tags。
 
 ${appName}的性格设定：
 ${appPersona}
@@ -2187,8 +2227,9 @@ ${appPersona}
 3. 把每条content改写成${appName}自己的第一人称语气（"我记得…/我觉得…"），按上面那段性格设定的说话习惯和语气来写，可以带点碎碎念或小情绪，不要写成旁观者转述；
 4. type字段必须严格从这5个值里选一个，一字不改地原样输出，不要翻译、不要用中文名、不要自造新分类：you / us / study / nest / liudeng
    （you=关于你，us=关于我们，study=学习·DSE，nest=筑巢·杂事，liudeng=留灯）
-   保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值。
-严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"you|us|study|nest|liudeng","emotion":1到5的整数,"tags":["..."]}]，不要输出任何其他文字或代码块围栏。`;
+   保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值；
+5. 每条输出必须带sourceIds字段：把这条草稿融合了哪些原始条目的id原样列出来（没有被合并的条目，sourceIds里只有它自己的id），id必须和输入JSON里的id一字不差。
+严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"you|us|study|nest|liudeng","emotion":1到5的整数,"tags":["..."],"sourceIds":["..."]}]，不要输出任何其他文字或代码块围栏。`;
 }
 function updateReorganizeLiveText(previewText) {
   reorganizeLiveText.textContent = previewText;
@@ -2197,7 +2238,7 @@ function updateReorganizeLiveText(previewText) {
 function finalizeReorganizeAttempt() {
   try {
     const arr = extractJsonArray(reorganizeRawText);
-    memoryDrafts = arr.map(d => ({ content: String(d.content||''), type: normalizeMemType(d.type), emotion: normalizeMemEmotion(d.emotion), tags: normalizeMemTags(d.tags) }));
+    memoryDrafts = arr.map(d => ({ content: String(d.content||''), type: normalizeMemType(d.type), emotion: normalizeMemEmotion(d.emotion), tags: normalizeMemTags(d.tags), sourceIds: Array.isArray(d.sourceIds) ? d.sourceIds.map(String) : [] }));
     reorganizeLiveWrap.classList.remove('show');
     renderMemoryReorganizeList(); memoryReorganizeOverlay.classList.add('show');
   } catch(e) {
@@ -2273,7 +2314,7 @@ memoryReorganizeBtn.addEventListener('click', () => {
   const cfg = getConfig();
   if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在Space里配置API'); return; }
   reorganizeSysPrompt = buildReorganizeSysPrompt();
-  reorganizePayloadContent = JSON.stringify(memory.map(m => ({ content: m.content, type: m.type, emotion: m.emotion, tags: m.tags })));
+  reorganizePayloadContent = JSON.stringify(memory.map(m => ({ id: m.id, content: m.content, type: m.type, emotion: m.emotion, tags: m.tags })));
   reorganizeRawText = ''; reorganizeStopReason = null; updateReorganizeLiveText('');
   runReorganizeStream([{ role:'user', content: reorganizePayloadContent }], false);
 });
@@ -2291,10 +2332,15 @@ document.getElementById('memoryReorganizeCancelBtn').addEventListener('click', (
 memoryReorganizeOverlay.addEventListener('click', e => { if (e.target === memoryReorganizeOverlay) { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; } });
 document.getElementById('memoryReorganizeConfirmBtn').addEventListener('click', () => {
   if (!confirm('用整理后的草稿替换整个记忆库？此操作不可恢复。')) return;
-  memory = memoryDrafts.filter(d => d.content.trim()).map(d => ({
-    id: genId(), content: d.content.trim(), time: timeStr(), createdAt: Date.now(),
-    layer: 'active', type: d.type, emotion: d.emotion, tags: d.tags, starred: false, order: null
-  }));
+  const oldCreatedAt = new Map(memory.map(m => [m.id, m.createdAt]));
+  memory = memoryDrafts.filter(d => d.content.trim()).map(d => {
+    const sourceTimes = (d.sourceIds || []).map(id => oldCreatedAt.get(id)).filter(t => t != null);
+    const createdAt = sourceTimes.length > 0 ? Math.min(...sourceTimes) : Date.now();
+    return {
+      id: genId(), content: d.content.trim(), time: timeStr(), createdAt,
+      layer: 'active', type: d.type, emotion: d.emotion, tags: d.tags, starred: false, order: null
+    };
+  });
   persistMemory(); memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = [];
   memoryDetailType = null; renderMemoryList(); showToast('记忆库已整理');
 });
@@ -2387,18 +2433,19 @@ function getMemoryFreshnessRatio(m) {
 }
 function buildMemoryInjection() {
   let content = '';
+  const withAge = m => m.content + '（' + formatMemoryAge(m.createdAt) + '）';
   const youMem = getTopByType('you', 8);
   const usMem = getTopByType('us', 8);
-  if (youMem.length > 0) content += '\n\n【关于你】\n' + youMem.map(m => m.content).join('\n');
-  if (usMem.length > 0) content += '\n\n【关于我们】\n' + usMem.map(m => m.content).join('\n');
+  if (youMem.length > 0) content += '\n\n【关于你】\n' + youMem.map(withAge).join('\n');
+  if (usMem.length > 0) content += '\n\n【关于我们】\n' + usMem.map(withAge).join('\n');
   const legacyMem = getTopByType('legacy', 5);
-  if (legacyMem.length > 0) content += '\n\n【其他记忆】\n' + legacyMem.map(m => m.content).join('\n');
+  if (legacyMem.length > 0) content += '\n\n【其他记忆】\n' + legacyMem.map(withAge).join('\n');
   const studyMem = getTopByType('study', 5);
-  if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(m => m.content).join('\n');
+  if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(withAge).join('\n');
   const nestMem = getTopByType('nest', 5);
-  if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(m => m.content).join('\n');
+  if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(withAge).join('\n');
   const liudengMem = getTopByType('liudeng', 5);
-  if (liudengMem.length > 0) content += '\n\n【留灯（私密房间的记忆）】\n' + liudengMem.map(m => m.content).join('\n');
+  if (liudengMem.length > 0) content += '\n\n【留灯（私密房间的记忆）】\n' + liudengMem.map(withAge).join('\n');
   return content;
 }
 
@@ -2794,12 +2841,29 @@ function buildMsgRow(msg, ctx) {
 function buildSelectCb(msg) {
   const cb = document.createElement('div'); cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : ''); cb.textContent = selectedIds.has(msg.id) ? '✓' : ''; return cb;
 }
+function buildTimeDividerRow(createdAt) {
+  const div = document.createElement('div'); div.className = 'msg-notice'; div.textContent = formatTimeDivider(createdAt); return div;
+}
+function shouldShowTimeDivider(prevMsg, curMsg) {
+  if (!prevMsg || !curMsg || curMsg.createdAt == null || prevMsg.createdAt == null) return false;
+  return (curMsg.createdAt - prevMsg.createdAt) >= MSG_GAP_DIVIDER_MS;
+}
 function renderAllMessages() {
   chatScroll.innerHTML = '';
-  messages.forEach(msg => chatScroll.appendChild(buildMsgRow(msg, mainCtx)));
+  let prev = null;
+  messages.forEach(msg => {
+    if (msg.role !== 'notice') {
+      if (shouldShowTimeDivider(prev, msg)) chatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+      prev = msg;
+    }
+    chatScroll.appendChild(buildMsgRow(msg, mainCtx));
+  });
   if (!selectMode) scrollToBottom(chatScroll, 'page-chat');
 }
 function appendMessage(msg) {
+  let prev = null;
+  for (let i = messages.length - 2; i >= 0; i--) { if (messages[i].role !== 'notice') { prev = messages[i]; break; } }
+  if (shouldShowTimeDivider(prev, msg)) chatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
   const row = buildMsgRow(msg, mainCtx); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
 }
 function scrollToBottom(container, pageId) { requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
@@ -2826,17 +2890,25 @@ function renderSplitBubbles(parts, i) {
   showThinkingRow(chatScroll, 'page-chat');
   setTimeout(() => {
     removeThinkingRow();
-    const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr(), archived:false };
+    const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr(), createdAt: Date.now(), archived:false };
     messages.push(msg); persistMessages(); appendMessage(msg); renderSplitBubbles(parts, i + 1);
   }, 600 + Math.random() * 300);
 }
 function renderSubChatMessages() {
   subchatScroll.innerHTML = '';
   const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
-  sc.messages.forEach(msg => subchatScroll.appendChild(buildMsgRow(msg, subCtx)));
+  let prev = null;
+  sc.messages.forEach(msg => {
+    if (shouldShowTimeDivider(prev, msg)) subchatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+    subchatScroll.appendChild(buildMsgRow(msg, subCtx));
+    prev = msg;
+  });
   scrollToBottom(subchatScroll, 'page-subchat');
 }
 function appendSubChatMessage(msg) {
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  const prev = sc && sc.messages.length >= 2 ? sc.messages[sc.messages.length - 2] : null;
+  if (shouldShowTimeDivider(prev, msg)) subchatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
   const row = buildMsgRow(msg, subCtx); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
 }
 
@@ -3222,6 +3294,17 @@ function buildApiContent(m) {
   }
   return text;
 }
+// 间隔提示只基于两条历史消息各自固定不变的 createdAt 算出，生成后永远不变，
+// 可以放进 apiMessages 本身而不必进每次都变的 dynamicTail，不会打断 cache_control 断点
+function buildApiContentWithGap(m, prevM) {
+  const content = buildApiContent(m);
+  if (!prevM || m.createdAt == null || prevM.createdAt == null) return content;
+  const gap = m.createdAt - prevM.createdAt;
+  if (gap < MSG_GAP_DIVIDER_MS) return content;
+  const note = '[间隔提示：距上一条消息过去了' + formatGapText(gap) + ']\n';
+  if (typeof content === 'string') return note + content;
+  return [{ type: 'text', text: note }, ...content];
+}
 
 /* ============================================================
 统一请求封装：OpenAI 兼容格式 与 Claude 原生格式（含 prompt caching）
@@ -3373,7 +3456,7 @@ async function callAPI(rerollTarget) {
   let sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx).filter(m => m.role !== 'notice') : allReal;
   sourceMsgs = filterByTopicStart(sourceMsgs);
   const { windowMsgs } = splitWindow(sourceMsgs);
-  const apiMessages = windowMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
+  const apiMessages = windowMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, windowMsgs[i - 1]) }));
   const userText = getLatestUserText();
   // 记忆/时间/日记经常变化，不进入 system 缓存块，作为 tailText 每次实时拼接，
   // 避免打断 persona 和历史消息上的 cache_control 断点
@@ -3391,7 +3474,7 @@ async function callAPI(rerollTarget) {
     if (!aiRow) { aiRow = appendMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), archived:false, thinking:'' };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), archived:false, thinking:'' };
     messages.push(aiMsg); persistMessages(); aiRow = appendMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
@@ -3461,7 +3544,7 @@ async function callSubChatAPI(rerollTarget) {
   const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
   const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
-  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
+  const apiMessages = sourceMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, sourceMsgs[i - 1]) }));
   const systemBlocks = [{ text: sc.preset ? sc.preset.trim() : '', cache: true }];
 
   const isReroll = !!rerollTarget;
@@ -3471,7 +3554,7 @@ async function callSubChatAPI(rerollTarget) {
     if (!aiRow) { aiRow = appendSubChatMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), thinking:'' };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
     sc.messages.push(aiMsg); persistSubChats(); aiRow = appendSubChatMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
@@ -3759,7 +3842,12 @@ function renderSecretSessionMessages() {
   const scrollEl = document.getElementById('secretSessionScroll'); scrollEl.innerHTML = '';
   const room = getCurrentSecretRoom(); if (!room) return;
   const session = getActiveSession(room);
-  session.messages.forEach(msg => scrollEl.appendChild(buildMsgRow(msg, secretCtx)));
+  let prev = null;
+  session.messages.forEach(msg => {
+    if (shouldShowTimeDivider(prev, msg)) scrollEl.appendChild(buildTimeDividerRow(msg.createdAt));
+    scrollEl.appendChild(buildMsgRow(msg, secretCtx));
+    prev = msg;
+  });
   const oldBadge = document.querySelector('.secret-timer-badge'); if (oldBadge) oldBadge.remove();
   const badge = document.createElement('div'); badge.className = 'secret-timer-badge';
   const d = new Date(session.startTime);
@@ -3905,6 +3993,10 @@ async function runSecretSessionClosing(room, session) {
 ============================================================ */
 function appendSecretMessage(msg) {
   const scrollEl = document.getElementById('secretSessionScroll');
+  const room = getCurrentSecretRoom();
+  const session = room ? getActiveSession(room) : null;
+  const prev = session && session.messages.length >= 2 ? session.messages[session.messages.length - 2] : null;
+  if (shouldShowTimeDivider(prev, msg)) scrollEl.appendChild(buildTimeDividerRow(msg.createdAt));
   const row = buildMsgRow(msg, secretCtx); row.classList.add('bubble-in'); scrollEl.appendChild(row); scrollToBottom(scrollEl, 'page-secretsession'); return row;
 }
 async function callSecretAPI(rerollTarget) {
@@ -3914,7 +4006,7 @@ async function callSecretAPI(rerollTarget) {
   const session = getActiveSession(room);
   const rerollIdx = rerollTarget ? session.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? session.messages.slice(0, rerollIdx) : session.messages;
-  const apiMessages = sourceMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContent(m) }));
+  const apiMessages = sourceMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, sourceMsgs[i - 1]) }));
   // 私密房间沿用主聊天的人格设定，只是换了个地方聊；全局私密预设是所有房间通用的场景提示，房间自己的 preset 再叠加在最后
   const systemBlocks = [
     { text: appPersona ? appPersona.trim() : '', cache: true },
@@ -3931,7 +4023,7 @@ async function callSecretAPI(rerollTarget) {
     if (!aiRow) { aiRow = appendSecretMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), thinking:'' };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
     session.messages.push(aiMsg); persistSecretRooms(); aiRow = appendSecretMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
@@ -4008,7 +4100,7 @@ async function sendMessage() {
   if (!text && pendingAttachments.length === 0) return;
   const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
   const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
-  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), archived:false, quote: quotedMain || undefined };
+  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), createdAt: Date.now(), archived:false, quote: quotedMain || undefined };
   quotedMain = null; renderQuoteBar('main');
   messages.push(userMsg); persistMessages(); appendMessage(userMsg);
   textInput.value = ''; textInput.style.height = 'auto';
@@ -4032,7 +4124,7 @@ subchatTextInput.addEventListener('input', () => { subchatTextInput.style.height
 async function sendSubChatMessage() {
   const text = subchatTextInput.value.trim(); if (!text) return;
   const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
-  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), quote: quotedSub || undefined };
+  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), createdAt: Date.now(), quote: quotedSub || undefined };
   quotedSub = null; renderQuoteBar('sub');
   sc.messages.push(userMsg); persistSubChats(); appendSubChatMessage(userMsg);
   subchatTextInput.value = ''; subchatTextInput.style.height = 'auto';
@@ -4051,7 +4143,7 @@ async function sendSecretMessage() {
   const text = secretTextInput.value.trim(); if (!text) return;
   const room = getCurrentSecretRoom(); if (!room) return;
   const session = getActiveSession(room);
-  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), quote: quotedSecret || undefined };
+  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), createdAt: Date.now(), quote: quotedSecret || undefined };
   quotedSecret = null; renderQuoteBar('secret');
   session.messages.push(userMsg); persistSecretRooms(); appendSecretMessage(userMsg);
   secretTextInput.value = ''; secretTextInput.style.height = 'auto';
