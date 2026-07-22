@@ -72,3 +72,25 @@ export async function addComment(diaryId, comment) {
   comments.push({ ...comment, createdAt: Date.now() });
   return supabase.from('diaries').update({ comments }).eq('id', diaryId).select();
 }
+
+export async function updateMemory(id, fields) {
+  const payload = {};
+  if (fields.content != null) payload.content = fields.content;
+  if (fields.type != null) {
+    if (!MEMORY_TYPES.includes(fields.type)) {
+      throw new Error(`type 必须是 ${MEMORY_TYPES.join('/')} 之一，收到：${fields.type}`);
+    }
+    payload.type = fields.type;
+  }
+  if (fields.emotion != null) payload.emotion = clampEmotion(fields.emotion);
+  if (fields.tags != null) payload.tags = fields.tags;
+  return supabase.from('memories').update(payload).eq('id', id).select();
+}
+
+export async function deleteMemory(id) {
+  return supabase.from('memories').delete().eq('id', id);
+}
+
+// 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
+window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
+window.supabaseDiary = { addDiary, getDiaries, addComment };

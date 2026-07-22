@@ -1237,7 +1237,6 @@ const MEMORY_TYPE_CONFIG = [
 let memoryDetailType = null;
 
 const WINDOW_CHAR_LIMIT_DEFAULT = 6000;
-let archiving = false;
 
 const PRESET_GROUPS = [
   { key: 'persona', emoji: '🧬', name: '性格人设' },
@@ -1854,7 +1853,6 @@ function loadMessages() {
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
     if (m.role !== 'user' && m.role !== 'notice' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
-    if (m.archived === undefined) { m.archived = true; migrated = true; }
     if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
   });
   if (migrated) persistMessages();
@@ -2375,12 +2373,38 @@ function findBestMatchIndex(action) {
   }
   return -1;
 }
+// 本地记忆的 type 是内部键（you/us/study/nest/...），Supabase memories 表的 type 是中文枚举；只有这4类能同步云端
+const MEM_TYPE_TO_SUPABASE = { you: '生活', us: '关于我们', study: '学习', nest: '筑巢' };
+function syncMemoryAddToSupabase(entry) {
+  if (!window.supabaseMemory) return;
+  const sbType = MEM_TYPE_TO_SUPABASE[entry.type];
+  if (!sbType) { console.warn('记忆type无法映射到Supabase，跳过云端同步：', entry.type); return; }
+  window.supabaseMemory.addMemory(entry.content, sbType, entry.emotion, entry.tags)
+    .then(({ data, error }) => {
+      if (error) { console.warn('Supabase记忆写入失败', error); return; }
+      if (data && data[0]) { entry.sbId = data[0].id; persistMemory(); }
+    })
+    .catch(e => console.warn('Supabase记忆写入出错', e));
+}
+function syncMemoryEditToSupabase(entry) {
+  if (!window.supabaseMemory || !entry.sbId) return;
+  const sbType = MEM_TYPE_TO_SUPABASE[entry.type];
+  window.supabaseMemory.updateMemory(entry.sbId, { content: entry.content, type: sbType, emotion: entry.emotion, tags: entry.tags })
+    .then(({ error }) => { if (error) console.warn('Supabase记忆更新失败', error); })
+    .catch(e => console.warn('Supabase记忆更新出错', e));
+}
+function syncMemoryDeleteToSupabase(entry) {
+  if (!window.supabaseMemory || !entry.sbId) return;
+  window.supabaseMemory.deleteMemory(entry.sbId)
+    .then(({ error }) => { if (error) console.warn('Supabase记忆删除失败', error); })
+    .catch(e => console.warn('Supabase记忆删除出错', e));
+}
 function applyMemoryUpdate(action) {
   const act = action.action;
   if (act === 'add') {
     const layer = action.layer === 'long' ? 'long' : 'active';
     const entry = { id: genId(), content: action.content || '', time: timeStr(), createdAt: Date.now(), layer, type: normalizeMemType(action.type), emotion: normalizeMemEmotion(action.emotion), tags: normalizeMemTags(action.tags) };
-    memory.push(entry); return;
+    memory.push(entry); syncMemoryAddToSupabase(entry); return;
   }
   if (act === 'edit') {
     const idx = findBestMatchIndex(action); if (idx === -1) { showToast('未找到要编辑的记忆'); return; }
@@ -2388,9 +2412,9 @@ function applyMemoryUpdate(action) {
     if (action.type) memory[idx].type = normalizeMemType(action.type);
     if (action.emotion != null) memory[idx].emotion = normalizeMemEmotion(action.emotion);
     if (action.tags) memory[idx].tags = normalizeMemTags(action.tags);
-    memory[idx].time = timeStr(); return;
+    memory[idx].time = timeStr(); syncMemoryEditToSupabase(memory[idx]); return;
   }
-  if (act === 'delete') { const idx = findBestMatchIndex(action); if (idx !== -1) memory.splice(idx, 1); return; }
+  if (act === 'delete') { const idx = findBestMatchIndex(action); if (idx !== -1) { syncMemoryDeleteToSupabase(memory[idx]); memory.splice(idx, 1); } return; }
   if (act === 'promote') { const idx = findBestMatchIndex(action); if (idx === -1) { showToast('未找到要升格的记忆'); return; } memory[idx].layer = 'long'; return; }
   if (act === 'demote') { const idx = findBestMatchIndex(action); if (idx === -1) { showToast('未找到要降级的记忆'); return; } memory[idx].layer = 'active'; return; }
 }
@@ -2467,10 +2491,19 @@ function pushChatNotice(text) {
 }
 function applyDiaryAction(action) {
   if (action.action === 'write') {
-    diaries.push({ id: genId(), author: 'ranjun', text: action.content || '', time: fullTimeStr(), createdAt: Date.now(), comments: [], mood: action.mood || '', fav: false, ranjunRead: true });
+    const entry = { id: genId(), author: 'ranjun', text: action.content || '', time: fullTimeStr(), createdAt: Date.now(), comments: [], mood: action.mood || '', fav: false, ranjunRead: true };
+    diaries.push(entry);
     persistDiaries(); renderDiaries();
     pushChatNotice(`然竣偷偷写了篇日记 · ${fullTimeStr()}`);
     showToast('你家猫偷跑去写日记了');
+    if (window.supabaseDiary) {
+      window.supabaseDiary.addDiary('然竣', entry.mood, entry.text)
+        .then(({ data, error }) => {
+          if (error) { console.warn('Supabase日记写入失败', error); return; }
+          if (data && data[0]) { entry.sbId = data[0].id; persistDiaries(); }
+        })
+        .catch(e => console.warn('Supabase日记写入出错', e));
+    }
   } else if (action.action === 'comment') {
     let target = null;
     if (action.target) { target = diaries.find(d => d.id === action.target) || diaries.find(d => d.text && d.text.includes(action.target)); }
@@ -2481,6 +2514,11 @@ function applyDiaryAction(action) {
       persistDiaries(); renderDiaries();
       pushChatNotice(`然竣在你的日记下留了言 · ${fullTimeStr()}`);
       showToast('你家猫在你的日记下留了言');
+      if (window.supabaseDiary && target.sbId) {
+        window.supabaseDiary.addComment(target.sbId, { author: 'ranjun', text: action.content || '' })
+          .then(({ error }) => { if (error) console.warn('Supabase评论写入失败', error); })
+          .catch(e => console.warn('Supabase评论写入出错', e));
+      }
     }
   }
 }
@@ -2574,69 +2612,6 @@ function splitWindow(msgArray) {
   }
   return { windowMsgs: msgArray.slice(startIdx), overflowMsgs: msgArray.slice(0, startIdx) };
 }
-const ARCHIVE_BATCH_SIZE = 30;
-async function tryArchiveOnce(msgsToArchive) {
-  const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) return { ok: false, retry: false };
-  const transcript = msgsToArchive
-    .map(m => (m.role === 'user' ? appUsername : appName) + '：' + getMsgDisplayText(m))
-    .filter(line => line.trim())
-    .join('\n');
-  if (!transcript.trim()) { msgsToArchive.forEach(m => m.archived = true); persistMessages(); return { ok: true, retry: false }; }
-  const sysPrompt = `你是一个记忆归档助手，唯一任务是阅读下面这段${appUsername}和${appName}的对话记录，提取值得长期记住的关键信息（生活、情绪、喜好、约定、学习相关内容），忽略纯闲聊和废话。不要续写对话，不要扮演${appName}回复，不要输出任何问候或评论。
-
-${appName}的性格设定：
-${appPersona}
-
-如果有值得记住的内容，每条严格用下面格式单独一行输出：
-[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","emotion":1到5的整数,"tags":["关键词"]}]
-content 必须写成${appName}自己的第一人称语气（"我记得…/我觉得…"），按上面那段性格设定的说话习惯来写，可以带点碎碎念或小情绪，不要写成旁观者转述对话内容。
-
-如果没有值得记录的内容，什么都不要输出。除了上述标记行，不要输出任何其他文字。`;
-  const apiMsgs = [{ role: 'user', content: `以下是一段对话记录：\n\n${transcript}` }];
-  try {
-    const useNative = isClaudeNative(cfg);
-    const req = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: sysPrompt, cache: false }], stream: false });
-    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
-    if (!res.ok) {
-      const bodyText = await res.text().catch(() => '');
-      console.warn('归档请求失败', res.status, bodyText);
-      return { ok: false, retry: res.status >= 500 || res.status === 429 };
-    }
-    const json = await res.json();
-    const raw = parseChatNonStream(json, useNative).text;
-    const { actions } = extractMemoryMarkers(raw);
-    if (actions.length === 0) {
-      console.warn('归档响应未包含记忆标记（判定为prompt/格式问题，不重试）：', raw.slice(0, 200));
-      msgsToArchive.forEach(m => m.archived = true); persistMessages();
-      return { ok: true, retry: false };
-    }
-    actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList();
-    msgsToArchive.forEach(m => m.archived = true); persistMessages();
-    showToast('家猫悄悄把这段对话记进了脑子里');
-    return { ok: true, retry: false };
-  } catch(e) { console.warn('归档请求出错', e); return { ok: false, retry: true }; }
-}
-async function runArchive(msgsToArchive) {
-  let result = await tryArchiveOnce(msgsToArchive);
-  if (!result.ok && result.retry) {
-    await new Promise(r => setTimeout(r, 2500));
-    result = await tryArchiveOnce(msgsToArchive);
-  }
-  if (!result.ok) showToast('归档失败，稍后自动重试', 3000);
-}
-async function checkAutoArchive() {
-  if (archiving) return;
-  const real = messages.filter(m => m.role !== 'notice');
-  const { overflowMsgs } = splitWindow(real);
-  const unarchived = overflowMsgs.filter(m => !m.archived);
-  const totalChars = unarchived.reduce((s,m) => s + getMsgCharLen(m), 0);
-  if (totalChars < 3000 || unarchived.length === 0) return;
-  const batch = unarchived.slice(0, ARCHIVE_BATCH_SIZE);
-  archiving = true;
-  try { await runArchive(batch); } finally { archiving = false; }
-}
-
 /* ============================================================
 token估算
 ============================================================ */
@@ -2890,7 +2865,7 @@ function renderSplitBubbles(parts, i) {
   showThinkingRow(chatScroll, 'page-chat');
   setTimeout(() => {
     removeThinkingRow();
-    const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr(), createdAt: Date.now(), archived:false };
+    const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr(), createdAt: Date.now() };
     messages.push(msg); persistMessages(); appendMessage(msg); renderSplitBubbles(parts, i + 1);
   }, 600 + Math.random() * 300);
 }
@@ -3474,7 +3449,7 @@ async function callAPI(rerollTarget) {
     if (!aiRow) { aiRow = appendMessage(aiMsg); }
     aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), archived:false, thinking:'' };
+    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
     messages.push(aiMsg); persistMessages(); aiRow = appendMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
     aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
   }
@@ -3504,12 +3479,12 @@ async function callAPI(rerollTarget) {
     if (!isReroll && cleanText.includes('[splitmsg]')) {
       const parts = cleanText.split('[splitmsg]').map(p => p.trim()).filter(p => p.length > 0);
       const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages();
-      if (parts.length > 0) renderSplitBubbles(parts, 0); checkAutoArchive(); refreshTokenEstimate(); return;
+      if (parts.length > 0) renderSplitBubbles(parts, 0); refreshTokenEstimate(); return;
     }
     if (isReroll) { const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText; aiMsg.versions.push(joined); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.text = joined; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
-    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.archived = false; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
     persistMessages(); refreshRow(aiMsg, mainCtx); scrollToBottom(chatScroll, 'page-chat');
-    checkAutoArchive(); refreshTokenEstimate();
+    refreshTokenEstimate();
   }
 
   try {
@@ -4100,7 +4075,7 @@ async function sendMessage() {
   if (!text && pendingAttachments.length === 0) return;
   const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
   const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
-  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), createdAt: Date.now(), archived:false, quote: quotedMain || undefined };
+  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), createdAt: Date.now(), quote: quotedMain || undefined };
   quotedMain = null; renderQuoteBar('main');
   messages.push(userMsg); persistMessages(); appendMessage(userMsg);
   textInput.value = ''; textInput.style.height = 'auto';
@@ -4181,7 +4156,6 @@ renderAllMessages();
 renderMemoryList();
 renderSubChatSidebarList();
 applyGlobalNames();
-checkAutoArchive();
 </script>
 <script type="module" src="supabase.js"></script>
 </body>
