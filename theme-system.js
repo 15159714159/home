@@ -5,9 +5,31 @@
 
   const PRESETS = [
     {
+      id: 'cream-paper',
+      name: '米白纸感',
+      desc: '默认 · 奶油白 · 墨绿点缀',
+      vars: {
+        '--bg': '#FDFCF0',
+        '--bg-2': '#EDE4D3',
+        '--paper': '#F7F2E8',
+        '--paper-2': '#EDE4D3',
+        '--ink': '#3A3530',
+        '--ink-2': '#5C5347',
+        '--ink-3': '#8A8070',
+        '--ink-4': '#B0A590',
+        '--line': 'rgba(180,165,140,0.3)',
+        '--line-2': 'rgba(160,140,110,0.5)',
+        '--accent': '#2F4F4F',
+        '--accent-2': '#3D6363',
+        '--rose': '#B98B73',
+        '--rose-deep': '#8F6650',
+        '--gold': '#B8935A',
+      },
+    },
+    {
       id: 'moonlight-purple',
       name: '月光紫',
-      desc: '默认 · 冷紫 · 略带粉气',
+      desc: '冷紫 · 略带粉气',
       vars: {
         '--bg': '#f4f3f7',
         '--paper': '#ffffff',
@@ -93,12 +115,12 @@
   }
 
   const FALLBACK = {
-    accent: '#6e4f9a',
-    rose: '#d291b3',
-    gold: '#d4a85f',
-    bg: '#f4f3f7',
-    paper: '#ffffff',
-    ink: '#1a1922',
+    accent: '#2F4F4F',
+    rose: '#B98B73',
+    gold: '#B8935A',
+    bg: '#FDFCF0',
+    paper: '#F7F2E8',
+    ink: '#3A3530',
   };
 
   const DARK_FALLBACK = {

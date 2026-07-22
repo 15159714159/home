@@ -7,24 +7,30 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const MEMORY_TYPES = ['生活', '关于我们', '学习', '筑巢'];
+const MEMORY_TYPES = ['侧写', '共鸣', '学业', '造巢'];
 const DIARY_AUTHORS = ['然竣', 'ao'];
 
-function clampEmotion(emotion) {
-  const n = parseInt(emotion, 10);
-  if (isNaN(n)) return 2;
-  return Math.min(5, Math.max(1, n));
+function clampImportance(importance) {
+  const n = parseInt(importance, 10);
+  if (isNaN(n)) return 5;
+  return Math.min(10, Math.max(1, n));
 }
 
-export async function addMemory(content, type, emotion, tags) {
+export async function addMemory(content, type, importance, flags, source, tags) {
   if (!MEMORY_TYPES.includes(type)) {
     throw new Error(`type 必须是 ${MEMORY_TYPES.join('/')} 之一，收到：${type}`);
   }
   const now = new Date().toISOString();
+  const f = flags || {};
   return supabase.from('memories').insert({
     content,
     type,
-    emotion: clampEmotion(emotion),
+    importance: clampImportance(importance),
+    protected: !!f.protected,
+    highlight: !!f.highlight,
+    feel: !!f.feel,
+    noise: !!f.noise,
+    source: source || 'manual',
     tags: tags || [],
     last_accessed: now
   }).select();
@@ -82,7 +88,12 @@ export async function updateMemory(id, fields) {
     }
     payload.type = fields.type;
   }
-  if (fields.emotion != null) payload.emotion = clampEmotion(fields.emotion);
+  if (fields.importance != null) payload.importance = clampImportance(fields.importance);
+  if (fields.protected != null) payload.protected = !!fields.protected;
+  if (fields.highlight != null) payload.highlight = !!fields.highlight;
+  if (fields.feel != null) payload.feel = !!fields.feel;
+  if (fields.noise != null) payload.noise = !!fields.noise;
+  if (fields.source != null) payload.source = fields.source;
   if (fields.tags != null) payload.tags = fields.tags;
   return supabase.from('memories').update(payload).eq('id', id).select();
 }
