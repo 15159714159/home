@@ -2374,8 +2374,13 @@ function findBestMatchIndex(action) {
   }
   return -1;
 }
-// 本地记忆的 type 是内部键（you/us/study/nest/...），Supabase memories 表的 type 是中文枚举；只有这4类能同步云端
-const MEM_TYPE_TO_SUPABASE = { you: '生活', us: '关于我们', study: '学习', nest: '筑巢' };
+// 本地记忆的 type 是内部键（you/us/study/nest/legacy/liudeng），Supabase memories 表的 type 只有4个中文枚举；
+// legacy/liudeng 没有对应分类，统一归到"生活"，保证所有本地记忆都能同步云端
+const MEM_TYPE_TO_SUPABASE = { you: '生活', us: '关于我们', study: '学习', nest: '筑巢', legacy: '生活', liudeng: '生活' };
+// 反向映射只用于"云端有、本地没有"的记忆合并进本地列表时的分类兜底，映射本身是有损的（多个本地type共享一个中文枚举），
+// 仅作为展示分类的合理默认值，不影响已存在本地记忆的原始type
+const SUPABASE_TYPE_TO_MEM = { '生活': 'you', '关于我们': 'us', '学习': 'study', '筑巢': 'nest' };
+const LS_MEMORY_MIGRATED = 'nest_memory_migrated_v1';
 function syncMemoryAddToSupabase(entry) {
   if (!window.supabaseMemory) return;
   const sbType = MEM_TYPE_TO_SUPABASE[entry.type];
@@ -2423,6 +2428,66 @@ function processMemoryMarkers(rawText) {
   const { cleanText, actions } = extractMemoryMarkers(rawText);
   if (actions.length > 0) { actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList(); showToast('记忆已更新'); }
   return cleanText;
+}
+
+/* ============================================================
+记忆迁移 / 云端读取同步
+============================================================ */
+// 一次性迁移：把 localStorage 里现存的记忆条目逐条写入 Supabase，用 content 去重避免重复写入。
+// 迁移完成后设置 LS_MEMORY_MIGRATED 标记，之后加载不再重复执行。
+async function migrateLocalToSupabase() {
+  if (localStorage.getItem(LS_MEMORY_MIGRATED)) return;
+  if (!window.supabaseMemory) return;
+  const { data: existing, error: fetchErr } = await window.supabaseMemory.getMemories(null, 1000);
+  if (fetchErr) { console.warn('迁移前拉取Supabase记忆失败，本次跳过迁移，下次加载再试', fetchErr); return; }
+  const existingByContent = new Map((existing || []).map(m => [m.content, m]));
+  let written = 0, skipped = 0;
+  for (const m of memory) {
+    const dup = existingByContent.get(m.content);
+    if (dup) { m.sbId = m.sbId || dup.id; skipped++; continue; }
+    const sbType = MEM_TYPE_TO_SUPABASE[m.type] || '生活';
+    try {
+      const { data, error } = await window.supabaseMemory.addMemory(m.content, sbType, m.emotion, m.tags);
+      if (error) { console.warn('迁移记忆写入失败', error, m); skipped++; continue; }
+      if (data && data[0]) { m.sbId = data[0].id; existingByContent.set(m.content, data[0]); }
+      written++;
+    } catch(e) { console.warn('迁移记忆写入出错', e, m); skipped++; }
+  }
+  persistMemory();
+  localStorage.setItem(LS_MEMORY_MIGRATED, '1');
+  console.log(`记忆迁移完成：写入${written}条，跳过${skipped}条`);
+}
+function supabaseRowToMemoryItem(row) {
+  const createdAt = row.created_at ? new Date(row.created_at).getTime() : Date.now();
+  return { id: genId(), sbId: row.id, content: row.content, time: timeStr(), createdAt, layer: 'active', type: SUPABASE_TYPE_TO_MEM[row.type] || 'legacy', emotion: row.emotion || 2, tags: row.tags || [], starred: false, order: null };
+}
+// 页面加载优先用 Supabase 数据构建记忆注入；拉取失败时保留 loadMemory() 已读到的 localStorage 数据不动（离线兜底）；
+// 拉取成功则合并回本地数组并重新持久化，作为下次离线使用的缓存
+async function refreshMemoryFromSupabase() {
+  if (!window.supabaseMemory) return;
+  try {
+    const { data, error } = await window.supabaseMemory.getMemories(null, 500);
+    if (error) { console.warn('Supabase记忆拉取失败，使用本地缓存', error); return; }
+    if (!Array.isArray(data)) return;
+    const bySbId = new Map();
+    memory.forEach(m => { if (m.sbId) bySbId.set(m.sbId, m); });
+    const merged = data.map(row => {
+      const localMatch = bySbId.get(row.id);
+      if (localMatch) {
+        localMatch.content = row.content; localMatch.emotion = row.emotion || 2;
+        localMatch.tags = row.tags || []; localMatch.type = SUPABASE_TYPE_TO_MEM[row.type] || localMatch.type;
+        return localMatch;
+      }
+      return supabaseRowToMemoryItem(row);
+    });
+    const localOnly = memory.filter(m => !m.sbId);
+    memory = [...merged, ...localOnly];
+    persistMemory(); renderMemoryList(); refreshTokenEstimate();
+  } catch(e) { console.warn('Supabase记忆拉取出错，使用本地缓存', e); }
+}
+async function initSupabaseMemorySync() {
+  await migrateLocalToSupabase();
+  await refreshMemoryFromSupabase();
 }
 
 /* ============================================================
@@ -4158,6 +4223,9 @@ renderAllMessages();
 renderMemoryList();
 renderSubChatSidebarList();
 applyGlobalNames();
+// supabase.js 是 type="module"，会在文档解析完、DOMContentLoaded 之前执行，
+// 所以在 DOMContentLoaded 里调用能保证 window.supabaseMemory 已经挂好
+window.addEventListener('DOMContentLoaded', () => { initSupabaseMemorySync(); });
 </script>
 <script type="module" src="supabase.js"></script>
 </body>
