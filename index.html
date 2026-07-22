@@ -2350,7 +2350,8 @@ function extractMemoryMarkers(text) {
   const regex = /\[memory_update:\s*(\{[\s\S]*?\})\]/g;
   const actions = [];
   const cleanText = text.replace(regex, (match, jsonStr) => {
-    try { actions.push(JSON.parse(jsonStr)); } catch(e) { console.warn('memory marker解析失败', e, jsonStr); }
+    const sanitized = jsonStr.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+    try { actions.push(JSON.parse(sanitized)); } catch(e) { console.warn('memory marker解析失败', e, jsonStr); }
     return '';
   }).trim();
   return { cleanText, actions };
@@ -2480,7 +2481,8 @@ function extractDiaryMarkers(text) {
   const regex = /\[diary:\s*(\{[\s\S]*?\})\]/g;
   const actions = [];
   const cleanText = text.replace(regex, (match, jsonStr) => {
-    try { actions.push(JSON.parse(jsonStr)); } catch(e) { console.warn('diary marker解析失败', e, jsonStr); }
+    const sanitized = jsonStr.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+    try { actions.push(JSON.parse(sanitized)); } catch(e) { console.warn('diary marker解析失败', e, jsonStr); }
     return '';
   }).trim();
   return { cleanText, actions };
