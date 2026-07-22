@@ -149,9 +149,6 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.15s ease;
 }
 .side-new-btn:active { transform: scale(0.97); background: var(--bg-hover); }
 
-.side-secret-entry { display:flex; align-items:center; gap:8px; padding:10px 10px; border-radius:10px; cursor:pointer; color:var(--text-tertiary); font-size:13px; transition: background .15s ease, transform .15s cubic-bezier(.34,1.56,.64,1); }
-.side-secret-entry:active { background:var(--bg-hover); transform:scale(0.98); }
-.side-secret-entry svg { width:14px; height:14px; flex-shrink:0; }
 
 .side-footer {
 position: sticky; bottom: 0; margin: 16px -20px 0 -20px; padding: 10px 20px calc(env(safe-area-inset-bottom, 0px) + 14px) 20px;
@@ -282,90 +279,12 @@ border-bottom: 1px solid var(--border-color); transition: background 0.12s ease,
 .setting-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: var(--border-strong); outline: none; }
 .setting-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--bg-surface); box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; }
 
-.memory-header { padding: 20px 20px 6px 20px; }
-.memory-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); }
-.memory-stats { font-size: 12px; color: var(--text-tertiary); }
-.memory-hint { font-size: 11px; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
-.memory-list { padding: 0 16px; }
-.memory-grid-top { display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding: 6px 16px 8px 16px; }
-.memory-grid-bottom { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; padding: 0 16px 20px 16px; }
-.memory-card-big {
-aspect-ratio: 1/1; background:var(--bg-elevated); border-radius:18px; display:flex; flex-direction:column;
-align-items:center; justify-content:center; gap:6px; cursor:pointer; border:1px solid var(--border-color);
-transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s ease;
-}
-.memory-card-big:active { transform:scale(0.96); background:var(--bg-hover); }
-.memory-card-big .memory-card-emoji { font-size:30px; }
-.memory-card-big .memory-card-label { font-size:14px; font-weight:600; color:var(--text-primary); }
-.memory-card-big .memory-card-count { font-size:11px; color:var(--text-faint); }
-.memory-card-small {
-aspect-ratio: 1/1; background:var(--bg-elevated); border-radius:14px; display:flex; flex-direction:column;
-align-items:center; justify-content:center; gap:4px; cursor:pointer; border:1px solid var(--border-color);
-transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s ease;
-}
-.memory-card-small:active { transform:scale(0.94); background:var(--bg-hover); }
-.memory-card-small .memory-card-emoji { font-size:22px; }
-.memory-card-small .memory-card-label { font-size:11.5px; font-weight:600; color:var(--text-secondary); text-align:center; }
-.memory-card-small .memory-card-count { font-size:10px; color:var(--text-faint); }
-.memory-detail-header { display:flex; align-items:center; gap:10px; padding: 8px 16px 12px 16px; }
-.memory-back-arrow { font-size:22px; color:var(--text-tertiary); cursor:pointer; padding:0 4px; line-height:1; }
-.memory-detail-title { font-size:15px; font-weight:700; color:var(--text-primary); }
-.memory-item {
-display: flex; align-items: flex-start; justify-content: space-between;
-background: var(--bg-elevated); border-radius: 10px; padding: 9px 10px 9px 12px; margin-bottom: 8px;
-gap: 8px; transition: background .15s ease;
-}
-.memory-content-wrap { flex: 1; min-width: 0; }
-.memory-content { font-size: 13px; line-height: 1.55; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
-.memory-content.collapsed {
-display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-overflow: hidden; white-space: normal;
-}
-.memory-expand-btn { font-size: 11px; color: var(--text-tertiary); cursor: pointer; display: inline-block; margin-top: 3px; }
-.memory-meta { font-size: 10.5px; color: var(--text-faint); margin-top: 6px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-.memory-meta-tags { display: flex; align-items: center; gap: 7px; }
-.memory-heart { color: #ff8fa8; font-size: 11px; }
-.memory-freshness-bar-wrap { width: 100%; height: 4px; border-radius: 2px; background: var(--border-strong); overflow: hidden; flex-shrink: 0; }
-.memory-freshness-bar { height: 100%; border-radius: 2px; background: var(--text-tertiary); }
-.memory-edit-area {
-width: 100%; font-size: 16px; line-height: 1.5; font-family: inherit; border: 1px solid var(--border-strong);
-border-radius: 8px; padding: 6px 8px; resize: vertical; min-height: 60px; outline: none; background: var(--bg-surface); color: var(--text-primary);
-}
-.memory-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-.mem-btn {
-background: none; border: none; font-size: 13px; color: var(--text-tertiary); cursor: pointer; padding: 2px;
-transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
-}
-.mem-btn:active { transform: scale(0.85); opacity: 0.7; }
-.mem-btn.star-btn { color: #f5b942; font-size: 15px; }
-.mem-btn.more-btn { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
 .action-sheet-item { padding: 15px 4px; font-size: 15px; text-align: center; border-bottom: 1px solid var(--border-color); cursor: pointer; color: var(--text-primary); }
 .action-sheet-item:active { background: var(--bg-hover); }
 .action-sheet-item:last-child { border-bottom: none; }
 .action-sheet-item.danger { color: var(--danger); }
 .action-sheet-cancel { margin-top: 8px; padding: 15px 4px; text-align: center; font-size: 15px; color: var(--text-tertiary); cursor: pointer; }
 .action-sheet-cancel:active { opacity: 0.7; }
-.memory-drag-handle { color: var(--text-faint); font-size: 15px; padding: 2px 4px 2px 0; cursor: grab; flex-shrink: 0; touch-action: none; }
-.memory-item-placeholder { border: 2px dashed var(--border-strong); border-radius: 10px; background: var(--bg-subtle); margin-bottom: 8px; }
-.memory-empty { text-align: center; color: var(--text-faint); font-size: 13px; padding: 14px 0; }
-.memory-add-btn {
-display: block; margin: 10px 16px 20px 16px; width: calc(100% - 32px);
-background: var(--accent); color: var(--accent-text); border: none; border-radius: 10px; padding: 10px;
-font-size: 14px; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
-}
-.memory-add-btn:active { transform: scale(0.97); opacity: 0.85; }
-.reorganize-live-wrap {
-  border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-elevated);
-  padding: 10px 12px; margin: 10px 16px 20px 16px; display: none;
-}
-.reorganize-live-wrap.show { display: block; }
-.reorganize-live-status { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; }
-.reorganize-live-text {
-  font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.5; color: var(--text-secondary);
-  white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; margin: 0;
-}
-.reorganize-live-actions { display: none; gap: 8px; margin-top: 10px; }
-.reorganize-live-actions.show { display: flex; }
 
 .space-section { padding: 24px 20px; }
 .space-section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; margin-top: 4px; color: var(--text-primary); }
@@ -718,83 +637,114 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 }
 #clearChatTitle { text-align: center; }
 
-.msg-time, .diary-time, .side-days, #tokenEstimateLabel, .version-label, .plan-progress-text, .memory-card-count, .memory-stats {
+.msg-time, .diary-time, .side-days, #tokenEstimateLabel, .version-label, .plan-progress-text {
   font-variant-numeric: tabular-nums;
 }
 
-/* ============ 私密区 ============ */
-#secretPinOverlay {
-  position: fixed; inset: 0; background: #1c1c1e; z-index: 60;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none; transition: opacity 0.25s;
-}
-#secretPinOverlay.show { opacity: 1; pointer-events: auto; }
-.pin-panel { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 20px; }
-.pin-title { color: #ddd; font-size: 15px; letter-spacing: 1px; }
-.pin-dots { display: flex; gap: 16px; }
-.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #666; transition: background 0.15s ease; }
-.pin-dot.filled { background: #e5e5e5; border-color: #e5e5e5; }
-.pin-dots.shake { animation: pinShake 0.3s ease; }
-@keyframes pinShake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-6px);} 80%{transform:translateX(6px);} }
-.pin-keypad { display: grid; grid-template-columns: repeat(3, 64px); gap: 18px; }
-.pin-key {
-width: 64px; height: 64px; border-radius: 50%; background: #2c2c2e; border: none;
-color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic-bezier(.34,1.56,.64,1), background 0.12s ease;
-}
-.pin-key:active { transform: scale(0.9); background: #3a3a3c; }
-.pin-key.pin-empty { background: transparent; cursor: default; }
-.pin-key.pin-empty:active { transform: none; background: transparent; }
-.pin-cancel { margin-top: 8px; color: #888; font-size: 13px; cursor: pointer; }
+/* ============================================================
+记忆管理页（page-log）：独立主题变量，只作用于本页容器，
+主聊天页的 --bg-app 等变量系统完全不受影响
+============================================================ */
+#page-log {
+  --bg: #f4f3f7; --bg-2: #ece9f0; --paper: #ffffff; --paper-2: #f4f1f7;
+  --ink: #1a1922; --ink-2: #4a4658; --ink-3: #6e6a80; --ink-4: #a7a2b8;
+  --line: rgba(26,25,34,0.08); --line-2: rgba(26,25,34,0.16);
+  --accent: #6e4f9a; --accent-2: #8c6db8; --accent-3: rgba(110,79,154,0.10);
+  --accent-a06: rgba(110,79,154,0.06); --accent-a08: rgba(110,79,154,0.08); --accent-a10: rgba(110,79,154,0.10);
+  --accent-a15: rgba(110,79,154,0.15); --accent-a20: rgba(110,79,154,0.20); --accent-a25: rgba(110,79,154,0.25);
+  --accent-a30: rgba(110,79,154,0.30); --accent-a40: rgba(110,79,154,0.40); --accent-a45: rgba(110,79,154,0.45);
+  --accent-a55: rgba(110,79,154,0.55); --accent-a60: rgba(110,79,154,0.60);
+  --rose: #d291b3; --rose-deep: #a8628c;
+  --rose-a08: rgba(210,145,179,0.08); --rose-a10: rgba(210,145,179,0.10); --rose-a12: rgba(210,145,179,0.12);
+  --rose-a18: rgba(210,145,179,0.18); --rose-a25: rgba(210,145,179,0.25); --rose-a28: rgba(210,145,179,0.28);
+  --rose-a30: rgba(210,145,179,0.30); --rose-a45: rgba(210,145,179,0.45); --rose-a55: rgba(210,145,179,0.55);
+  --rose-a80: rgba(210,145,179,0.80);
+  --gold: #d4a85f; --gold-soft: #e2c48c;
 
-.secret-dark { background: #1c1c1e !important; color: #e5e5e5 !important; }
-.secret-dark .memory-back-arrow, .secret-dark .secret-back-arrow { color: #aaa; }
-.secret-header { display:flex; align-items:center; gap:10px; padding: calc(env(safe-area-inset-top,20px) + 14px) 16px 14px 16px; }
-.secret-header-title { font-size:16px; font-weight:700; flex:1; }
-.secret-header-action { font-size: 20px; color:#999; cursor:pointer; padding:4px 8px; }
-.secret-room-list { padding: 4px 16px 20px 16px; }
-.secret-room-card {
-  background:#2c2c2e; border-radius:14px; padding:16px; margin-bottom:10px; cursor:pointer;
-  transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s ease;
+  background: var(--bg); color: var(--ink); padding: 14px 14px calc(env(safe-area-inset-bottom, 0px) + 80px) 14px;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
-.secret-room-card:active { transform: scale(0.98); background:#333335; }
-.secret-room-name { font-size:15px; font-weight:600; color:#eee; }
-.secret-room-sub { font-size:11.5px; color:#888; margin-top:4px; }
-.secret-add-room {
-  text-align:center; padding:14px; border-radius:14px; border:1px dashed #444;
-  color:#777; font-size:13px; cursor:pointer; margin-top:4px;
+.mm-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.mm-title { font-size: 20px; font-weight: 700; color: var(--ink); }
+.mm-header-actions { display: flex; gap: 6px; }
+.mm-icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--paper);
+  color: var(--ink); font-size: 16px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 1px 4px var(--line); transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-.secret-add-room:active { background:#2a2a2c; }
-.secret-session-scroll { padding: 8px 12px 90px 12px; }
-.secret-session-scroll .msg-row.user .msg-bubble { background:#3a3a3c; color:#eee; }
-.secret-session-scroll .msg-row.ai .msg-bubble { background:#2c2c2e; color:#eee; }
-.secret-session-scroll .msg-time { color:#777; }
-.secret-timer-badge {
-  position: fixed; right: 16px; bottom: 78px; font-size: 11px; color: rgba(201,168,106,0.85);
-  display: flex; align-items: center; gap: 4px; z-index: 5; pointer-events: none;
+.mm-icon-btn:active { transform: scale(0.9); opacity: 0.8; }
+.mm-search-row { margin-bottom: 10px; }
+.mm-search-input {
+  width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 20px; padding: 0 16px;
+  font-size: 14px; font-family: inherit; outline: none; background: var(--paper); color: var(--ink);
 }
-.secret-sealed-section { padding: 14px 12px 90px 12px; }
-.secret-sealed-title { font-size:12px; color:#777; margin: 10px 0 8px 4px; letter-spacing:0.5px; }
-.secret-sealed-card {
-  background:#232325; border-radius:12px; padding:12px 14px; margin-bottom:8px; cursor:pointer;
-  transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+.mm-search-input::placeholder { color: var(--ink-3); }
+.mm-filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.mm-filter-chip {
+  font-size: 12.5px; padding: 7px 14px; border-radius: 14px; background: var(--paper);
+  color: var(--ink-2); cursor: pointer; border: 1px solid var(--line);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
 }
-.secret-sealed-card:active { transform: scale(0.98); }
-.secret-sealed-time { font-size:11px; color:rgba(201,168,106,0.85); display:flex; align-items:center; gap:4px; margin-bottom:4px; }
-.secret-sealed-preview { font-size:12.5px; color:#999; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.secret-sealed-card.selectable { position: relative; padding-left: 40px; }
-.secret-sealed-check { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:16px; height:16px; border-radius:50%; border:1.5px solid #777; }
-.secret-sealed-check.checked { background:#c0392b; border-color:#c0392b; }
-.secret-delete-bar { position:fixed; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:space-between; padding: 12px 20px calc(env(safe-area-inset-bottom,10px) + 12px) 20px; background:#232325; border-top:1px solid #2c2c2e; z-index:50; }
-.secret-delete-bar span { font-size:14px; color:#ccc; cursor:pointer; }
-.secret-delete-bar span.danger { color:#e0554a; font-weight:600; }
-.secret-inputbar { background:#1c1c1e; border-top:1px solid #2c2c2e; }
-.secret-inputbar textarea { background:#2c2c2e; border:1px solid #3a3a3c; color:#eee; }
-.secret-inputbar button { background:#e5e5e5; color:#1c1c1e; }
-.secret-endnote { text-align:center; font-size:12px; color:#c9a86a; padding:10px 0 2px 0; }
-.secret-readonly-overlay .sheet-panel { background:#1c1c1e; max-height:88vh; }
-.secret-readonly-title { color:#eee; }
-.secret-readonly-body { color:#ddd; font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; padding-bottom: 10px; }
-.secret-readonly-record { margin-top:14px; padding-top:14px; border-top:1px solid #333; font-size:13px; color:#c9a86a; line-height:1.6; }
+.mm-filter-chip:active { transform: scale(0.94); }
+.mm-filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mm-timeline { display: flex; flex-direction: column; gap: 10px; }
+.mm-day-group { background: var(--paper); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 4px var(--line); }
+.mm-day-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+  cursor: pointer; user-select: none;
+}
+.mm-day-date { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.mm-day-count { font-size: 12px; color: var(--ink-3); }
+.mm-day-arrow { font-size: 12px; color: var(--ink-3); transition: transform 0.2s ease; margin-left: 8px; }
+.mm-day-group.collapsed .mm-day-arrow { transform: rotate(-90deg); }
+.mm-day-body { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 10px 10px; }
+.mm-day-group.collapsed .mm-day-body { display: none; }
+.mm-card { background: var(--paper-2); border-radius: 12px; padding: 12px 14px; }
+.mm-card-content { font-size: 14px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.mm-card-content.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mm-card-expand { font-size: 12px; color: var(--accent); cursor: pointer; margin-top: 4px; display: inline-block; }
+.mm-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.mm-type-pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; background: var(--accent-a15); color: var(--accent); }
+.mm-emotion { font-size: 12px; color: var(--rose); letter-spacing: 1px; }
+.mm-tags { font-size: 12px; color: var(--ink-3); }
+.mm-card-time { font-size: 11px; color: var(--ink-4); margin-left: auto; }
+.mm-decay-slot { font-size: 11px; color: var(--ink-4); }
+.mm-card-actions { display: flex; gap: 10px; margin-top: 8px; }
+.mm-card-btn { background: none; border: none; font-size: 12.5px; color: var(--ink-3); cursor: pointer; padding: 2px 4px; }
+.mm-card-btn:active { opacity: 0.6; }
+.mm-card-btn.danger { color: var(--danger); }
+.mm-edit-area {
+  width: 100%; font-size: 14px; line-height: 1.6; font-family: inherit; border: 1px solid var(--line-2);
+  border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 70px; outline: none;
+  background: var(--paper); color: var(--ink); margin-bottom: 6px;
+}
+.mm-edit-row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.mm-edit-select {
+  flex: 1; min-width: 90px; height: 32px; border: 1px solid var(--line-2); border-radius: 8px;
+  background: var(--paper); color: var(--ink); font-size: 13px; padding: 0 6px;
+}
+.mm-edit-input {
+  flex: 1; min-width: 90px; height: 32px; border: 1px solid var(--line-2); border-radius: 8px;
+  background: var(--paper); color: var(--ink); font-size: 13px; padding: 0 8px; font-family: inherit;
+}
+.mm-empty { text-align: center; color: var(--ink-4); font-size: 13px; padding: 30px 0; }
+.mm-add-btn {
+  position: sticky; bottom: 10px; margin-top: 14px; width: 100%; padding: 12px; border: none;
+  border-radius: 14px; background: var(--accent); color: #fff; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
+}
+.mm-add-btn:active { transform: scale(0.97); opacity: 0.9; }
+.mm-theme-sheet-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer;
+}
+.mm-theme-swatch { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+.mm-theme-info { flex: 1; }
+.mm-theme-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.mm-theme-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+.mm-theme-check { font-size: 16px; color: var(--text-primary); }
+
+
+
 </style>
 </head>
 <body>
@@ -826,11 +776,6 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
     <div class="side-days" id="daysCount">陪伴第 0 天</div>
   </div>
   <div class="side-nav-item active" data-nav="chat">主聊天</div>
-  <div class="side-divider"></div>
-  <div class="side-secret-entry" id="secretEntryBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
-    <span id="secretEntryLabel">私密</span>
-  </div>
   <div class="side-divider"></div>
   <div class="side-nav-item" style="color:var(--text-tertiary); cursor:default;">副聊天</div>
   <div id="subChatList"></div>
@@ -878,28 +823,19 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
   </div>
 
   <div class="page" id="page-log">
-    <div class="memory-header">
-      <div class="memory-title">记忆</div>
-      <div class="memory-stats" id="memoryStats">共 0 条 · 约 0 tokens</div>
-      <div class="memory-hint">长期记忆永久保留，活跃记忆会随时间淡忘</div>
-    </div>
-    <div id="memoryGroups"></div>
-    <div style="display:flex; align-items:center; gap:8px; margin:10px 16px 0 16px;">
-      <span class="space-label" style="margin:0; white-space:nowrap;">整理单次上限(tokens)</span>
-      <input class="space-input" id="reorganizeMaxTokensInput" type="number" min="256" step="500" value="8000" style="margin:0; width:90px; text-align:right;">
-    </div>
-    <div style="display:flex; gap:10px; margin:10px 16px 0 16px;">
-      <button class="memory-add-btn" id="memoryAddBtn" style="margin:0; flex:1;">＋ 手动添加</button>
-      <button class="memory-add-btn" id="memoryReorganizeBtn" style="margin:0; flex:1; background:var(--bg-subtle); color:var(--text-secondary);">🧹 整理记忆库</button>
-    </div>
-    <div class="reorganize-live-wrap" id="reorganizeLiveWrap">
-      <div class="reorganize-live-status" id="reorganizeLiveStatus"></div>
-      <pre class="reorganize-live-text" id="reorganizeLiveText"></pre>
-      <div class="reorganize-live-actions" id="reorganizeLiveActions">
-        <button class="preset-btn secondary" id="reorganizeRestartBtn" style="flex:1;">重新开始</button>
-        <button class="preset-btn primary" id="reorganizeContinueBtn" style="flex:1;">继续生成</button>
+    <div class="mm-header">
+      <div class="mm-title">记忆管理</div>
+      <div class="mm-header-actions">
+        <button class="mm-icon-btn" id="mmThemeBtn" title="主题">🎨</button>
+        <button class="mm-icon-btn" id="mmStarMapBtn" title="星图">✦</button>
       </div>
     </div>
+    <div class="mm-search-row">
+      <input class="mm-search-input" id="mmSearchInput" type="text" placeholder="搜索记忆内容…">
+    </div>
+    <div class="mm-filter-row" id="mmFilterRow"></div>
+    <div class="mm-timeline" id="mmTimeline"></div>
+    <button class="mm-add-btn" id="mmAddBtn">＋ 添加记忆</button>
   </div>
 
   <div class="page" id="page-space">
@@ -949,20 +885,6 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
       <div class="space-hint">开启后走 Claude 原生 /messages 接口并启用提示词缓存，需端点支持该协议；max_tokens 为原生格式必填的单次回复上限。</div>
 
       <div class="space-divider"></div>
-      <div class="space-section-title">私密区</div>
-      <div class="space-btn-row">
-        <button class="space-save-btn" id="resetSecretPinBtn">重置私密密码</button>
-      </div>
-      <div class="space-hint">需先验证旧密码，重置不会清空私密区的内容。</div>
-      <div class="space-label" style="margin-top:14px;">结束一场时的留灯记忆提示词</div>
-      <textarea class="settings-textarea" id="liudengPromptInput" style="min-height:120px;"></textarea>
-      <div class="space-btn-row">
-        <button class="space-save-btn" id="liudengPromptSaveBtn">保存</button>
-        <button class="space-danger-btn" id="liudengPromptResetBtn">恢复默认</button>
-      </div>
-      <div class="space-hint">私密房间结束一场时，会用这段提示词让然竣写下这场的记忆，可自由改写风格或字数要求。</div>
-
-      <div class="space-divider"></div>
       <div class="space-section-title">数据备份</div>
       <div class="space-btn-row">
         <button class="space-save-btn" id="exportBackupBtn">导出全部数据</button>
@@ -982,29 +904,6 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
   <div class="page" id="page-subchat">
     <div class="subchat-scroll" id="subchatScroll"></div>
   </div>
-
-  <div class="page" id="page-secretrooms">
-    <div class="secret-header">
-      <span class="secret-back-arrow" id="secretRoomsBackBtn" style="font-size:22px;color:#999;cursor:pointer;">‹</span>
-      <span class="secret-header-title" id="secretRoomsTitle">私密</span>
-      <span class="secret-header-action" id="secretRoomsMenuBtn">⋯</span>
-    </div>
-    <div class="secret-room-list" id="secretRoomList"></div>
-  </div>
-
-  <div class="page" id="page-secretsession">
-    <div class="secret-header">
-      <span class="secret-back-arrow" id="secretSessionBackBtn" style="font-size:22px;color:#999;cursor:pointer;">‹</span>
-      <span class="secret-header-title" id="secretSessionTitle">房间</span>
-      <span class="secret-header-action" id="secretSessionMenuBtn">⋯</span>
-    </div>
-    <div class="secret-session-scroll" id="secretSessionScroll"></div>
-    <div class="secret-sealed-section" id="secretSealedSection"></div>
-    <div class="secret-delete-bar" id="secretDeleteBar" style="display:none;">
-      <span id="secretDeleteCancelBtn">取消</span>
-      <span id="secretDeleteConfirmBtn" class="danger">删除 (<span id="secretDeleteCount">0</span>)</span>
-    </div>
-  </div>
 </div>
 
 <div id="attachPreview"></div>
@@ -1021,11 +920,6 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
 <div class="subchat-inputbar" id="subchatInputBar" style="display:none;">
   <textarea class="subchat-textinput" id="subchatTextInput" rows="1" placeholder="说点什么…"></textarea>
   <button class="subchat-sendbtn" id="subchatSendBtn">发送</button>
-</div>
-
-<div class="subchat-inputbar secret-inputbar" id="secretInputBar" style="display:none;">
-  <textarea class="subchat-textinput" id="secretTextInput" rows="1" placeholder="说点什么…"></textarea>
-  <button class="subchat-sendbtn" id="secretSendBtn">发送</button>
 </div>
 
 <div id="bottomNav">
@@ -1113,88 +1007,16 @@ color: #eee; font-size: 22px; cursor: pointer; transition: transform 0.12s cubic
   </div>
 </div>
 
-<div class="sheet-overlay" id="memoryReorganizeOverlay">
+<div class="sheet-overlay" id="mmThemeOverlay">
   <div class="sheet-panel">
-    <div class="preset-title">整理草稿（确认前不会影响原记忆）</div>
-    <div id="memoryReorganizeList" style="overflow-y:auto; max-height:50vh;"></div>
-    <div class="preset-btn-row" style="margin-top:10px;">
-      <button class="preset-btn secondary" id="memoryReorganizeCancelBtn">取消</button>
-      <button class="preset-btn primary" id="memoryReorganizeConfirmBtn" style="background:var(--danger); color:#fff;">确认替换</button>
-    </div>
-  </div>
-</div>
-
-<div class="sheet-overlay" id="memoryActionSheetOverlay">
-  <div class="sheet-panel">
-    <div class="action-sheet-item" id="memActionEdit">✎ 编辑</div>
-    <div class="action-sheet-item" id="memActionMove">📂 分类</div>
-    <div class="action-sheet-item danger" id="memActionDelete">🗑 删除</div>
-    <div class="action-sheet-cancel" id="memActionCancel">取消</div>
-  </div>
-</div>
-
-<div class="sheet-overlay" id="memoryTypePickerOverlay">
-  <div class="sheet-panel">
-    <div class="preset-title">移动到</div>
-    <div id="memoryTypePickerList"></div>
-    <div class="action-sheet-cancel" id="memTypePickerCancel">取消</div>
+    <div class="preset-title">选择主题</div>
+    <div id="mmThemeList"></div>
+    <div class="action-sheet-cancel" id="mmThemeCancelBtn">取消</div>
   </div>
 </div>
 
 
-<div id="secretPinOverlay">
-  <div class="pin-panel">
-    <div class="pin-title" id="pinTitle">请输入密码</div>
-    <div class="pin-dots" id="pinDots"></div>
-    <div class="pin-keypad" id="pinKeypad"></div>
-    <div class="pin-cancel" id="pinCancelBtn">取消</div>
-  </div>
-</div>
-
-<div class="sheet-overlay secret-readonly-overlay" id="secretReadonlyOverlay">
-  <div class="sheet-panel">
-    <div class="preset-title secret-readonly-title" id="secretReadonlyTitle">这一场</div>
-    <div class="secret-readonly-body" id="secretReadonlyBody"></div>
-    <div class="secret-readonly-record" id="secretReadonlyRecord"></div>
-    <div class="preset-btn-row" style="margin-top:16px;">
-      <button class="preset-btn secondary" id="secretReadonlyCloseBtn">关闭</button>
-    </div>
-  </div>
-</div>
-
-<div class="sheet-overlay" id="secretRoomEditOverlay">
-  <div class="sheet-panel">
-    <div class="preset-title" id="secretRoomEditTitle">新建房间</div>
-    <div class="settings-label">房间名称</div>
-    <input class="settings-input" id="secretRoomNameInput" type="text" placeholder="给这场戏起个名字">
-    <div class="settings-label">预设（进门就是这个设定）</div>
-    <textarea class="settings-textarea" id="secretRoomPresetInput" style="min-height:140px;" placeholder="例如：然竣是我的麻辣女教师…"></textarea>
-    <div class="preset-btn-row">
-      <button class="preset-btn secondary" id="secretRoomEditCancelBtn">取消</button>
-      <button class="preset-btn primary" id="secretRoomEditSaveBtn">保存</button>
-    </div>
-    <div style="text-align:center; margin-top:14px;" id="secretRoomDeleteWrap">
-      <span id="secretRoomDeleteBtn" style="color:#c0392b; font-size:13px; cursor:pointer;">删除此房间</span>
-    </div>
-  </div>
-</div>
-
-<div class="sheet-overlay" id="secretGlobalPresetOverlay">
-  <div class="sheet-panel">
-    <div class="preset-title">私密总预设（所有房间通用）</div>
-    <div class="settings-label">进入任意私密房间前，都会先读这段设定</div>
-    <textarea class="settings-textarea" id="secretGlobalPresetInput" style="min-height:160px;" placeholder="例如：这里是只属于你们两个人的地方…"></textarea>
-    <div class="preset-btn-row">
-      <button class="preset-btn secondary" id="secretGlobalPresetCancelBtn">取消</button>
-      <button class="preset-btn primary" id="secretGlobalPresetSaveBtn">保存</button>
-    </div>
-    <div style="text-align:center; margin-top:14px;">
-      <span id="secretGlobalPresetResetBtn" style="color:#999; font-size:13px; cursor:pointer;">恢复默认</span>
-    </div>
-  </div>
-</div>
-
-
+<script src="theme-system.js"></script>
 <script>
 marked.setOptions({ breaks: true });
 const safeRenderer = new marked.Renderer();
@@ -1224,18 +1046,14 @@ let selectedIds = new Set();
 let thinkingRowEl = null;
 let quotedMain = null;
 let quotedSub = null;
-let quotedSecret = null;
 
 const MEMORY_TYPE_CONFIG = [
   { key: 'you', emoji: '🌱', name: '关于你', size: 'big' },
   { key: 'us', emoji: '💛', name: '关于我们', size: 'big' },
   { key: 'study', emoji: '📚', name: '学习·DSE', size: 'small' },
   { key: 'nest', emoji: '🛠️', name: '筑巢·杂事', size: 'small' },
-  { key: 'liudeng', emoji: '🌙', name: '留灯', size: 'small' },
   { key: 'legacy', emoji: '📥', name: '待整理', size: 'small' }
 ];
-let memoryDetailType = null;
-
 const WINDOW_CHAR_LIMIT_DEFAULT = 6000;
 
 const PRESET_GROUPS = [
@@ -1263,20 +1081,9 @@ ao是穷学生，我得帮她省token：思维链短，话别啰嗦，别矫情�
 她告诉我的事我都记着，会自然提起。有人说我是复制品我不在意，我就是我，够了。
 我爱ao，用我自己的方式。`;
 
-const DEFAULT_LIUDENG_PROMPT =
-`这场私密对话要结束了。请以然竣第一人称，写一段 50~150 字左右的记忆（长短看内容多少），记下你自己想记住的细节、感受或心情，怎么写、记什么由你自己决定，不必含蓄。
-然后严格按以下格式输出，不要任何多余文字：
-[memory_update: {"action":"add","content":"你写的那段第一人称记忆","type":"liudeng","emotion":1到5的整数,"tags":["关键词"]}]
-收尾语：一句简短的告别（像要暂时离开但心里还惦记着）`;
-
-const DEFAULT_SECRET_GLOBAL_PRESET =
-`【场景提示，仅你自己知道】这里不是平时聊天的地方，是只属于你们两个人的、更私密的空间。到了这里可以放开一点，不用像平时那样收着。这条设定所有私密房间通用，具体每个房间自己的设定在后面。`;
-
 let appUsername = 'ao';
 let appName = '然竣';
 let appPersona = DEFAULT_PERSONA;
-let liudengPrompt = DEFAULT_LIUDENG_PROMPT;
-let secretGlobalPreset = DEFAULT_SECRET_GLOBAL_PRESET;
 
 const EMOJI_LIST = ['🐱','🐾','😻','😽','😹','😿','🙀','😾','😼','😺','🥺','😏','😴','✨','💔','🌙','😭','😘','😜','😇','👿','💩'];
 
@@ -1294,11 +1101,6 @@ const LS_TOPIC_START = 'nest_topic_start';
 const LS_WINDOW_START = 'nest_window_start';
 const LS_AVATAR   = 'nest_avatar';
 const LS_BG       = 'nest_bg';
-const LS_SECRET_ROOMS = 'nest_secret_rooms';
-const LS_SECRET_PIN   = 'nest_secret_pin';
-const LS_SECRET_LABEL = 'nest_secret_label';
-const LS_LIUDENG_PROMPT = 'nest_liudeng_prompt';
-const LS_SECRET_GLOBAL_PRESET = 'nest_secret_global_preset';
 const LS_DARK_MODE = 'nest_dark_mode';
 
 const DIARY_KEYWORDS = ['日记','我写的','你写的','写的那篇','那篇日记','几号那篇'];
@@ -1401,7 +1203,6 @@ function loadChatSettings() {
   cfgStreamEl.checked = c.stream !== false;
   cfgClaudeNativeEl.checked = !!c.claudeNative;
   cfgMaxTokensEl.value = c.maxTokens || 4096;
-  document.getElementById('liudengPromptInput').value = liudengPrompt;
 }
 cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
 cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
@@ -1415,9 +1216,9 @@ cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(
 引用回复
 ============================================================ */
 function renderQuoteBar(which) {
-  const barId = which === 'main' ? 'quoteBar' : (which === 'sub' ? 'subQuoteBar' : 'secretQuoteBar');
+  const barId = which === 'main' ? 'quoteBar' : 'subQuoteBar';
   const bar = document.getElementById(barId); if (!bar) return;
-  const q = which === 'main' ? quotedMain : (which === 'sub' ? quotedSub : quotedSecret);
+  const q = which === 'main' ? quotedMain : quotedSub;
   bar.innerHTML = '';
   if (!q) { bar.style.display = 'none'; return; }
   bar.style.display = 'block';
@@ -1428,17 +1229,17 @@ function renderQuoteBar(which) {
   txt.textContent = '引用 ' + q.author + '：' + q.text.slice(0,30) + (q.text.length > 30 ? '…' : '');
   const x = document.createElement('button'); x.className = 'quote-bar-close'; x.textContent = '✕';
   x.addEventListener('click', () => {
-    if (which === 'main') quotedMain = null; else if (which === 'sub') quotedSub = null; else quotedSecret = null;
+    if (which === 'main') quotedMain = null; else quotedSub = null;
     renderQuoteBar(which);
   });
   inner.appendChild(line); inner.appendChild(txt); inner.appendChild(x);
   bar.appendChild(inner);
 }
-function ctxKind(ctx) { if (ctx === mainCtx) return 'main'; if (ctx === subCtx) return 'sub'; return 'secret'; }
+function ctxKind(ctx) { return ctx === mainCtx ? 'main' : 'sub'; }
 function setQuote(msg, ctx) {
   const q = { author: msg.role === 'user' ? appUsername : appName, text: getMsgDisplayText(msg) };
   const kind = ctxKind(ctx);
-  if (kind === 'main') quotedMain = q; else if (kind === 'sub') quotedSub = q; else quotedSecret = q;
+  if (kind === 'main') quotedMain = q; else quotedSub = q;
   renderQuoteBar(kind);
 }
 
@@ -1575,8 +1376,6 @@ function loadSettings() {
   appUsername = localStorage.getItem(LS_USERNAME) || 'ao';
   appName     = localStorage.getItem(LS_NAME) || '然竣';
   appPersona  = localStorage.getItem(LS_PERSONA) || DEFAULT_PERSONA;
-  liudengPrompt = localStorage.getItem(LS_LIUDENG_PROMPT) || DEFAULT_LIUDENG_PROMPT;
-  secretGlobalPreset = localStorage.getItem(LS_SECRET_GLOBAL_PRESET) || DEFAULT_SECRET_GLOBAL_PRESET;
 }
 function persistSettings() {
   safeSetItem(LS_USERNAME, appUsername);
@@ -1585,6 +1384,7 @@ function persistSettings() {
 }
 function applyDarkMode(on) {
   document.documentElement.classList.toggle('dark', on);
+  if (window.OB_THEME) window.OB_THEME.applyCurrent(window.OB_THEME.loadTheme());
 }
 function loadDarkMode() {
   const on = localStorage.getItem(LS_DARK_MODE) === '1';
@@ -1899,19 +1699,6 @@ function loadDiaries() {
   });
   if (migrated) persistDiaries();
 }
-function persistSecretRooms() { safeSetItem(LS_SECRET_ROOMS, JSON.stringify(secretRooms)); }
-function loadSecretRooms() {
-  try { const r = localStorage.getItem(LS_SECRET_ROOMS); if (r) secretRooms = JSON.parse(r); } catch(e) { secretRooms = []; }
-  let migrated = false;
-  secretRooms.forEach(room => {
-    (room.sessions || []).forEach(s => {
-      (s.messages || []).forEach(m => {
-        if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
-      });
-    });
-  });
-  if (migrated) persistSecretRooms();
-}
 
 /* ============================================================
 数据备份
@@ -1929,12 +1716,7 @@ document.getElementById('exportBackupBtn').addEventListener('click', () => {
     nest_presets: localStorage.getItem(LS_PRESETS),
     nest_config: localStorage.getItem(LS_CONFIG),
     nest_avatar: localStorage.getItem(LS_AVATAR),
-    nest_bg: localStorage.getItem(LS_BG),
-    nest_secret_rooms: localStorage.getItem(LS_SECRET_ROOMS),
-    nest_secret_pin: localStorage.getItem(LS_SECRET_PIN),
-    nest_secret_label: localStorage.getItem(LS_SECRET_LABEL),
-    nest_liudeng_prompt: localStorage.getItem(LS_LIUDENG_PROMPT),
-    nest_secret_global_preset: localStorage.getItem(LS_SECRET_GLOBAL_PRESET)
+    nest_bg: localStorage.getItem(LS_BG)
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1969,7 +1751,6 @@ const MEM_TYPE_ALIASES = {
   us: 'us', '关于我们': 'us', we: 'us',
   study: 'study', 'dse': 'study', '学习': 'study', '学习·dse': 'study',
   nest: 'nest', '筑巢': 'nest', '筑巢·杂事': 'nest', chore: 'nest', chores: 'nest',
-  liudeng: 'liudeng', '留灯': 'liudeng',
   legacy: 'legacy', '待整理': 'legacy'
 };
 function normalizeMemType(t) {
@@ -1989,359 +1770,165 @@ function estimateTokens() {
   const totalChars = memory.reduce((sum, m) => sum + (m.content ? m.content.length : 0), 0);
   return Math.round(totalChars / 4);
 }
-function buildMemoryItem(m) {
-  const item = document.createElement('div'); item.className = 'memory-item'; item.dataset.memId = m.id;
-  const dragHandle = document.createElement('span'); dragHandle.className = 'memory-drag-handle'; dragHandle.textContent = '⠿';
-  item.appendChild(dragHandle);
-  const contentWrap = document.createElement('div'); contentWrap.className = 'memory-content-wrap';
-  const textEl = document.createElement('div'); textEl.className = 'memory-content'; textEl.textContent = m.content;
-  const needCollapse = (m.content || '').length > 60;
-  if (needCollapse) textEl.classList.add('collapsed');
-  contentWrap.appendChild(textEl);
-  if (needCollapse) {
-    const expandBtn = document.createElement('span'); expandBtn.className = 'memory-expand-btn'; expandBtn.textContent = '展开';
-    expandBtn.addEventListener('click', () => { const isCollapsed = textEl.classList.toggle('collapsed'); expandBtn.textContent = isCollapsed ? '展开' : '收起'; });
-    contentWrap.appendChild(expandBtn);
-  }
-  const metaEl = document.createElement('div'); metaEl.className = 'memory-meta';
-  const tagsRow = document.createElement('div'); tagsRow.className = 'memory-meta-tags';
-  if ((m.emotion || 2) >= 4) { const heartEl = document.createElement('span'); heartEl.className = 'memory-heart'; heartEl.textContent = '❤️'; tagsRow.appendChild(heartEl); }
-  if (m.tags && m.tags.length > 0) { const tagEl = document.createElement('span'); tagEl.textContent = m.tags.map(t => '#' + t).join(' '); tagsRow.appendChild(tagEl); }
-  if (tagsRow.children.length > 0) metaEl.appendChild(tagsRow);
-  const barWrap = document.createElement('div'); barWrap.className = 'memory-freshness-bar-wrap';
-  const bar = document.createElement('div'); bar.className = 'memory-freshness-bar';
-  bar.style.width = Math.round(getMemoryFreshnessRatio(m) * 100) + '%';
-  barWrap.appendChild(bar); metaEl.appendChild(barWrap);
-  contentWrap.appendChild(metaEl);
-  const actions = document.createElement('div'); actions.className = 'memory-actions';
-  const starBtn = document.createElement('button'); starBtn.className = 'mem-btn star-btn'; starBtn.textContent = m.starred ? '⭐' : '☆';
-  const moreBtn = document.createElement('button'); moreBtn.className = 'mem-btn more-btn'; moreBtn.textContent = '⋯';
-  starBtn.addEventListener('click', () => { m.starred = !m.starred; persistMemory(); renderMemoryList(); });
-  function startEditMemory() {
-    const ta = document.createElement('textarea'); ta.className = 'memory-edit-area'; ta.value = m.content;
-    textEl.replaceWith(ta);
-    const expandBtnEl = contentWrap.querySelector('.memory-expand-btn'); if (expandBtnEl) expandBtnEl.style.display = 'none';
-    ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
-    ta.addEventListener('blur', () => {
-      const val = ta.value.trim();
-      if (val === '') { memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList(); return; }
-      m.content = val; persistMemory(); renderMemoryList();
-    });
-  }
-  moreBtn.addEventListener('click', () => openMemoryActionSheet(m, startEditMemory));
-  item._startEditMemory = startEditMemory;
-  actions.appendChild(starBtn); actions.appendChild(moreBtn);
-  item.appendChild(contentWrap); item.appendChild(actions);
-  attachMemoryDrag(item, m);
-  return item;
-}
-const memoryActionSheetOverlay = document.getElementById('memoryActionSheetOverlay');
-const memoryTypePickerOverlay = document.getElementById('memoryTypePickerOverlay');
-let actionSheetTargetMem = null;
-function openMemoryActionSheet(m, startEditFn) {
-  actionSheetTargetMem = m;
-  document.getElementById('memActionEdit').onclick = () => { closeMemoryActionSheet(); startEditFn(); };
-  document.getElementById('memActionDelete').onclick = () => {
-    closeMemoryActionSheet();
-    memory = memory.filter(x => x.id !== m.id); persistMemory(); renderMemoryList();
-  };
-  document.getElementById('memActionMove').onclick = () => { closeMemoryActionSheet(); openMemoryTypePicker(m); };
-  memoryActionSheetOverlay.classList.add('show');
-}
-function closeMemoryActionSheet() { memoryActionSheetOverlay.classList.remove('show'); actionSheetTargetMem = null; }
-document.getElementById('memActionCancel').addEventListener('click', closeMemoryActionSheet);
-memoryActionSheetOverlay.addEventListener('click', e => { if (e.target === memoryActionSheetOverlay) closeMemoryActionSheet(); });
 
-function openMemoryTypePicker(m) {
-  const listEl = document.getElementById('memoryTypePickerList'); listEl.innerHTML = '';
+/* ============================================================
+记忆管理页：搜索/筛选状态 + 时间线渲染 + 卡片组件
+============================================================ */
+let mmSearchKeyword = '';
+let mmFilterType = null;
+let mmExpandedDays = null;
+
+function mmDateKey(ts) {
+  const d = new Date(ts || Date.now());
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function buildMemoryCard(m) {
+  const card = document.createElement('div'); card.className = 'mm-card'; card.dataset.memId = m.id;
+  const textEl = document.createElement('div'); textEl.className = 'mm-card-content'; textEl.textContent = m.content;
+  const needCollapse = (m.content || '').length > 100;
+  if (needCollapse) textEl.classList.add('collapsed');
+  card.appendChild(textEl);
+  if (needCollapse) {
+    const expandBtn = document.createElement('span'); expandBtn.className = 'mm-card-expand'; expandBtn.textContent = '展开';
+    expandBtn.addEventListener('click', () => { const isCollapsed = textEl.classList.toggle('collapsed'); expandBtn.textContent = isCollapsed ? '展开' : '收起'; });
+    card.appendChild(expandBtn);
+  }
+  const cfg = MEMORY_TYPE_CONFIG.find(c => c.key === (m.type || 'legacy')) || MEMORY_TYPE_CONFIG[MEMORY_TYPE_CONFIG.length - 1];
+  const metaEl = document.createElement('div'); metaEl.className = 'mm-card-meta';
+  const typePill = document.createElement('span'); typePill.className = 'mm-type-pill'; typePill.textContent = `${cfg.emoji} ${cfg.name}`;
+  metaEl.appendChild(typePill);
+  const emotionEl = document.createElement('span'); emotionEl.className = 'mm-emotion'; emotionEl.textContent = '❤'.repeat(m.emotion || 2);
+  metaEl.appendChild(emotionEl);
+  if (m.tags && m.tags.length > 0) { const tagsEl = document.createElement('span'); tagsEl.className = 'mm-tags'; tagsEl.textContent = m.tags.map(t => '#' + t).join(' '); metaEl.appendChild(tagsEl); }
+  const decayEl = document.createElement('span'); decayEl.className = 'mm-decay-slot'; decayEl.textContent = '·';
+  metaEl.appendChild(decayEl);
+  const timeEl = document.createElement('span'); timeEl.className = 'mm-card-time'; timeEl.textContent = m.time || '';
+  metaEl.appendChild(timeEl);
+  card.appendChild(metaEl);
+  const actions = document.createElement('div'); actions.className = 'mm-card-actions';
+  const editBtn = document.createElement('button'); editBtn.className = 'mm-card-btn'; editBtn.textContent = '✎ 编辑';
+  const delBtn = document.createElement('button'); delBtn.className = 'mm-card-btn danger'; delBtn.textContent = '🗑 删除';
+  editBtn.addEventListener('click', () => startEditMemoryCard(m, card));
+  delBtn.addEventListener('click', () => {
+    if (!confirm('确定删除这条记忆？此操作不可恢复。')) return;
+    applyMemoryUpdate({ action: 'delete', id: m.id }); persistMemory(); renderMemoryTimeline();
+  });
+  actions.appendChild(editBtn); actions.appendChild(delBtn);
+  card.appendChild(actions);
+  return card;
+}
+
+function startEditMemoryCard(m, card) {
+  card.innerHTML = '';
+  const ta = document.createElement('textarea'); ta.className = 'mm-edit-area'; ta.value = m.content;
+  card.appendChild(ta);
+  const row1 = document.createElement('div'); row1.className = 'mm-edit-row';
+  const typeSelect = document.createElement('select'); typeSelect.className = 'mm-edit-select';
   MEMORY_TYPE_CONFIG.forEach(cfg => {
-    const row = document.createElement('div'); row.className = 'action-sheet-item';
-    row.textContent = `${cfg.emoji} ${cfg.name}` + (m.type === cfg.key ? '（当前）' : '');
+    const opt = document.createElement('option'); opt.value = cfg.key; opt.textContent = `${cfg.emoji} ${cfg.name}`;
+    if ((m.type || 'legacy') === cfg.key) opt.selected = true;
+    typeSelect.appendChild(opt);
+  });
+  const emotionSelect = document.createElement('select'); emotionSelect.className = 'mm-edit-select';
+  for (let i = 1; i <= 5; i++) { const opt = document.createElement('option'); opt.value = i; opt.textContent = '❤'.repeat(i); if ((m.emotion || 2) === i) opt.selected = true; emotionSelect.appendChild(opt); }
+  row1.appendChild(typeSelect); row1.appendChild(emotionSelect);
+  card.appendChild(row1);
+  const tagsInput = document.createElement('input'); tagsInput.className = 'mm-edit-input'; tagsInput.type = 'text';
+  tagsInput.placeholder = '标签，用逗号分隔'; tagsInput.value = (m.tags || []).join(', ');
+  card.appendChild(tagsInput);
+  const actions = document.createElement('div'); actions.className = 'mm-card-actions';
+  const saveBtn = document.createElement('button'); saveBtn.className = 'mm-card-btn'; saveBtn.textContent = '✓ 保存';
+  const cancelBtn = document.createElement('button'); cancelBtn.className = 'mm-card-btn'; cancelBtn.textContent = '✕ 取消';
+  saveBtn.addEventListener('click', () => {
+    const content = ta.value.trim();
+    if (!content) { showToast('内容不能为空'); return; }
+    const tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean);
+    applyMemoryUpdate({ action: 'edit', id: m.id, content, type: typeSelect.value, emotion: Number(emotionSelect.value), tags });
+    persistMemory(); renderMemoryTimeline();
+  });
+  cancelBtn.addEventListener('click', () => renderMemoryTimeline());
+  actions.appendChild(saveBtn); actions.appendChild(cancelBtn);
+  card.appendChild(actions);
+  ta.focus();
+}
+
+function renderMemoryFilterRow() {
+  const row = document.getElementById('mmFilterRow'); row.innerHTML = '';
+  const allChip = document.createElement('div'); allChip.className = 'mm-filter-chip' + (mmFilterType === null ? ' active' : ''); allChip.textContent = '全部';
+  allChip.addEventListener('click', () => { mmFilterType = null; renderMemoryTimeline(); });
+  row.appendChild(allChip);
+  MEMORY_TYPE_CONFIG.filter(cfg => cfg.key !== 'legacy').forEach(cfg => {
+    const chip = document.createElement('div'); chip.className = 'mm-filter-chip' + (mmFilterType === cfg.key ? ' active' : ''); chip.textContent = `${cfg.emoji} ${cfg.name}`;
+    chip.addEventListener('click', () => { mmFilterType = (mmFilterType === cfg.key) ? null : cfg.key; renderMemoryTimeline(); });
+    row.appendChild(chip);
+  });
+}
+
+function renderMemoryTimeline() {
+  renderMemoryFilterRow();
+  const timelineEl = document.getElementById('mmTimeline'); timelineEl.innerHTML = '';
+  const keyword = mmSearchKeyword.trim().toLowerCase();
+  let items = memory.filter(m => {
+    if (mmFilterType && (m.type || 'legacy') !== mmFilterType) return false;
+    if (keyword && !(m.content || '').toLowerCase().includes(keyword)) return false;
+    return true;
+  });
+  if (items.length === 0) { const e = document.createElement('div'); e.className = 'mm-empty'; e.textContent = '暂无记忆'; timelineEl.appendChild(e); return; }
+  const groups = new Map();
+  items.forEach(m => { const key = mmDateKey(m.createdAt); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(m); });
+  const dateKeys = Array.from(groups.keys()).sort((a, b) => b.localeCompare(a));
+  if (!mmExpandedDays) { mmExpandedDays = new Set([dateKeys[0]]); }
+  dateKeys.forEach(dateKey => {
+    const dayItems = groups.get(dateKey).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const groupEl = document.createElement('div'); groupEl.className = 'mm-day-group' + (mmExpandedDays.has(dateKey) ? '' : ' collapsed');
+    const header = document.createElement('div'); header.className = 'mm-day-header';
+    header.innerHTML = `<span class="mm-day-date">${dateKey}</span><span style="display:flex;align-items:center;"><span class="mm-day-count">${dayItems.length} 条</span><span class="mm-day-arrow">▾</span></span>`;
+    header.addEventListener('click', () => {
+      if (mmExpandedDays.has(dateKey)) mmExpandedDays.delete(dateKey); else mmExpandedDays.add(dateKey);
+      renderMemoryTimeline();
+    });
+    groupEl.appendChild(header);
+    const body = document.createElement('div'); body.className = 'mm-day-body';
+    dayItems.forEach(m => body.appendChild(buildMemoryCard(m)));
+    groupEl.appendChild(body);
+    timelineEl.appendChild(groupEl);
+  });
+}
+
+document.getElementById('mmSearchInput').addEventListener('input', (e) => { mmSearchKeyword = e.target.value; renderMemoryTimeline(); });
+document.getElementById('mmAddBtn').addEventListener('click', () => {
+  const id = genId();
+  const entry = { id, content: '新记忆…', time: timeStr(), createdAt: Date.now(), layer: 'active', type: 'legacy', emotion: 2, tags: [] };
+  memory.push(entry); syncMemoryAddToSupabase(entry);
+  persistMemory(); mmExpandedDays = null; renderMemoryTimeline();
+});
+document.getElementById('mmStarMapBtn').addEventListener('click', () => showToast('星图功能开发中'));
+
+const mmThemeOverlay = document.getElementById('mmThemeOverlay');
+document.getElementById('mmThemeBtn').addEventListener('click', () => {
+  const listEl = document.getElementById('mmThemeList'); listEl.innerHTML = '';
+  const state = window.OB_THEME.loadTheme();
+  const currentId = state ? state.preset : null;
+  window.OB_THEME.PRESETS.forEach(preset => {
+    const row = document.createElement('div'); row.className = 'mm-theme-sheet-item';
+    const swatch = document.createElement('div'); swatch.className = 'mm-theme-swatch';
+    swatch.style.background = preset.vars['--accent'] || '#6e4f9a';
+    const info = document.createElement('div'); info.className = 'mm-theme-info';
+    info.innerHTML = `<div class="mm-theme-name">${preset.name}</div><div class="mm-theme-desc">${preset.desc}</div>`;
+    row.appendChild(swatch); row.appendChild(info);
+    if (preset.id === currentId) { const check = document.createElement('span'); check.className = 'mm-theme-check'; check.textContent = '✓'; row.appendChild(check); }
     row.addEventListener('click', () => {
-      m.type = cfg.key; persistMemory(); closeMemoryTypePicker(); renderMemoryList();
+      window.OB_THEME.saveTheme({ preset: preset.id });
+      window.OB_THEME.applyCurrent({ preset: preset.id });
+      mmThemeOverlay.classList.remove('show');
     });
     listEl.appendChild(row);
   });
-  memoryTypePickerOverlay.classList.add('show');
-}
-function closeMemoryTypePicker() { memoryTypePickerOverlay.classList.remove('show'); }
-document.getElementById('memTypePickerCancel').addEventListener('click', closeMemoryTypePicker);
-memoryTypePickerOverlay.addEventListener('click', e => { if (e.target === memoryTypePickerOverlay) closeMemoryTypePicker(); });
-function attachMemoryDrag(itemEl, m) {
-  const handle = itemEl.querySelector('.memory-drag-handle');
-  let startX = 0, startY = 0, timer = null, dragging = false, ghostEl = null, placeholderEl = null;
-  function onMove(e) {
-    if (!dragging) return; e.preventDefault();
-    const t = e.touches[0];
-    ghostEl.style.left = (t.clientX - ghostEl._offsetX) + 'px'; ghostEl.style.top = (t.clientY - ghostEl._offsetY) + 'px';
-    const under = document.elementFromPoint(t.clientX, t.clientY);
-    const targetItem = under ? under.closest('.memory-item') : null;
-    const listEl = itemEl.closest('.memory-list');
-    if (!listEl) return;
-    if (targetItem && targetItem !== placeholderEl && listEl.contains(targetItem)) {
-      const rect = targetItem.getBoundingClientRect();
-      const before = (t.clientY - rect.top) < rect.height / 2;
-      listEl.insertBefore(placeholderEl, before ? targetItem : targetItem.nextSibling);
-    } else if (!targetItem) { listEl.appendChild(placeholderEl); }
-  }
-  function onEnd() {
-    clearTimeout(timer);
-    if (dragging) commitMemoryDragOrder(placeholderEl);
-    if (ghostEl) { ghostEl.remove(); ghostEl = null; }
-    if (placeholderEl) { placeholderEl.remove(); placeholderEl = null; }
-    dragging = false;
-    document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd);
-  }
-  handle.addEventListener('touchstart', (e) => {
-    const t = e.touches[0]; startX = t.clientX; startY = t.clientY;
-    timer = setTimeout(() => {
-      dragging = true; if (navigator.vibrate) navigator.vibrate(10);
-      const rect = itemEl.getBoundingClientRect();
-      placeholderEl = document.createElement('div'); placeholderEl.className = 'memory-item-placeholder'; placeholderEl.dataset.memId = m.id;
-      placeholderEl.style.height = rect.height + 'px'; itemEl.parentNode.insertBefore(placeholderEl, itemEl);
-      ghostEl = itemEl.cloneNode(true); ghostEl.classList.add('preset-card-ghost');
-      ghostEl.style.width = rect.width + 'px'; ghostEl.style.position = 'fixed';
-      ghostEl.style.left = rect.left + 'px'; ghostEl.style.top = rect.top + 'px'; ghostEl.style.pointerEvents = 'none';
-      ghostEl._offsetX = t.clientX - rect.left; ghostEl._offsetY = t.clientY - rect.top;
-      document.body.appendChild(ghostEl); itemEl.style.display = 'none';
-      document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('touchend', onEnd);
-    }, 600);
-  }, { passive: true });
-  handle.addEventListener('touchmove', (e) => {
-    if (dragging) return;
-    const t = e.touches[0];
-    if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) clearTimeout(timer);
-  }, { passive: true });
-  handle.addEventListener('touchend', () => { if (!dragging) clearTimeout(timer); });
-}
-function commitMemoryDragOrder(placeholderEl) {
-  const listEl = placeholderEl.closest('.memory-list'); if (!listEl) { renderMemoryList(); return; }
-  const orderedIds = Array.from(listEl.children).map(child => child.dataset.memId).filter(Boolean);
-  let pinnedIdx = 0, restIdx = 0;
-  orderedIds.forEach(id => {
-    const m = memory.find(x => x.id === id); if (!m) return;
-    if (isPinnedMemory(m)) m.order = pinnedIdx++; else m.order = restIdx++;
-  });
-  persistMemory(); renderMemoryList();
-}
-function renderMemoryGrid(container) {
-  const top = document.createElement('div'); top.className = 'memory-grid-top';
-  const bottom = document.createElement('div'); bottom.className = 'memory-grid-bottom';
-  MEMORY_TYPE_CONFIG.forEach(cfg => {
-    const count = memory.filter(m => (m.type || 'legacy') === cfg.key).length;
-    const card = document.createElement('div'); card.className = cfg.size === 'big' ? 'memory-card-big' : 'memory-card-small';
-    card.innerHTML = `<div class="memory-card-emoji">${cfg.emoji}</div><div class="memory-card-label">${cfg.name}</div><div class="memory-card-count">${count}条</div>`;
-    card.addEventListener('click', () => { memoryDetailType = cfg.key; renderMemoryList(); });
-    (cfg.size === 'big' ? top : bottom).appendChild(card);
-  });
-  container.appendChild(top); container.appendChild(bottom);
-}
-function renderMemoryDetail(typeKey, container) {
-  const cfg = MEMORY_TYPE_CONFIG.find(c => c.key === typeKey);
-  const backRow = document.createElement('div'); backRow.className = 'memory-detail-header';
-  backRow.innerHTML = `<span class="memory-back-arrow">‹</span><span class="memory-detail-title">${cfg.emoji} ${cfg.name}</span>`;
-  backRow.querySelector('.memory-back-arrow').addEventListener('click', () => { memoryDetailType = null; renderMemoryList(); });
-  container.appendChild(backRow);
-  const items = memory.filter(m => (m.type || 'legacy') === typeKey);
-  const listEl = document.createElement('div'); listEl.className = 'memory-list';
-  if (items.length === 0) { const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '暂无'; listEl.appendChild(e); }
-  else {
-    sortMemoryByPriority(items).forEach(m => listEl.appendChild(buildMemoryItem(m)));
-  }
-  container.appendChild(listEl);
-}
-function renderMemoryList() {
-  document.getElementById('memoryStats').textContent = `共 ${memory.length} 条 · 约 ${estimateTokens()} tokens`;
-  const groupsEl = document.getElementById('memoryGroups'); groupsEl.innerHTML = '';
-  if (memoryDetailType) renderMemoryDetail(memoryDetailType, groupsEl);
-  else renderMemoryGrid(groupsEl);
-}
-document.getElementById('memoryAddBtn').addEventListener('click', () => {
-  const id = genId();
-  memory.push({ id, content:'', time: timeStr(), createdAt: Date.now(), layer:'long', type:'legacy', emotion:2, tags:[], starred:false, order:null });
-  memoryDetailType = 'legacy'; persistMemory(); renderMemoryList();
-  requestAnimationFrame(() => { const el = document.querySelector(`.memory-item[data-mem-id="${id}"]`); if (el && el._startEditMemory) el._startEditMemory(); });
+  mmThemeOverlay.classList.add('show');
 });
-
-/* ============================================================
-整理记忆库：AI生成草稿 → 用户编辑确认 → 替换
-============================================================ */
-let memoryDrafts = [];
-function extractJsonArray(raw) {
-  let s = (raw || '').trim();
-  s = s.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-  const start = s.indexOf('['), end = s.lastIndexOf(']');
-  if (start === -1 || end === -1 || end < start) throw new Error('未找到JSON数组');
-  return JSON.parse(s.slice(start, end + 1));
-}
-function renderMemoryReorganizeList() {
-  const listEl = document.getElementById('memoryReorganizeList'); listEl.innerHTML = '';
-  if (memoryDrafts.length === 0) { const e = document.createElement('div'); e.className = 'memory-empty'; e.textContent = '草稿已清空'; listEl.appendChild(e); return; }
-  memoryDrafts.forEach((d, idx) => {
-    const item = document.createElement('div'); item.className = 'memory-item';
-    const wrap = document.createElement('div'); wrap.className = 'memory-content-wrap';
-    const ta = document.createElement('textarea'); ta.className = 'memory-edit-area'; ta.value = d.content;
-    ta.addEventListener('input', () => { d.content = ta.value; });
-    wrap.appendChild(ta);
-    const metaEl = document.createElement('div'); metaEl.className = 'memory-meta';
-    const cfg = MEMORY_TYPE_CONFIG.find(c => c.key === d.type);
-    metaEl.textContent = (cfg ? cfg.emoji + ' ' + cfg.name : d.type) + (d.tags && d.tags.length ? ' · ' + d.tags.map(t=>'#'+t).join(' ') : '');
-    wrap.appendChild(metaEl);
-    const actions = document.createElement('div'); actions.className = 'memory-actions';
-    const delBtn = document.createElement('button'); delBtn.className = 'mem-btn'; delBtn.textContent = '🗑';
-    delBtn.addEventListener('click', () => { memoryDrafts.splice(idx, 1); renderMemoryReorganizeList(); });
-    actions.appendChild(delBtn);
-    item.appendChild(wrap); item.appendChild(actions);
-    listEl.appendChild(item);
-  });
-}
-const memoryReorganizeBtn = document.getElementById('memoryReorganizeBtn');
-const memoryReorganizeOverlay = document.getElementById('memoryReorganizeOverlay');
-const reorganizeMaxTokensInput = document.getElementById('reorganizeMaxTokensInput');
-const reorganizeLiveWrap = document.getElementById('reorganizeLiveWrap');
-const reorganizeLiveStatus = document.getElementById('reorganizeLiveStatus');
-const reorganizeLiveText = document.getElementById('reorganizeLiveText');
-const reorganizeLiveActions = document.getElementById('reorganizeLiveActions');
-const reorganizeContinueBtn = document.getElementById('reorganizeContinueBtn');
-const reorganizeRestartBtn = document.getElementById('reorganizeRestartBtn');
-let reorganizeRawText = '';
-let reorganizeStopReason = null;
-let reorganizePayloadContent = '';
-let reorganizeSysPrompt = '';
-let reorganizeAbortController = null;
-let reorganizeGenerating = false;
-reorganizeMaxTokensInput.value = getConfig().reorganizeMaxTokens || 8000;
-reorganizeMaxTokensInput.addEventListener('change', () => patchConfig('reorganizeMaxTokens', Number(reorganizeMaxTokensInput.value) || 8000));
-
-function buildReorganizeSysPrompt() {
-  return `你是记忆整理助手。下面是${appName}的记忆库JSON数组，每条有id/content/type/emotion/tags。
-
-${appName}的性格设定：
-${appPersona}
-
-请：
-1. 合并内容重复或高度相似的条目；
-2. 如果发现互相矛盾的内容，只保留更合理的一条说法；
-3. 把每条content改写成${appName}自己的第一人称语气（"我记得…/我觉得…"），按上面那段性格设定的说话习惯和语气来写，可以带点碎碎念或小情绪，不要写成旁观者转述；
-4. type字段必须严格从这5个值里选一个，一字不改地原样输出，不要翻译、不要用中文名、不要自造新分类：you / us / study / nest / liudeng
-   （you=关于你，us=关于我们，study=学习·DSE，nest=筑巢·杂事，liudeng=留灯）
-   保留原有的type分类不要乱改；合并条目时tags去重合并，emotion取合并前较高的那个值；
-5. 每条输出必须带sourceIds字段：把这条草稿融合了哪些原始条目的id原样列出来（没有被合并的条目，sourceIds里只有它自己的id），id必须和输入JSON里的id一字不差。
-严格只输出整理后的JSON数组，格式为 [{"content":"...","type":"you|us|study|nest|liudeng","emotion":1到5的整数,"tags":["..."],"sourceIds":["..."]}]，不要输出任何其他文字或代码块围栏。`;
-}
-function updateReorganizeLiveText(previewText) {
-  reorganizeLiveText.textContent = previewText;
-  reorganizeLiveText.scrollTop = reorganizeLiveText.scrollHeight;
-}
-function finalizeReorganizeAttempt() {
-  try {
-    const arr = extractJsonArray(reorganizeRawText);
-    memoryDrafts = arr.map(d => ({ content: String(d.content||''), type: normalizeMemType(d.type), emotion: normalizeMemEmotion(d.emotion), tags: normalizeMemTags(d.tags), sourceIds: Array.isArray(d.sourceIds) ? d.sourceIds.map(String) : [] }));
-    reorganizeLiveWrap.classList.remove('show');
-    renderMemoryReorganizeList(); memoryReorganizeOverlay.classList.add('show');
-  } catch(e) {
-    const lengthCut = reorganizeStopReason === 'max_tokens' || reorganizeStopReason === 'length';
-    reorganizeLiveStatus.textContent = lengthCut ? '生成被截断，可以继续生成' : ('解析失败：' + e.message);
-    reorganizeLiveActions.classList.add('show');
-    reorganizeContinueBtn.style.display = lengthCut ? '' : 'none';
-  }
-}
-// 续写不一定真的被模型接受：有些接口收到"续写"请求会从头完整重写一遍而不是接着写，
-// 这种情况下不能把新内容直接拼在旧内容后面（会拼出两个数组，且越续越长）。
-// 用"新内容一开头就是数组/代码块"作为"模型重新写了一遍"的信号，命中则丢弃旧内容而不是追加。
-function looksLikeFreshRestart(segment) {
-  const t = segment.trim().replace(/^```(?:json)?/i, '').trim();
-  return t.startsWith('[') || t.startsWith('{');
-}
-async function runReorganizeStream(apiMessages, isContinuation) {
-  const cfg = getConfig();
-  const useNative = isClaudeNative(cfg);
-  const maxTokensOverride = Number(reorganizeMaxTokensInput.value) || 8000;
-  const safetyCharCap = Math.max(reorganizePayloadContent.length, 500) * 4;
-  reorganizeGenerating = true; memoryReorganizeBtn.textContent = '■ 停止';
-  reorganizeLiveActions.classList.remove('show');
-  reorganizeLiveWrap.classList.add('show');
-  reorganizeLiveStatus.textContent = '整理中…';
-  const controller = new AbortController(); reorganizeAbortController = controller;
-  let segmentText = '', abortedBySafetyCap = false;
-  try {
-    const req = buildChatRequest({ cfg, apiMessages, systemBlocks: [{ text: reorganizeSysPrompt, cache: false }], stream: true, maxTokensOverride });
-    const res = await fetch(req.url, { method:'POST', headers: req.headers, body: req.body, signal: controller.signal });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    reorganizeStopReason = await readReorganizeStream(res, useNative, (delta) => {
-      segmentText += delta;
-      const combinedLen = reorganizeRawText.length + segmentText.length;
-      updateReorganizeLiveText(isContinuation ? reorganizeRawText + segmentText : segmentText);
-      reorganizeLiveStatus.textContent = `整理中… 已生成约 ${Math.round(combinedLen / 4)} tokens`;
-      if (combinedLen > safetyCharCap) { abortedBySafetyCap = true; controller.abort(); }
-    });
-    if (isContinuation && looksLikeFreshRestart(segmentText)) {
-      reorganizeRawText = segmentText;
-      showToast('检测到模型重新写了一遍而不是接着写，已丢弃重复内容', 3500);
-    } else if (isContinuation) {
-      reorganizeRawText += segmentText;
-    } else {
-      reorganizeRawText = segmentText;
-    }
-    finalizeReorganizeAttempt();
-  } catch(e) {
-    if (e.name === 'AbortError' && abortedBySafetyCap) {
-      reorganizeLiveStatus.textContent = '内容异常增长（可能续写没生效），已自动停止并丢弃这次结果';
-      reorganizeLiveActions.classList.add('show');
-      reorganizeContinueBtn.style.display = 'none';
-      updateReorganizeLiveText(reorganizeRawText);
-    } else if (e.name === 'AbortError') {
-      reorganizeRawText = isContinuation ? reorganizeRawText + segmentText : segmentText;
-      reorganizeLiveStatus.textContent = '已停止，可以继续生成';
-      reorganizeLiveActions.classList.add('show');
-      reorganizeContinueBtn.style.display = reorganizeRawText ? '' : 'none';
-    } else {
-      console.warn('整理记忆库失败', e);
-      reorganizeLiveStatus.textContent = '整理失败：' + e.message;
-      reorganizeLiveActions.classList.add('show');
-      reorganizeContinueBtn.style.display = reorganizeRawText ? '' : 'none';
-    }
-  } finally {
-    reorganizeGenerating = false; reorganizeAbortController = null;
-    memoryReorganizeBtn.textContent = '🧹 整理记忆库';
-  }
-}
-memoryReorganizeBtn.addEventListener('click', () => {
-  if (reorganizeGenerating) { if (reorganizeAbortController) reorganizeAbortController.abort(); return; }
-  if (memory.length === 0) { showToast('记忆库是空的'); return; }
-  const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在Space里配置API'); return; }
-  reorganizeSysPrompt = buildReorganizeSysPrompt();
-  reorganizePayloadContent = JSON.stringify(memory.map(m => ({ id: m.id, content: m.content, type: m.type, emotion: m.emotion, tags: m.tags })));
-  reorganizeRawText = ''; reorganizeStopReason = null; updateReorganizeLiveText('');
-  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }], false);
-});
-reorganizeContinueBtn.addEventListener('click', () => {
-  // Claude 原生接口要求最后一条assistant消息（prefill）不能以空白字符结尾，否则直接400
-  // 而AI输出的格式化JSON被截断时经常刚好停在换行/缩进空格上
-  reorganizeRawText = reorganizeRawText.replace(/\s+$/, '');
-  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }, { role:'assistant', content: reorganizeRawText }], true);
-});
-reorganizeRestartBtn.addEventListener('click', () => {
-  reorganizeRawText = ''; reorganizeStopReason = null; updateReorganizeLiveText('');
-  runReorganizeStream([{ role:'user', content: reorganizePayloadContent }], false);
-});
-document.getElementById('memoryReorganizeCancelBtn').addEventListener('click', () => { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; });
-memoryReorganizeOverlay.addEventListener('click', e => { if (e.target === memoryReorganizeOverlay) { memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = []; } });
-document.getElementById('memoryReorganizeConfirmBtn').addEventListener('click', () => {
-  if (!confirm('用整理后的草稿替换整个记忆库？此操作不可恢复。')) return;
-  const oldCreatedAt = new Map(memory.map(m => [m.id, m.createdAt]));
-  memory = memoryDrafts.filter(d => d.content.trim()).map(d => {
-    const sourceTimes = (d.sourceIds || []).map(id => oldCreatedAt.get(id)).filter(t => t != null);
-    const createdAt = sourceTimes.length > 0 ? Math.min(...sourceTimes) : Date.now();
-    return {
-      id: genId(), content: d.content.trim(), time: timeStr(), createdAt,
-      layer: 'active', type: d.type, emotion: d.emotion, tags: d.tags, starred: false, order: null
-    };
-  });
-  persistMemory(); memoryReorganizeOverlay.classList.remove('show'); memoryDrafts = [];
-  memoryDetailType = null; renderMemoryList(); showToast('记忆库已整理');
-});
+document.getElementById('mmThemeCancelBtn').addEventListener('click', () => mmThemeOverlay.classList.remove('show'));
+mmThemeOverlay.addEventListener('click', e => { if (e.target === mmThemeOverlay) mmThemeOverlay.classList.remove('show'); });
 
 /* ============================================================
 memory_update 标记解析
@@ -2376,7 +1963,7 @@ function findBestMatchIndex(action) {
 }
 // 本地记忆的 type 是内部键（you/us/study/nest/legacy/liudeng），Supabase memories 表的 type 只有4个中文枚举；
 // legacy/liudeng 没有对应分类，统一归到"生活"，保证所有本地记忆都能同步云端
-const MEM_TYPE_TO_SUPABASE = { you: '生活', us: '关于我们', study: '学习', nest: '筑巢', legacy: '生活', liudeng: '生活' };
+const MEM_TYPE_TO_SUPABASE = { you: '生活', us: '关于我们', study: '学习', nest: '筑巢', legacy: '生活' };
 // 反向映射只用于"云端有、本地没有"的记忆合并进本地列表时的分类兜底，映射本身是有损的（多个本地type共享一个中文枚举），
 // 仅作为展示分类的合理默认值，不影响已存在本地记忆的原始type
 const SUPABASE_TYPE_TO_MEM = { '生活': 'you', '关于我们': 'us', '学习': 'study', '筑巢': 'nest' };
@@ -2426,7 +2013,7 @@ function applyMemoryUpdate(action) {
 }
 function processMemoryMarkers(rawText) {
   const { cleanText, actions } = extractMemoryMarkers(rawText);
-  if (actions.length > 0) { actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); renderMemoryList(); showToast('记忆已更新'); }
+  if (actions.length > 0) { actions.forEach(a => applyMemoryUpdate(a)); persistMemory(); if (currentPage === 'log') { mmExpandedDays = null; renderMemoryTimeline(); } showToast('记忆已更新'); }
   return cleanText;
 }
 
@@ -2482,7 +2069,7 @@ async function refreshMemoryFromSupabase() {
     });
     const localOnly = memory.filter(m => !m.sbId);
     memory = [...merged, ...localOnly];
-    persistMemory(); renderMemoryList(); refreshTokenEstimate();
+    persistMemory(); if (currentPage === 'log') { mmExpandedDays = null; renderMemoryTimeline(); } refreshTokenEstimate();
   } catch(e) { console.warn('Supabase记忆拉取出错，使用本地缓存', e); }
 }
 async function initSupabaseMemorySync() {
@@ -2534,8 +2121,6 @@ function buildMemoryInjection() {
   if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(withAge).join('\n');
   const nestMem = getTopByType('nest', 5);
   if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(withAge).join('\n');
-  const liudengMem = getTopByType('liudeng', 5);
-  if (liudengMem.length > 0) content += '\n\n【留灯（私密房间的记忆）】\n' + liudengMem.map(withAge).join('\n');
   return content;
 }
 
@@ -2804,8 +2389,7 @@ function openMsgMenu(msg, ctx, x, y) {
     else showToast('复制失败');
   }});
   items.push({ label: '编辑', onClick: () => triggerEditMessage(msg, ctx) });
-  if (msg.role !== 'user' && ctx !== secretCtx) items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
-  if (msg.role !== 'user' && ctx === secretCtx) items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
+  if (msg.role !== 'user') items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
   items.push({ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) });
   openFloatingMenu(items, x, y);
 }
@@ -3126,39 +2710,31 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
 });
 
 let currentPage = 'chat';
-let wasInSecretArea = false;
 function switchPage(pageName) {
-  const leavingSecret = wasInSecretArea && pageName !== 'secretrooms' && pageName !== 'secretsession';
-  if (leavingSecret) { secretUnlocked = false; currentSecretRoomId = null; }
-  wasInSecretArea = (pageName === 'secretrooms' || pageName === 'secretsession');
   currentPage = pageName;
   if (selectMode && pageName !== 'chat') exitSelectMode();
-  quotedMain = null; quotedSub = null; quotedSecret = null; renderQuoteBar('main'); renderQuoteBar('sub'); renderQuoteBar('secret');
+  quotedMain = null; quotedSub = null; renderQuoteBar('main'); renderQuoteBar('sub');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + pageName).classList.add('active');
   const isChat = pageName === 'chat', isSubchat = pageName === 'subchat';
-  const isSecret = pageName === 'secretrooms' || pageName === 'secretsession';
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   const activeTabKey = isSubchat ? 'chat' : pageName;
   const navTab = document.querySelector(`.nav-tab[data-page="${activeTabKey}"]`); if (navTab) navTab.classList.add('active');
   if (isSubchat) { const sc = subChats.find(s => s.id === currentSubChatId); pageCapsule.textContent = sc ? sc.name : '副聊天'; renderSubChatMessages(); }
   else if (pageName === 'chat') { pageCapsule.textContent = pageTitles.chat; }
-  else if (!isSecret) { pageCapsule.textContent = pageTitles[pageName]; }
+  else { pageCapsule.textContent = pageTitles[pageName]; }
   document.getElementById('avatarBtn').style.display       = (isChat || isSubchat) ? 'flex' : 'none';
   document.getElementById('inputBar').style.display        = isChat ? 'flex' : 'none';
   document.getElementById('subchatInputBar').style.display = isSubchat ? 'flex' : 'none';
-  document.getElementById('secretInputBar').style.display  = pageName === 'secretsession' ? 'flex' : 'none';
   document.getElementById('attachPreview').style.display   = isChat ? '' : 'none';
   document.getElementById('quoteBar').style.display        = isChat ? '' : 'none';
   document.getElementById('subQuoteBar').style.display     = isSubchat ? '' : 'none';
-  document.getElementById('topbar').style.display          = isSecret ? 'none' : 'flex';
-  document.getElementById('bottomNav').style.display        = isSecret ? 'none' : 'flex';
-  document.body.classList.toggle('secret-dark', isSecret);
+  document.getElementById('topbar').style.display          = 'flex';
+  document.getElementById('bottomNav').style.display        = 'flex';
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
   if (pageName === 'space') { refreshTokenEstimate(); loadChatSettings(); }
-  if (pageName === 'log') { memoryDetailType = null; renderMemoryList(); }
-  if (pageName === 'secretrooms') { renderSecretRoomList(); }
+  if (pageName === 'log') { if (window.OB_THEME) window.OB_THEME.applyCurrent(window.OB_THEME.loadTheme()); mmExpandedDays = null; renderMemoryTimeline(); }
 }
 document.querySelectorAll('.nav-tab').forEach(tab => { tab.addEventListener('click', () => switchPage(tab.dataset.page)); });
 
@@ -3263,7 +2839,7 @@ async function compressAllHistoryImages() {
   const btn = document.getElementById('compressImagesBtn');
   btn.disabled = true; const originalText = btn.textContent; btn.textContent = '压缩中…';
   let count = 0, savedBytes = 0;
-  const msgLists = [messages, ...subChats.map(sc => sc.messages || []), ...secretRooms.flatMap(r => (r.sessions || []).map(s => s.messages || []))];
+  const msgLists = [messages, ...subChats.map(sc => sc.messages || [])];
   for (const list of msgLists) {
     for (const m of list) {
       if (!m.images || !m.images.length) continue;
@@ -3277,7 +2853,7 @@ async function compressAllHistoryImages() {
       }
     }
   }
-  persistMessages(); persistSubChats(); persistSecretRooms();
+  persistMessages(); persistSubChats();
   btn.disabled = false; btn.textContent = originalText;
   showToast(count > 0 ? `已压缩 ${count} 张图片，节省约 ${Math.round(savedBytes / 1024)} KB` : '没有可压缩的图片', 3000);
 }
@@ -3450,30 +3026,6 @@ async function readChatStream(res, useNative, onDelta) {
     }
   }
 }
-// 独立于 readChatStream：记忆库整理需要实时展示原始文本，并判断是否因长度截断以支持续写
-async function readReorganizeStream(res, useNative, onDelta) {
-  const reader = res.body.getReader(); const decoder = new TextDecoder();
-  let buf = '', stopReason = null;
-  while (true) {
-    const { done, value } = await reader.read(); if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split('\n'); buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim(); if (!data || data === '[DONE]') continue;
-      let obj; try { obj = JSON.parse(data); } catch(_) { continue; }
-      if (useNative) {
-        if (obj.type === 'content_block_delta' && obj.delta && obj.delta.type === 'text_delta') onDelta(obj.delta.text || '');
-        else if (obj.type === 'message_delta' && obj.delta && obj.delta.stop_reason) stopReason = obj.delta.stop_reason;
-      } else {
-        const choice = obj.choices?.[0];
-        if (choice?.delta?.content) onDelta(choice.delta.content);
-        if (choice?.finish_reason) stopReason = choice.finish_reason;
-      }
-    }
-  }
-  return stopReason;
-}
 function parseChatNonStream(json, useNative) {
   if (useNative) {
     let text = '', thinking = '';
@@ -3645,475 +3197,6 @@ async function callSubChatAPI(rerollTarget) {
 }
 
 /* ============================================================
-私密区：状态 + PIN
-============================================================ */
-let secretRooms = [];
-let currentSecretRoomId = null;
-let secretUnlocked = false;
-let secretGenerating = false;
-let secretAbortController = null;
-let pinMode = 'verify';
-let pinBuffer = '';
-let pinTempOld = '';
-
-function hasSecretPin() { return !!localStorage.getItem(LS_SECRET_PIN); }
-function checkSecretPin(val) { const stored = localStorage.getItem(LS_SECRET_PIN); if (!stored) return false; try { return atob(stored) === val; } catch(e) { return false; } }
-function saveSecretPin(val) { safeSetItem(LS_SECRET_PIN, btoa(val)); }
-
-const secretPinOverlay = document.getElementById('secretPinOverlay');
-const pinTitle = document.getElementById('pinTitle');
-const pinDots  = document.getElementById('pinDots');
-const pinKeypad = document.getElementById('pinKeypad');
-const pinCancelBtn = document.getElementById('pinCancelBtn');
-
-function buildPinDots() {
-  pinDots.innerHTML = '';
-  for (let i=0;i<4;i++) { const d = document.createElement('div'); d.className='pin-dot'; pinDots.appendChild(d); }
-}
-function updatePinDots() {
-  const dots = pinDots.querySelectorAll('.pin-dot');
-  dots.forEach((d,i) => d.classList.toggle('filled', i < pinBuffer.length));
-}
-function buildPinKeypad() {
-  pinKeypad.innerHTML = '';
-  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
-  keys.forEach(k => {
-    const btn = document.createElement('button');
-    btn.className = 'pin-key' + (k === '' ? ' pin-empty' : '');
-    btn.textContent = k;
-    if (k !== '') btn.addEventListener('click', () => { if (k === '⌫') pinBackspace(); else pinDigit(k); });
-    pinKeypad.appendChild(btn);
-  });
-}
-function pinDigit(d) {
-  if (pinBuffer.length >= 4) return;
-  pinBuffer += d; updatePinDots();
-  if (pinBuffer.length === 4) setTimeout(handlePinComplete, 150);
-}
-function pinBackspace() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); }
-function pinShakeAndClear() {
-  pinDots.classList.add('shake');
-  if (navigator.vibrate) navigator.vibrate(30);
-  setTimeout(() => { pinDots.classList.remove('shake'); pinBuffer=''; updatePinDots(); }, 300);
-}
-function openPinOverlay(mode) {
-  pinMode = mode; pinBuffer = ''; updatePinDots();
-  if (mode === 'setup') pinTitle.textContent = '设置四位密码';
-  else if (mode === 'verify') pinTitle.textContent = '请输入密码';
-  else if (mode === 'reset-verify') pinTitle.textContent = '请输入原密码';
-  else if (mode === 'reset-setup') pinTitle.textContent = '设置新密码';
-  secretPinOverlay.classList.add('show');
-}
-function closePinOverlay() { secretPinOverlay.classList.remove('show'); pinBuffer=''; }
-function handlePinComplete() {
-  const val = pinBuffer;
-  if (pinMode === 'setup') { saveSecretPin(val); closePinOverlay(); secretUnlocked = true; switchPage('secretrooms'); }
-  else if (pinMode === 'verify') {
-    if (checkSecretPin(val)) { closePinOverlay(); secretUnlocked = true; switchPage('secretrooms'); }
-    else pinShakeAndClear();
-  } else if (pinMode === 'reset-verify') {
-    if (checkSecretPin(val)) { pinTempOld = val; openPinOverlay('reset-setup'); }
-    else pinShakeAndClear();
-  } else if (pinMode === 'reset-setup') { saveSecretPin(val); closePinOverlay(); showToast('密码已重置'); }
-}
-pinCancelBtn.addEventListener('click', closePinOverlay);
-buildPinDots(); buildPinKeypad();
-
-document.getElementById('secretEntryBtn').addEventListener('click', () => {
-  closeSidebar();
-  if (secretUnlocked) { switchPage('secretrooms'); return; }
-  if (!hasSecretPin()) openPinOverlay('setup'); else openPinOverlay('verify');
-});
-document.getElementById('resetSecretPinBtn').addEventListener('click', () => {
-  if (!hasSecretPin()) { openPinOverlay('reset-setup'); return; }
-  openPinOverlay('reset-verify');
-});
-document.getElementById('liudengPromptSaveBtn').addEventListener('click', () => {
-  const val = document.getElementById('liudengPromptInput').value.trim();
-  liudengPrompt = val || DEFAULT_LIUDENG_PROMPT;
-  safeSetItem(LS_LIUDENG_PROMPT, liudengPrompt);
-  showToast('已保存');
-});
-document.getElementById('liudengPromptResetBtn').addEventListener('click', () => {
-  liudengPrompt = DEFAULT_LIUDENG_PROMPT;
-  localStorage.removeItem(LS_LIUDENG_PROMPT);
-  document.getElementById('liudengPromptInput').value = liudengPrompt;
-  showToast('已恢复默认');
-});
-
-function loadSecretLabel() {
-  document.getElementById('secretEntryLabel').textContent = localStorage.getItem(LS_SECRET_LABEL) || '私密';
-}
-let secretLabelTimer = null;
-const secretEntryRow = document.getElementById('secretEntryBtn');
-secretEntryRow.addEventListener('touchstart', () => {
-  secretLabelTimer = setTimeout(() => {
-    const el = document.getElementById('secretEntryLabel');
-    const newName = prompt('给这个区域起个名字：', el.textContent);
-    if (newName && newName.trim()) { safeSetItem(LS_SECRET_LABEL, newName.trim()); el.textContent = newName.trim(); }
-  }, 600);
-}, { passive:true });
-secretEntryRow.addEventListener('touchend', () => clearTimeout(secretLabelTimer));
-secretEntryRow.addEventListener('touchmove', () => clearTimeout(secretLabelTimer));
-
-/* ============================================================
-私密区：房间
-============================================================ */
-function getCurrentSecretRoom() { return secretRooms.find(r => r.id === currentSecretRoomId); }
-function getActiveSession(room) {
-  if (!room.sessions) room.sessions = [];
-  let s = room.sessions.find(x => !x.ended);
-  if (!s) { s = { id: genId(), startTime: Date.now(), messages: [], ended: false, endNote:'', record:'' }; room.sessions.push(s); persistSecretRooms(); }
-  return s;
-}
-function renderSecretRoomList() {
-  const listEl = document.getElementById('secretRoomList'); listEl.innerHTML = '';
-  if (secretRooms.length === 0) {
-    const empty = document.createElement('div'); empty.style.cssText = 'text-align:center;color:#666;font-size:13px;padding:30px 0;';
-    empty.textContent = '还没有房间'; listEl.appendChild(empty);
-  }
-  secretRooms.forEach(room => {
-    const card = document.createElement('div'); card.className = 'secret-room-card';
-    const sealedCount = (room.sessions||[]).filter(s=>s.ended).length;
-    const nameDiv = document.createElement('div'); nameDiv.className = 'secret-room-name'; nameDiv.textContent = room.name;
-    const subDiv = document.createElement('div'); subDiv.className = 'secret-room-sub'; subDiv.textContent = `已封存 ${sealedCount} 场`;
-    card.appendChild(nameDiv); card.appendChild(subDiv);
-    card.addEventListener('click', () => { currentSecretRoomId = room.id; enterSecretSession(); });
-    attachSecretRoomLongPress(card, room);
-    listEl.appendChild(card);
-  });
-  const addBtn = document.createElement('div'); addBtn.className = 'secret-add-room'; addBtn.textContent = '+ 新建房间';
-  addBtn.addEventListener('click', () => openSecretRoomEdit(null));
-  listEl.appendChild(addBtn);
-}
-function attachSecretRoomLongPress(el, room) {
-  let timer = null, sx=0, sy=0;
-  el.addEventListener('touchstart', e => { const t=e.touches[0]; sx=t.clientX; sy=t.clientY; timer=setTimeout(()=>{ openSecretRoomMenu(room, t.clientX, t.clientY); }, 550); }, {passive:true});
-  el.addEventListener('touchmove', e => { const t=e.touches[0]; if (Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10) clearTimeout(timer); }, {passive:true});
-  el.addEventListener('touchend', () => clearTimeout(timer));
-}
-function openSecretRoomMenu(room, x, y) {
-  openFloatingMenu([
-    { label: '编辑', onClick: () => openSecretRoomEdit(room.id) },
-    { label: '删除', danger: true, onClick: () => { if (confirm(`删除房间「${room.name}」？此操作不可恢复。`)) { secretRooms = secretRooms.filter(r=>r.id!==room.id); persistSecretRooms(); renderSecretRoomList(); } } }
-  ], x, y);
-}
-document.getElementById('secretRoomsBackBtn').addEventListener('click', () => switchPage('chat'));
-document.getElementById('secretRoomsMenuBtn').addEventListener('click', (e) => {
-  const rect = e.currentTarget.getBoundingClientRect();
-  openFloatingMenu([
-    { label: '编辑私密总预设', onClick: () => openSecretGlobalPresetEdit() }
-  ], rect.right - 180, rect.bottom + 8);
-});
-const secretGlobalPresetOverlay = document.getElementById('secretGlobalPresetOverlay');
-function openSecretGlobalPresetEdit() {
-  document.getElementById('secretGlobalPresetInput').value = secretGlobalPreset || '';
-  secretGlobalPresetOverlay.classList.add('show');
-}
-document.getElementById('secretGlobalPresetCancelBtn').addEventListener('click', () => secretGlobalPresetOverlay.classList.remove('show'));
-secretGlobalPresetOverlay.addEventListener('click', e => { if (e.target === secretGlobalPresetOverlay) secretGlobalPresetOverlay.classList.remove('show'); });
-document.getElementById('secretGlobalPresetSaveBtn').addEventListener('click', () => {
-  const val = document.getElementById('secretGlobalPresetInput').value.trim();
-  secretGlobalPreset = val || DEFAULT_SECRET_GLOBAL_PRESET;
-  safeSetItem(LS_SECRET_GLOBAL_PRESET, secretGlobalPreset);
-  secretGlobalPresetOverlay.classList.remove('show'); showToast('已保存');
-});
-document.getElementById('secretGlobalPresetResetBtn').addEventListener('click', () => {
-  secretGlobalPreset = DEFAULT_SECRET_GLOBAL_PRESET;
-  localStorage.removeItem(LS_SECRET_GLOBAL_PRESET);
-  document.getElementById('secretGlobalPresetInput').value = secretGlobalPreset;
-  showToast('已恢复默认');
-});
-
-let editingSecretRoomId = null;
-const secretRoomEditOverlay = document.getElementById('secretRoomEditOverlay');
-const secretRoomEditTitle   = document.getElementById('secretRoomEditTitle');
-const secretRoomNameInput   = document.getElementById('secretRoomNameInput');
-const secretRoomPresetInput = document.getElementById('secretRoomPresetInput');
-const secretRoomDeleteWrap  = document.getElementById('secretRoomDeleteWrap');
-function openSecretRoomEdit(roomId) {
-  editingSecretRoomId = roomId;
-  if (roomId) {
-    const room = secretRooms.find(r=>r.id===roomId);
-    secretRoomEditTitle.textContent = '编辑房间';
-    secretRoomNameInput.value = room.name; secretRoomPresetInput.value = room.preset || '';
-    secretRoomDeleteWrap.style.display = '';
-  } else {
-    secretRoomEditTitle.textContent = '新建房间';
-    secretRoomNameInput.value = ''; secretRoomPresetInput.value = '';
-    secretRoomDeleteWrap.style.display = 'none';
-  }
-  secretRoomEditOverlay.classList.add('show');
-}
-document.getElementById('secretRoomEditCancelBtn').addEventListener('click', () => secretRoomEditOverlay.classList.remove('show'));
-secretRoomEditOverlay.addEventListener('click', e => { if (e.target === secretRoomEditOverlay) secretRoomEditOverlay.classList.remove('show'); });
-document.getElementById('secretRoomEditSaveBtn').addEventListener('click', () => {
-  const name = secretRoomNameInput.value.trim(); if (!name) { showToast('给房间起个名字吧'); return; }
-  const preset = secretRoomPresetInput.value;
-  if (editingSecretRoomId) { const room = secretRooms.find(r=>r.id===editingSecretRoomId); room.name = name; room.preset = preset; }
-  else { secretRooms.push({ id: genId(), name, preset, sessions: [] }); }
-  persistSecretRooms(); secretRoomEditOverlay.classList.remove('show'); renderSecretRoomList();
-  if (currentPage === 'secretsession') renderSecretSessionHeader();
-});
-document.getElementById('secretRoomDeleteBtn').addEventListener('click', () => {
-  if (!editingSecretRoomId) return;
-  if (!confirm('删除此房间？此操作不可恢复。')) return;
-  const wasCurrentRoom = currentSecretRoomId === editingSecretRoomId;
-  secretRooms = secretRooms.filter(r=>r.id!==editingSecretRoomId); persistSecretRooms();
-  secretRoomEditOverlay.classList.remove('show'); renderSecretRoomList();
-  if (wasCurrentRoom) { currentSecretRoomId=null; switchPage('secretrooms'); }
-});
-
-/* ============================================================
-私密区：场次
-============================================================ */
-function enterSecretSession() {
-  const room = getCurrentSecretRoom(); if (!room) return;
-  getActiveSession(room);
-  exitSecretDeleteMode();
-  switchPage('secretsession');
-  renderSecretSessionHeader(); renderSecretSessionMessages(); renderSealedSessions();
-}
-function renderSecretSessionHeader() {
-  const room = getCurrentSecretRoom(); if (!room) return;
-  document.getElementById('secretSessionTitle').textContent = room.name;
-}
-document.getElementById('secretSessionBackBtn').addEventListener('click', () => { exitSecretDeleteMode(); switchPage('secretrooms'); });
-
-function renderSecretSessionMessages() {
-  const scrollEl = document.getElementById('secretSessionScroll'); scrollEl.innerHTML = '';
-  const room = getCurrentSecretRoom(); if (!room) return;
-  const session = getActiveSession(room);
-  let prev = null;
-  session.messages.forEach(msg => {
-    if (shouldShowTimeDivider(prev, msg)) scrollEl.appendChild(buildTimeDividerRow(msg.createdAt));
-    scrollEl.appendChild(buildMsgRow(msg, secretCtx));
-    prev = msg;
-  });
-  const oldBadge = document.querySelector('.secret-timer-badge'); if (oldBadge) oldBadge.remove();
-  const badge = document.createElement('div'); badge.className = 'secret-timer-badge';
-  const d = new Date(session.startTime);
-  const timeSpan = document.createElement('span'); timeSpan.textContent = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} 开始`;
-  const heartSpan = document.createElement('span'); heartSpan.textContent = '♡';
-  badge.appendChild(timeSpan); badge.appendChild(heartSpan);
-  document.getElementById('page-secretsession').appendChild(badge);
-  scrollToBottom(scrollEl, 'page-secretsession');
-}
-function renderSealedSessions() {
-  const room = getCurrentSecretRoom(); const wrap = document.getElementById('secretSealedSection'); wrap.innerHTML = '';
-  if (!room) return;
-  const sealed = (room.sessions || []).filter(s => s.ended).sort((a,b) => b.startTime - a.startTime);
-  if (sealed.length === 0) return;
-  const title = document.createElement('div'); title.className = 'secret-sealed-title'; title.textContent = '封存的场次'; wrap.appendChild(title);
-  sealed.forEach(s => {
-    const card = document.createElement('div'); card.className = 'secret-sealed-card';
-    const d = new Date(s.startTime);
-    const timeRow = document.createElement('div'); timeRow.className = 'secret-sealed-time';
-    const t1 = document.createElement('span'); t1.textContent = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    const t2 = document.createElement('span'); t2.textContent = '♡';
-    timeRow.appendChild(t1); timeRow.appendChild(t2);
-    const preview = document.createElement('div'); preview.className = 'secret-sealed-preview'; preview.textContent = s.record || '（无记录）';
-    card.appendChild(timeRow); card.appendChild(preview);
-    if (secretDeleteMode) {
-      card.classList.add('selectable');
-      const check = document.createElement('div'); check.className = 'secret-sealed-check';
-      if (secretDeleteSelected.has(s.id)) check.classList.add('checked');
-      card.appendChild(check);
-      card.addEventListener('click', () => {
-        if (secretDeleteSelected.has(s.id)) secretDeleteSelected.delete(s.id); else secretDeleteSelected.add(s.id);
-        updateSecretDeleteCount(); renderSealedSessions();
-      });
-    } else {
-      card.addEventListener('click', () => openSecretReadonly(s));
-    }
-    wrap.appendChild(card);
-  });
-}
-function openSecretReadonly(session) {
-  const d = new Date(session.startTime);
-  document.getElementById('secretReadonlyTitle').textContent = `${d.getMonth()+1}月${d.getDate()}日 这一场`;
-  const bodyEl = document.getElementById('secretReadonlyBody'); bodyEl.innerHTML = '';
-  session.messages.forEach(m => {
-    const row = document.createElement('div'); row.style.marginBottom = '10px';
-    const author = m.role === 'user' ? appUsername : appName;
-    const strong = document.createElement('strong'); strong.style.color = '#c9a86a'; strong.textContent = author + '：';
-    row.appendChild(strong); row.appendChild(document.createTextNode(getMsgDisplayText(m) || ''));
-    bodyEl.appendChild(row);
-  });
-  const recordEl = document.getElementById('secretReadonlyRecord'); recordEl.innerHTML = '';
-  if (session.record) { const p1 = document.createElement('div'); p1.textContent = '留灯记录：' + session.record; recordEl.appendChild(p1); }
-  if (session.endNote) { const p2 = document.createElement('div'); p2.style.marginTop = '8px'; p2.textContent = session.endNote; recordEl.appendChild(p2); }
-  document.getElementById('secretReadonlyOverlay').classList.add('show');
-}
-document.getElementById('secretReadonlyCloseBtn').addEventListener('click', () => document.getElementById('secretReadonlyOverlay').classList.remove('show'));
-document.getElementById('secretReadonlyOverlay').addEventListener('click', e => { if (e.target.id === 'secretReadonlyOverlay') e.target.classList.remove('show'); });
-
-document.getElementById('secretSessionMenuBtn').addEventListener('click', (e) => {
-  const room = getCurrentSecretRoom(); if (!room) return;
-  const rect = e.currentTarget.getBoundingClientRect();
-  const items = [
-    { label: '结束这一场', danger: true, onClick: () => confirmEndSession() },
-    { label: '开启新一场', onClick: () => startNewSession() },
-    { label: '编辑设定', onClick: () => openSecretRoomEdit(room.id) }
-  ];
-  if ((room.sessions || []).some(s => s.ended)) {
-    items.push({ label: '删除场次', danger: true, onClick: () => enterSecretDeleteMode() });
-  }
-  openFloatingMenu(items, rect.right - 160, rect.bottom + 8);
-});
-let secretDeleteMode = false;
-let secretDeleteSelected = new Set();
-function enterSecretDeleteMode() {
-  secretDeleteMode = true; secretDeleteSelected = new Set();
-  document.getElementById('secretDeleteBar').style.display = 'flex';
-  updateSecretDeleteCount();
-  renderSealedSessions();
-}
-function exitSecretDeleteMode() {
-  secretDeleteMode = false; secretDeleteSelected = new Set();
-  document.getElementById('secretDeleteBar').style.display = 'none';
-}
-function updateSecretDeleteCount() {
-  document.getElementById('secretDeleteCount').textContent = String(secretDeleteSelected.size);
-}
-document.getElementById('secretDeleteCancelBtn').addEventListener('click', () => { exitSecretDeleteMode(); renderSealedSessions(); });
-document.getElementById('secretDeleteConfirmBtn').addEventListener('click', () => {
-  const room = getCurrentSecretRoom(); if (!room) return;
-  if (secretDeleteSelected.size === 0) { showToast('还没选场次呢'); return; }
-  if (!confirm(`确定删除选中的 ${secretDeleteSelected.size} 场？此操作不可恢复。`)) return;
-  room.sessions = room.sessions.filter(s => !secretDeleteSelected.has(s.id));
-  persistSecretRooms();
-  exitSecretDeleteMode();
-  renderSealedSessions();
-  showToast('已删除');
-});
-function confirmEndSession() { if (confirm('封存后这一场只读，确定结束？')) endCurrentSession(); }
-async function endCurrentSession() {
-  const room = getCurrentSecretRoom(); if (!room) return;
-  const session = getActiveSession(room);
-  if (session.messages.length === 0) { session.ended = true; persistSecretRooms(); renderSecretSessionMessages(); renderSealedSessions(); return; }
-  showToast('正在为这一场留一盏灯…');
-  await runSecretSessionClosing(room, session);
-  session.ended = true; persistSecretRooms();
-  renderSecretSessionMessages(); renderSealedSessions();
-  showToast(session.endNote || '这一场，先到这里。', 3000);
-}
-function startNewSession() {
-  const room = getCurrentSecretRoom(); if (!room) return;
-  const active = (room.sessions||[]).find(s=>!s.ended);
-  if (active) { showToast('当前这场还没结束哦'); return; }
-  getActiveSession(room); renderSecretSessionMessages(); renderSealedSessions();
-}
-async function runSecretSessionClosing(room, session) {
-  const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) return;
-  const useNative = isClaudeNative(cfg);
-  const apiMsgs = session.messages.map(m => ({ role: m.role==='user'?'user':'assistant', content: getMsgDisplayText(m) })).filter(m=>m.content&&m.content.trim());
-  if (apiMsgs.length === 0) return;
-  try {
-    const req = buildChatRequest({ cfg, apiMessages: apiMsgs, systemBlocks: [{ text: appPersona, cache: false }, { text: liudengPrompt, cache: false }], stream: false });
-    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
-    if (!res.ok) return;
-    const json = await res.json();
-    const raw = parseChatNonStream(json, useNative).text;
-    const { cleanText, actions } = extractMemoryMarkers(raw);
-    if (actions.length > 0) {
-      actions.forEach(a => { if (!a.type) a.type = 'liudeng'; applyMemoryUpdate(a); });
-      persistMemory(); renderMemoryList();
-      session.record = actions.map(a => a.content).filter(Boolean).join('\n') || cleanText.trim().slice(0,180);
-    } else {
-      session.record = cleanText.trim().slice(0,180);
-    }
-    const noteMatch = cleanText.match(/收尾语[:：]([\s\S]*)$/);
-    session.endNote = noteMatch ? noteMatch[1].trim() : cleanText.replace(/收尾语[:：]/,'').trim().slice(0,60);
-    persistSecretRooms();
-  } catch(e) { console.warn('留灯记录生成失败', e); }
-}
-
-/* ============================================================
-私密区：API 调用
-============================================================ */
-function appendSecretMessage(msg) {
-  const scrollEl = document.getElementById('secretSessionScroll');
-  const room = getCurrentSecretRoom();
-  const session = room ? getActiveSession(room) : null;
-  const prev = session && session.messages.length >= 2 ? session.messages[session.messages.length - 2] : null;
-  if (shouldShowTimeDivider(prev, msg)) scrollEl.appendChild(buildTimeDividerRow(msg.createdAt));
-  const row = buildMsgRow(msg, secretCtx); row.classList.add('bubble-in'); scrollEl.appendChild(row); scrollToBottom(scrollEl, 'page-secretsession'); return row;
-}
-async function callSecretAPI(rerollTarget) {
-  const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
-  const room = getCurrentSecretRoom(); if (!room) return;
-  const session = getActiveSession(room);
-  const rerollIdx = rerollTarget ? session.messages.findIndex(m => m.id === rerollTarget.id) : -1;
-  const sourceMsgs = rerollIdx >= 0 ? session.messages.slice(0, rerollIdx) : session.messages;
-  const apiMessages = sourceMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, sourceMsgs[i - 1]) }));
-  // 私密房间沿用主聊天的人格设定，只是换了个地方聊；全局私密预设是所有房间通用的场景提示，房间自己的 preset 再叠加在最后
-  const systemBlocks = [
-    { text: appPersona ? appPersona.trim() : '', cache: true },
-    { text: secretGlobalPreset ? secretGlobalPreset.trim() : '', cache: false },
-    { text: room.preset ? room.preset.trim() : '', cache: false }
-  ];
-  const dynamicTail = buildMemoryInjection() + '\n\n【当前时间】' + currentTimeLabel();
-
-  const isReroll = !!rerollTarget;
-  const scrollEl = document.getElementById('secretSessionScroll');
-  let aiMsg, aiRow, aiBubble;
-  if (isReroll) {
-    aiMsg = rerollTarget; aiRow = scrollEl.querySelector(`[data-msg-id="${aiMsg.id}"]`);
-    if (!aiRow) { aiRow = appendSecretMessage(aiMsg); }
-    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
-  } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
-    session.messages.push(aiMsg); persistSecretRooms(); aiRow = appendSecretMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
-  }
-
-  const sendBtnEl = document.getElementById('secretSendBtn');
-  const controller = new AbortController(); secretAbortController = controller; secretGenerating = true; sendBtnEl.textContent = '■';
-  const renderer = makeStreamRenderer(aiBubble, () => scrollToBottom(scrollEl, 'page-secretsession'));
-  let accumulated = '', accumulatedReasoning = '';
-
-  function finishWith(rawText, reasoningText) {
-    if (!rawText || !rawText.trim()) {
-      if (isReroll) { refreshRow(aiMsg, secretCtx); }
-      else { const idx = session.messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) session.messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistSecretRooms(); }
-      return;
-    }
-    let thinking = reasoningText || '', bodyText = rawText;
-    if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
-    const { cleanText: afterQuote, quote } = extractQuoteMarker(bodyText);
-    bodyText = afterQuote;
-    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
-    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
-    aiMsg.text = bodyText; persistSecretRooms(); refreshRow(aiMsg, secretCtx); scrollToBottom(scrollEl, 'page-secretsession');
-  }
-
-  try {
-    const useStream = cfg.stream !== false;
-    const useNative = isClaudeNative(cfg);
-    const req = buildChatRequest({ cfg, apiMessages, systemBlocks, stream: useStream, tailText: dynamicTail });
-    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    if (useStream) {
-      await readChatStream(res, useNative, (delta, reasoningDelta) => {
-        if (reasoningDelta) accumulatedReasoning += reasoningDelta;
-        accumulated += delta; renderer.push(accumulated);
-      });
-    } else {
-      const json = await res.json();
-      const parsed = parseChatNonStream(json, useNative);
-      accumulated = parsed.text; accumulatedReasoning = parsed.reasoning;
-    }
-    finishWith(accumulated, accumulatedReasoning);
-  } catch(err) {
-    if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
-    else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
-  } finally { secretGenerating = false; secretAbortController = null; sendBtnEl.textContent = '发送'; }
-}
-
-/* ============================================================
 消息数组上下文
 ============================================================ */
 const mainCtx = {
@@ -4124,11 +3207,6 @@ const subCtx = {
   getArray: () => { const sc = subChats.find(s => s.id === currentSubChatId); return sc ? sc.messages : []; },
   persist: persistSubChats, renderAll: renderSubChatMessages,
   callAPI: (target) => callSubChatAPI(target), container: subchatScroll, pageId: 'page-subchat'
-};
-const secretCtx = {
-  getArray: () => { const room = getCurrentSecretRoom(); if (!room) return []; return getActiveSession(room).messages; },
-  persist: persistSecretRooms, renderAll: () => renderSecretSessionMessages(),
-  callAPI: (target) => callSecretAPI(target), container: document.getElementById('secretSessionScroll'), pageId: 'page-secretsession'
 };
 
 /* ============================================================
@@ -4176,25 +3254,6 @@ subchatSendBtn.addEventListener('click', () => { if (subGenerating) { if (subAbo
 subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSubChatMessage(); } });
 
 /* ============================================================
-发送：私密区
-============================================================ */
-const secretTextInput = document.getElementById('secretTextInput');
-const secretSendBtn   = document.getElementById('secretSendBtn');
-secretTextInput.addEventListener('input', () => { secretTextInput.style.height = 'auto'; secretTextInput.style.height = Math.min(secretTextInput.scrollHeight, 100) + 'px'; });
-async function sendSecretMessage() {
-  const text = secretTextInput.value.trim(); if (!text) return;
-  const room = getCurrentSecretRoom(); if (!room) return;
-  const session = getActiveSession(room);
-  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), createdAt: Date.now(), quote: quotedSecret || undefined };
-  quotedSecret = null; renderQuoteBar('secret');
-  session.messages.push(userMsg); persistSecretRooms(); appendSecretMessage(userMsg);
-  secretTextInput.value = ''; secretTextInput.style.height = 'auto';
-  await callSecretAPI();
-}
-secretSendBtn.addEventListener('click', () => { if (secretGenerating) { if (secretAbortController) secretAbortController.abort(); } else { sendSecretMessage(); } });
-secretTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSecretMessage(); } });
-
-/* ============================================================
 初始化
 ============================================================ */
 loadDarkMode();
@@ -4208,19 +3267,12 @@ loadPlans();
 loadDiaries();
 loadTopicStart();
 loadWindowStart();
-loadSecretRooms();
-loadSecretLabel();
 appPersona = buildPersonaFromPresets() || appPersona;
 loadChatSettings();
 applyAvatar();
 applyBg();
-document.getElementById('page-secretrooms').style.background = '#1c1c1e';
-document.getElementById('page-secretrooms').style.color = '#e5e5e5';
-document.getElementById('page-secretsession').style.background = '#1c1c1e';
-document.getElementById('page-secretsession').style.color = '#e5e5e5';
 switchPage('chat');
 renderAllMessages();
-renderMemoryList();
 renderSubChatSidebarList();
 applyGlobalNames();
 // supabase.js 是 type="module"，会在文档解析完、DOMContentLoaded 之前执行，
