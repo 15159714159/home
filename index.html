@@ -676,6 +676,8 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
   <div class="side-nav-item active" data-nav="chat">主聊天</div>
   <div class="side-divider"></div>
+  <div class="side-nav-item" id="ombreBrainLink">Ombre Brain</div>
+  <div class="side-divider"></div>
   <div class="side-nav-item" style="color:var(--text-tertiary); cursor:default;">副聊天</div>
   <div id="subChatList"></div>
   <div class="side-new-btn" id="newSubChatBtn">＋ 新建副聊天</div>
@@ -2463,6 +2465,10 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
     if (item.dataset.nav === 'chat') { switchPage('chat'); document.querySelectorAll('.side-nav-item').forEach(i => i.classList.remove('active')); item.classList.add('active'); renderSubChatSidebarList(); }
     closeSidebar();
   });
+});
+document.getElementById('ombreBrainLink').addEventListener('click', () => {
+  window.open('https://47-107-161-135.sslip.io/v2/', '_blank');
+  closeSidebar();
 });
 
 let currentPage = 'chat';
