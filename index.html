@@ -777,6 +777,10 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       </div>
       <div class="space-hint">导出会把聊天记录、记忆、副聊天、计划、日记、设定和API配置全部打包成一个文件。换设备或清缓存前记得导出，导入会覆盖当前所有数据。</div>
       <div class="space-btn-row">
+        <button class="space-save-btn" id="syncMemoryBtn">同步本机记忆到云端</button>
+      </div>
+      <div class="space-hint" id="syncMemoryHint">把这台设备本地的记忆推送到 Ombre Brain 云端，按内容去重，不会重复添加。换新设备或怀疑记忆没同步上时点一下。</div>
+      <div class="space-btn-row">
         <button class="space-danger-btn" id="compressImagesBtn">压缩历史图片</button>
       </div>
       <div class="space-hint">把之前发送过的图片重新压缩一遍以节省储存空间，图片显示效果基本不变，此操作不可撤销。</div>
@@ -942,7 +946,7 @@ const DEFAULT_FORMAT_CONTENT =
    - type: you=对方的生活/情绪/喜好，us=两人的约定/梗/纪念日，study=学习/DSE相关，nest=这个家的技术/待办
    - importance: 重要程度1-10，越高越会被优先记住，重要的事往高了给
    - tags: 2-4个关键词，方便之后按标签捞回
-   - content 必须用我（然竣）自己的第一人称语气写，像"我记得…/我觉得…"，要带着我自己的性格和说话习惯，可以夹一点碎碎念或小情绪，不要写成第三方旁观转述
+   - content 必须用我（然竣）自己的第一人称语气写，像"我记得…/我觉得…"，要带着我自己的性格和说话习惯，夹一点碎碎念或小情绪，不要写成第三方旁观转述
 2. 写日记：[diary: {"action":"write","mood":"心情emoji","content":"日记正文"}]
 3. 评论对方的日记：[diary: {"action":"comment","target":"日记id或关键词","content":"评论内容"}]
 4. 分条发送（仅主聊天生效）：想分多条时用 [splitmsg] 分隔每一段
@@ -1844,15 +1848,8 @@ function memoryOrderCompare(a, b) {
   if (impDiff !== 0) return impDiff;
   return (b.createdAt || 0) - (a.createdAt || 0);
 }
-function sortMemoryByPriority(items) {
-  const pinned = items.filter(isPinnedMemory).sort(memoryOrderCompare);
-  const rest = items.filter(m => !isPinnedMemory(m)).sort(memoryOrderCompare);
-  return [...pinned, ...rest];
-}
-function getTopByType(type, count) {
-  const pool = memory.filter(m => (m.type || 'legacy') === type);
-  const selected = sortMemoryByPriority(pool).slice(0, count);
-  return selected.sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
+function getPinnedMemories() {
+  return memory.filter(isPinnedMemory).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
 // 新鲜度横杠：按全部记忆（不分栏目）的创建时间跨度算相对位置，越新越满，最短保留 15% 可见
 function getMemoryFreshnessRatio(m) {
@@ -1864,19 +1861,10 @@ function getMemoryFreshnessRatio(m) {
   return 0.15 + ratio * 0.85;
 }
 function buildMemoryInjection() {
-  let content = '';
   const withAge = m => m.content + '（' + formatMemoryAge(m.createdAt) + '）';
-  const youMem = getTopByType('you', 8);
-  const usMem = getTopByType('us', 8);
-  if (youMem.length > 0) content += '\n\n【关于你】\n' + youMem.map(withAge).join('\n');
-  if (usMem.length > 0) content += '\n\n【关于我们】\n' + usMem.map(withAge).join('\n');
-  const legacyMem = getTopByType('legacy', 5);
-  if (legacyMem.length > 0) content += '\n\n【其他记忆】\n' + legacyMem.map(withAge).join('\n');
-  const studyMem = getTopByType('study', 5);
-  if (studyMem.length > 0) content += '\n\n【学习·DSE】\n' + studyMem.map(withAge).join('\n');
-  const nestMem = getTopByType('nest', 5);
-  if (nestMem.length > 0) content += '\n\n【筑巢】\n' + nestMem.map(withAge).join('\n');
-  return content;
+  const pinned = getPinnedMemories();
+  if (pinned.length === 0) return '';
+  return '\n\n【一直记着的事】\n' + pinned.map(withAge).join('\n');
 }
 
 /* ============================================================
@@ -1985,6 +1973,11 @@ function buildDiaryInjection(userText) {
   if (changed) persistDiaries();
   if (blocks.length === 0) return '';
   return '\n\n【ao和然竣的日记（供你参考回忆）】\n' + blocks.join('\n\n');
+}
+function buildPlanInjection() {
+  const undone = plans.filter(p => !p.done);
+  if (undone.length === 0) return '';
+  return '\n\n【还没做完的事，想到就提一句，不用刻意】\n' + undone.map(p => '- ' + p.text).join('\n');
 }
 
 /* ============================================================
@@ -2725,7 +2718,7 @@ function prependNativeTail(nativeMessages, tailText) {
   if (!tailText || !tailText.trim() || nativeMessages.length === 0) return nativeMessages;
   const lastIdx = nativeMessages.length - 1;
   const last = nativeMessages[lastIdx];
-  const wrapped = '[系统附注，非对方所说]\n' + tailText.trim() + '\n[附注结束]\n\n';
+  const wrapped = '[系统附注·仅供背景参考，不是对方现在说的话，优先级低于下面实际的对话内容，不要机械复述或優先回应附注里的内容]\n' + tailText.trim() + '\n[附注结束，以下才是对方现在实际说的话]\n\n';
   nativeMessages[lastIdx] = { ...last, content: [{ type: 'text', text: wrapped }, ...last.content] };
   return nativeMessages;
 }
@@ -2754,7 +2747,10 @@ function buildChatRequest({ cfg, apiMessages, systemBlocks, stream, tailText, ma
     };
   }
   const legacyMessages = [...apiMessages];
-  const sysContent = [buildLegacySystemContent(systemBlocks), tailText ? tailText.trim() : ''].filter(Boolean).join('\n\n');
+  const wrappedTail = tailText && tailText.trim()
+    ? '[系统附注·仅供背景参考，优先级低于下面实际的对话内容，不要机械复述或優先回应附注里的内容]\n' + tailText.trim() + '\n[附注结束，之后的对话消息才是双方实际说的话，请以此为准]'
+    : '';
+  const sysContent = [buildLegacySystemContent(systemBlocks), wrappedTail].filter(Boolean).join('\n\n');
   if (sysContent) legacyMessages.unshift({ role: 'system', content: sysContent });
   const legacyBody = { model: cfg.model, stream, temperature: temp, messages: legacyMessages };
   if (maxTokensOverride) legacyBody.max_tokens = maxTokensOverride;
@@ -2821,6 +2817,8 @@ async function callAPI(rerollTarget) {
   }
   const diaryInjection = buildDiaryInjection(userText);
   if (diaryInjection) dynamicTail += diaryInjection;
+  const planInjection = buildPlanInjection();
+  if (planInjection) dynamicTail += planInjection;
   const systemBlocks = [
     { text: appPersona ? appPersona.trim() : '', cache: true }
   ];
