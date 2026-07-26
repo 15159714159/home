@@ -934,6 +934,19 @@ const MEMORY_TYPE_CONFIG = [
   { key: 'legacy', icon: '·', name: '待整理', size: 'small' }
 ];
 const WINDOW_CHAR_LIMIT_DEFAULT = 6000;
+const MAX_FILE_TEXT_CHARS = 20000;
+const TEXT_FILE_EXT_RE = /\.(txt|md|markdown|csv|json|log|js|ts|py|html|css|xml|yaml|yml)$/i;
+function isTextReadableFile(file) {
+  return file.type.startsWith('text/') || TEXT_FILE_EXT_RE.test(file.name || '');
+}
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
 
 const PRESET_GROUPS = [
   { key: 'persona', emoji: '🧬', name: '性格人设' },
@@ -981,6 +994,57 @@ const LS_WINDOW_START = 'nest_window_start';
 const LS_AVATAR   = 'nest_avatar';
 const LS_BG       = 'nest_bg';
 const LS_DARK_MODE = 'nest_dark_mode';
+
+/* ============================================================
+IndexedDB 存储（用于体积较大、随时间累积的数据：聊天记录/记忆/副聊天/计划/日记）
+localStorage 配额通常只有 5-10MB，这些数据会一直增长（尤其是带图片的聊天记录），
+很容易触发 QuotaExceededError；IndexedDB 配额通常有几百MB以上，避免"存不下"的问题。
+============================================================ */
+const IDB_NAME = 'nest_idb';
+const IDB_VERSION = 1;
+const IDB_STORE = 'kv';
+const IDB_KEYS = [LS_MESSAGES, LS_MEMORY, LS_SUBCHATS, LS_PLANS, LS_DIARIES];
+let idbDbPromise = null;
+function openIdb() {
+  if (idbDbPromise) return idbDbPromise;
+  idbDbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return idbDbPromise;
+}
+function idbGet(key) {
+  return openIdb().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
+function idbSet(key, value) {
+  return openIdb().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+async function safeIdbSet(key, value) {
+  try { await idbSet(key, value); return true; }
+  catch(e) { console.error('IndexedDB存储失败', key, e); showToast('存储失败，数据可能未保存', 4000); return false; }
+}
+// 一次性迁移：把旧版本存在 localStorage 里的大体积数据搬进 IndexedDB，搬完即删除 localStorage 副本腾出空间。
+async function migrateLocalStorageToIdb() {
+  for (const key of IDB_KEYS) {
+    const existing = await idbGet(key);
+    if (existing !== undefined) continue;
+    const raw = localStorage.getItem(key);
+    if (raw == null) continue;
+    try { await idbSet(key, JSON.parse(raw)); localStorage.removeItem(key); }
+    catch(e) { console.warn('迁移到IndexedDB失败', key, e); }
+  }
+}
 
 const DIARY_KEYWORDS = ['日记','我写的','你写的','写的那篇','那篇日记','几号那篇'];
 
@@ -1525,9 +1589,9 @@ loadModelsBtn.addEventListener('click', () => {
 /* ============================================================
 持久化：其余
 ============================================================ */
-function persistMessages() { safeSetItem(LS_MESSAGES, JSON.stringify(messages)); }
-function loadMessages() {
-  try { const r = localStorage.getItem(LS_MESSAGES); if (r) messages = JSON.parse(r); } catch(e) { messages = []; }
+function persistMessages() { safeIdbSet(LS_MESSAGES, messages); }
+async function loadMessages() {
+  try { const r = await idbGet(LS_MESSAGES); if (r) messages = r; } catch(e) { messages = []; }
   let migrated = false;
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
@@ -1536,9 +1600,9 @@ function loadMessages() {
   });
   if (migrated) persistMessages();
 }
-function persistMemory() { safeSetItem(LS_MEMORY, JSON.stringify(memory)); }
-function loadMemory() {
-  try { const r = localStorage.getItem(LS_MEMORY); if (r) memory = JSON.parse(r); } catch(e) { memory = []; }
+function persistMemory() { safeIdbSet(LS_MEMORY, memory); }
+async function loadMemory() {
+  try { const r = await idbGet(LS_MEMORY); if (r) memory = r; } catch(e) { memory = []; }
   let migrated = false;
   memory.forEach(m => {
     if (!m.type) { m.type = 'legacy'; migrated = true; }
@@ -1557,9 +1621,9 @@ function loadMemory() {
   });
   if (migrated) persistMemory();
 }
-function persistSubChats() { safeSetItem(LS_SUBCHATS, JSON.stringify(subChats)); }
-function loadSubChats() {
-  try { const r = localStorage.getItem(LS_SUBCHATS); if (r) subChats = JSON.parse(r); } catch(e) { subChats = []; }
+function persistSubChats() { safeIdbSet(LS_SUBCHATS, subChats); }
+async function loadSubChats() {
+  try { const r = await idbGet(LS_SUBCHATS); if (r) subChats = r; } catch(e) { subChats = []; }
   let migrated = false;
   subChats.forEach(sc => {
     (sc.messages || []).forEach(m => {
@@ -1570,11 +1634,11 @@ function loadSubChats() {
   });
   if (migrated) persistSubChats();
 }
-function persistPlans() { safeSetItem(LS_PLANS, JSON.stringify(plans)); }
-function loadPlans() { try { const r = localStorage.getItem(LS_PLANS); if (r) plans = JSON.parse(r); } catch(e) { plans = []; } }
-function persistDiaries() { safeSetItem(LS_DIARIES, JSON.stringify(diaries)); }
-function loadDiaries() {
-  try { const r = localStorage.getItem(LS_DIARIES); if (r) diaries = JSON.parse(r); } catch(e) { diaries = []; }
+function persistPlans() { safeIdbSet(LS_PLANS, plans); }
+async function loadPlans() { try { const r = await idbGet(LS_PLANS); if (r) plans = r; } catch(e) { plans = []; } }
+function persistDiaries() { safeIdbSet(LS_DIARIES, diaries); }
+async function loadDiaries() {
+  try { const r = await idbGet(LS_DIARIES); if (r) diaries = r; } catch(e) { diaries = []; }
   let migrated = false;
   diaries.forEach(d => {
     if (d.mood === undefined) { d.mood = ''; migrated = true; }
@@ -1588,13 +1652,13 @@ function loadDiaries() {
 /* ============================================================
 数据备份
 ============================================================ */
-document.getElementById('exportBackupBtn').addEventListener('click', () => {
+document.getElementById('exportBackupBtn').addEventListener('click', async () => {
   const backup = {
-    nest_messages: localStorage.getItem(LS_MESSAGES),
-    nest_memory: localStorage.getItem(LS_MEMORY),
-    nest_subchats: localStorage.getItem(LS_SUBCHATS),
-    nest_plans: localStorage.getItem(LS_PLANS),
-    nest_diaries: localStorage.getItem(LS_DIARIES),
+    nest_messages: JSON.stringify((await idbGet(LS_MESSAGES)) || []),
+    nest_memory: JSON.stringify((await idbGet(LS_MEMORY)) || []),
+    nest_subchats: JSON.stringify((await idbGet(LS_SUBCHATS)) || []),
+    nest_plans: JSON.stringify((await idbGet(LS_PLANS)) || []),
+    nest_diaries: JSON.stringify((await idbGet(LS_DIARIES)) || []),
     nest_username: localStorage.getItem(LS_USERNAME),
     nest_name: localStorage.getItem(LS_NAME),
     nest_persona: localStorage.getItem(LS_PERSONA),
@@ -1618,10 +1682,14 @@ document.getElementById('importBackupBtn').addEventListener('click', () => {
 backupImportHidden.addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = async ev => {
     try {
       const data = JSON.parse(ev.target.result);
-      Object.keys(data).forEach(key => { if (data[key] != null) safeSetItem(key, data[key]); });
+      for (const key of Object.keys(data)) {
+        if (data[key] == null) continue;
+        if (IDB_KEYS.includes(key)) { try { await idbSet(key, JSON.parse(data[key])); } catch(e) { console.warn('导入到IndexedDB失败', key, e); } }
+        else safeSetItem(key, data[key]);
+      }
       alert('导入成功，即将刷新'); location.reload();
     } catch(err) { showToast('导入失败：文件格式不对', 3000); }
   };
@@ -1986,7 +2054,8 @@ function buildPlanInjection() {
 function getMsgCharLen(m) {
   const textLen = (getMsgDisplayText(m) || '').length;
   const imgLen = (m.images && m.images.length) ? m.images.length * 300 : 0;
-  return textLen + imgLen;
+  const fileLen = (m.files && m.files.length) ? m.files.reduce((s,f) => s + (f.text ? f.text.length : 0), 0) : 0;
+  return textLen + imgLen + fileLen;
 }
 // 窗口起点尽量保持不变，只有累计超出上限的 1.5 倍时才整体前移一次，
 // 避免每轮都往前挪一格导致历史消息前缀频繁变化、打断 Claude 的 prompt cache
@@ -2630,7 +2699,19 @@ fileInputHidden.addEventListener('change', async e => {
     if (file.type.startsWith('image/')) {
       try { const compressed = await compressImage(file); pendingAttachments.push({ type:'image', url: compressed, name:file.name }); renderAttachPreview(); }
       catch(err) { console.error('图片压缩失败', err); showToast('这张图片处理失败了，换一张试试', 3000); }
-    } else { pendingAttachments.push({ type:'file', name:file.name }); renderAttachPreview(); }
+    } else if (isTextReadableFile(file)) {
+      try {
+        let text = await readFileAsText(file);
+        let truncated = false;
+        if (text.length > MAX_FILE_TEXT_CHARS) { text = text.slice(0, MAX_FILE_TEXT_CHARS); truncated = true; }
+        pendingAttachments.push({ type:'file', name:file.name, text, truncated });
+        renderAttachPreview();
+      } catch(err) { console.error('文件读取失败', err); showToast('这个文件读取失败了', 3000); }
+    } else {
+      pendingAttachments.push({ type:'file', name:file.name });
+      renderAttachPreview();
+      showToast('该文件类型暂不支持读取内容，仅作为附件名附加', 3000);
+    }
   }
   fileInputHidden.value = '';
 });
@@ -2658,6 +2739,12 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
 function buildApiContent(m) {
   let text = getMsgDisplayText(m);
   if (m.quote) text = '【针对' + m.quote.author + '这句提问："' + m.quote.text.slice(0,200) + '"】\n' + text;
+  if (m.files && m.files.length > 0) {
+    const fileBlocks = m.files.filter(f => f.text).map(f =>
+      '[附件：' + f.name + (f.truncated ? '（内容过长已截断）' : '') + ']\n' + f.text
+    ).join('\n\n');
+    if (fileBlocks) text = (text ? text + '\n\n' : '') + fileBlocks;
+  }
   if (m.images && m.images.length > 0) {
     const parts = [];
     if (text && text.trim()) parts.push({ type: 'text', text });
@@ -2981,7 +3068,7 @@ async function sendMessage() {
   const text = textInput.value.trim();
   if (!text && pendingAttachments.length === 0) return;
   const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
-  const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name }));
+  const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name, text:a.text, truncated:a.truncated }));
   const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), createdAt: Date.now(), quote: quotedMain || undefined };
   quotedMain = null; renderQuoteBar('main');
   messages.push(userMsg); persistMessages(); appendMessage(userMsg);
@@ -3018,28 +3105,33 @@ subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.sh
 /* ============================================================
 初始化
 ============================================================ */
-loadDarkMode();
-loadSettings();
-loadPresets();
-loadConfig();
-loadMessages();
-loadMemory();
-loadSubChats();
-loadPlans();
-loadDiaries();
-loadTopicStart();
-loadWindowStart();
-appPersona = buildPersonaFromPresets() || appPersona;
-loadChatSettings();
-applyAvatar();
-applyBg();
-switchPage('chat');
-renderAllMessages();
-renderSubChatSidebarList();
-applyGlobalNames();
 // supabase.js 是 type="module"，ombre-backend.js 是 defer，二者都在文档解析完、
-// DOMContentLoaded 之前按书写顺序执行完，所以在 DOMContentLoaded 里调用能保证都已挂好
+// DOMContentLoaded 之前按书写顺序执行完，所以在 DOMContentLoaded 里调用能保证都已挂好。
+// 这个监听必须在下面的 async init 里任何 await 之前、同步注册——
+// 否则 IndexedDB 读取让出控制权时文档可能已解析完，DOMContentLoaded 提前触发导致监听落空。
 window.addEventListener('DOMContentLoaded', () => { initSupabaseMemorySync(); });
+(async function init() {
+  loadDarkMode();
+  loadSettings();
+  loadPresets();
+  loadConfig();
+  await migrateLocalStorageToIdb();
+  await loadMessages();
+  await loadMemory();
+  await loadSubChats();
+  await loadPlans();
+  await loadDiaries();
+  loadTopicStart();
+  loadWindowStart();
+  appPersona = buildPersonaFromPresets() || appPersona;
+  loadChatSettings();
+  applyAvatar();
+  applyBg();
+  switchPage('chat');
+  renderAllMessages();
+  renderSubChatSidebarList();
+  applyGlobalNames();
+})();
 </script>
 <script type="module" src="supabase.js"></script>
 <script defer src="ombre-backend.js"></script>
