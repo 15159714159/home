@@ -65,8 +65,13 @@ transition: background-color 0.25s ease, color 0.25s ease;
 .glass-control {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
+  border-radius: 50%;
   -webkit-backdrop-filter: blur(22px) saturate(175%);
   backdrop-filter: blur(22px) saturate(175%);
+  -webkit-mask-image: radial-gradient(circle, #000 100%, #000 100%);
+  mask-image: radial-gradient(circle, #000 100%, #000 100%);
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.88),
     inset 0 -1px 0 rgba(72,96,110,0.10),
@@ -84,12 +89,30 @@ z-index: 10; pointer-events: none;
 #topFadeLayer {
   position: absolute; left: 0; right: 0; top: 0;
   height: calc(env(safe-area-inset-top, 0px) + 72px);
-  z-index: 5; pointer-events: none;
-  background: rgba(195, 216, 228, 0.18);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
-  backdrop-filter: blur(18px) saturate(145%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black calc(100% - 22px), transparent 100%);
-  mask-image: linear-gradient(to bottom, black 0%, black calc(100% - 22px), transparent 100%);
+  z-index: 5; pointer-events: none; overflow: hidden;
+  -webkit-transform: translateZ(0); transform: translateZ(0);
+}
+.tfl-layer { position: absolute; inset: 0; will-change: transform; }
+.tfl-layer.tfl-1 {
+  background: rgba(195, 216, 228, 0.10);
+  -webkit-backdrop-filter: blur(6px) saturate(130%);
+  backdrop-filter: blur(6px) saturate(130%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 46%, transparent 78%);
+  mask-image: linear-gradient(to bottom, black 0%, black 46%, transparent 78%);
+}
+.tfl-layer.tfl-2 {
+  background: rgba(195, 216, 228, 0.16);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 30%, transparent 58%);
+  mask-image: linear-gradient(to bottom, black 0%, black 30%, transparent 58%);
+}
+.tfl-layer.tfl-3 {
+  background: rgba(195, 216, 228, 0.26);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 14%, transparent 38%);
+  mask-image: linear-gradient(to bottom, black 0%, black 14%, transparent 38%);
 }
 .round-btn {
 width: 44px; height: 44px; border-radius: 50%;
@@ -110,7 +133,7 @@ overflow: hidden;
 }
 .capsule {
 display: block; padding: 0 16px; background: transparent; color: var(--primary-text);
-border-radius: 0; font-size: 17px; font-weight: 600; line-height: 22px;
+border-radius: 0; font-size: 16px; font-weight: 600; line-height: 21px;
 cursor: pointer; max-width: 100%;
 overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 transition: opacity 0.2s ease;
@@ -255,7 +278,7 @@ html.dark .gen-thinking { color: rgba(210,220,226,0.42); }
 .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .msg-row.user .msg-bubble-wrap { flex-direction: row-reverse; }
 .msg-bubble {
-max-width: 100%; min-width: 0; padding: 8px 11px; border-radius: 12px; font-size: 16px; line-height: 22px;
+max-width: 100%; min-width: 0; padding: 8px 11px; border-radius: 12px; font-size: 15px; line-height: 21px;
 letter-spacing: 0; overflow-wrap: anywhere; word-wrap: break-word;
 user-select: text; -webkit-user-select: text; color: var(--primary-text);
 }
@@ -651,6 +674,49 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 #importFileHidden { display: none; }
 #backupImportHidden { display: none; }
 
+.crop-overlay {
+  position: fixed; inset: 0; z-index: 60; background: #000;
+  display: none; flex-direction: column;
+  opacity: 0; transition: opacity 0.2s ease;
+}
+.crop-overlay.show { display: flex; opacity: 1; }
+.crop-header {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 12px 16px;
+}
+.crop-header-btn {
+  background: none; border: none; color: rgba(255,255,255,0.85); font-size: 15px;
+  padding: 6px 4px; cursor: pointer; transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
+}
+.crop-header-btn:active { transform: scale(0.94); opacity: 0.7; }
+.crop-header-btn.primary { color: #fff; font-weight: 600; }
+.crop-header-title { color: rgba(255,255,255,0.9); font-size: 15px; font-weight: 600; }
+.crop-stage {
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; touch-action: none;
+}
+.crop-stage img {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform;
+  max-width: none; max-height: none; -webkit-user-drag: none; pointer-events: none;
+}
+.crop-mask {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at center, transparent 0, transparent var(--crop-r, 120px), rgba(0,0,0,0.62) var(--crop-r, 120px));
+  box-shadow: none;
+}
+.crop-mask::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: calc(var(--crop-r, 120px) * 2); height: calc(var(--crop-r, 120px) * 2);
+  transform: translate(-50%, -50%); border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.75); box-sizing: border-box;
+}
+.crop-zoom-row { flex-shrink: 0; padding: 18px 28px 6px 28px; }
+.crop-zoom-slider { width: 100%; }
+.crop-hint {
+  flex-shrink: 0; text-align: center; color: rgba(255,255,255,0.5); font-size: 12px;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 18px) 16px;
+}
+
 .settings-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; margin-top: 4px; letter-spacing: 0.5px; }
 .settings-input {
 width: 100%; border: 1px solid var(--border-strong); border-radius: 10px;
@@ -874,7 +940,11 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
 </div>
 
-<div id="topFadeLayer"></div>
+<div id="topFadeLayer">
+  <div class="tfl-layer tfl-1"></div>
+  <div class="tfl-layer tfl-2"></div>
+  <div class="tfl-layer tfl-3"></div>
+</div>
 
 <div id="sidebarOverlay"></div>
 <div id="sidebar">
@@ -1131,6 +1201,22 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <button class="preset-btn primary" id="clearChatBtn2">导出备份</button>
     </div>
   </div>
+</div>
+
+<div class="crop-overlay" id="avatarCropOverlay">
+  <div class="crop-header">
+    <button class="crop-header-btn" id="avatarCropCancel">取消</button>
+    <span class="crop-header-title">调整头像</span>
+    <button class="crop-header-btn primary" id="avatarCropConfirm">完成</button>
+  </div>
+  <div class="crop-stage" id="avatarCropStage">
+    <img id="avatarCropImg" draggable="false" alt="">
+    <div class="crop-mask"></div>
+  </div>
+  <div class="crop-zoom-row">
+    <input type="range" class="setting-slider crop-zoom-slider" id="avatarCropZoom" min="0" max="100" value="0">
+  </div>
+  <div class="crop-hint">拖动调整位置，滑动条缩放</div>
 </div>
 
 <script src="theme-system.js"></script>
@@ -1500,31 +1586,107 @@ function compressAppIcon(file) {
     reader.onerror = reject; reader.readAsDataURL(file);
   });
 }
-function compressAvatar(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const img = new Image();
-      img.onload = () => {
-        const s = Math.min(img.width, img.height);
-        const sx = (img.width - s) / 2, sy = (img.height - s) / 2;
-        const canvas = document.createElement('canvas');
-        canvas.width = 128; canvas.height = 128;
-        canvas.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, 128, 128);
-        try { resolve(canvas.toDataURL('image/jpeg', 0.85)); } catch(e) { reject(e); }
-      };
-      img.onerror = reject; img.src = ev.target.result;
-    };
-    reader.onerror = reject; reader.readAsDataURL(file);
-  });
+
+/* ---- 头像圆形裁剪选择器 ---- */
+const avatarCropOverlayEl = document.getElementById('avatarCropOverlay');
+const avatarCropStageEl = document.getElementById('avatarCropStage');
+const avatarCropImgEl = document.getElementById('avatarCropImg');
+const avatarCropZoomEl = document.getElementById('avatarCropZoom');
+const cropState = { scale: 1, minScale: 1, maxScale: 1, tx: 0, ty: 0, r: 100, stageW: 0, stageH: 0, naturalW: 0, naturalH: 0, dragging: false, startX: 0, startY: 0, startTx: 0, startTy: 0 };
+
+function clampCropTranslate() {
+  const cx = cropState.stageW / 2, cy = cropState.stageH / 2, r = cropState.r;
+  const minTx = cx + r - cropState.naturalW * cropState.scale;
+  const maxTx = cx - r;
+  const minTy = cy + r - cropState.naturalH * cropState.scale;
+  const maxTy = cy - r;
+  cropState.tx = Math.min(maxTx, Math.max(minTx, cropState.tx));
+  cropState.ty = Math.min(maxTy, Math.max(minTy, cropState.ty));
 }
-document.getElementById('avatarFileHidden').addEventListener('change', async e => {
-  const f = e.target.files[0]; if (!f) return;
+function applyCropTransform() {
+  avatarCropImgEl.style.transform = 'translate(' + cropState.tx + 'px, ' + cropState.ty + 'px) scale(' + cropState.scale + ')';
+}
+function initCropStage() {
+  const rect = avatarCropStageEl.getBoundingClientRect();
+  cropState.stageW = rect.width; cropState.stageH = rect.height;
+  cropState.r = Math.min(rect.width, rect.height) * 0.42;
+  avatarCropStageEl.style.setProperty('--crop-r', cropState.r + 'px');
+  const minDim = Math.min(cropState.naturalW, cropState.naturalH);
+  cropState.minScale = (cropState.r * 2) / minDim;
+  cropState.maxScale = cropState.minScale * 3;
+  cropState.scale = cropState.minScale;
+  cropState.tx = rect.width / 2 - cropState.naturalW * cropState.scale / 2;
+  cropState.ty = rect.height / 2 - cropState.naturalH * cropState.scale / 2;
+  clampCropTranslate();
+  applyCropTransform();
+  avatarCropZoomEl.value = 0;
+}
+function openAvatarCropper(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      cropState.naturalW = img.naturalWidth; cropState.naturalH = img.naturalHeight;
+      avatarCropImgEl.src = ev.target.result;
+      avatarCropOverlayEl.classList.add('show');
+      requestAnimationFrame(() => requestAnimationFrame(initCropStage));
+    };
+    img.onerror = () => showToast('图片处理失败，换一张试试');
+    img.src = ev.target.result;
+  };
+  reader.onerror = () => showToast('图片处理失败，换一张试试');
+  reader.readAsDataURL(file);
+}
+function closeAvatarCropper() {
+  avatarCropOverlayEl.classList.remove('show');
+  avatarCropImgEl.src = '';
+}
+avatarCropStageEl.addEventListener('pointerdown', e => {
+  cropState.dragging = true;
+  cropState.startX = e.clientX; cropState.startY = e.clientY;
+  cropState.startTx = cropState.tx; cropState.startTy = cropState.ty;
+  avatarCropStageEl.setPointerCapture(e.pointerId);
+});
+avatarCropStageEl.addEventListener('pointermove', e => {
+  if (!cropState.dragging) return;
+  cropState.tx = cropState.startTx + (e.clientX - cropState.startX);
+  cropState.ty = cropState.startTy + (e.clientY - cropState.startY);
+  clampCropTranslate();
+  applyCropTransform();
+});
+function endCropDrag(e) { cropState.dragging = false; try { avatarCropStageEl.releasePointerCapture(e.pointerId); } catch(err) {} }
+avatarCropStageEl.addEventListener('pointerup', endCropDrag);
+avatarCropStageEl.addEventListener('pointercancel', endCropDrag);
+avatarCropZoomEl.addEventListener('input', () => {
+  const cx = cropState.stageW / 2, cy = cropState.stageH / 2;
+  const imgCx = (cx - cropState.tx) / cropState.scale, imgCy = (cy - cropState.ty) / cropState.scale;
+  const t = Number(avatarCropZoomEl.value) / 100;
+  cropState.scale = cropState.minScale + t * (cropState.maxScale - cropState.minScale);
+  cropState.tx = cx - imgCx * cropState.scale;
+  cropState.ty = cy - imgCy * cropState.scale;
+  clampCropTranslate();
+  applyCropTransform();
+});
+document.getElementById('avatarCropCancel').addEventListener('click', () => {
+  closeAvatarCropper();
+  document.getElementById('avatarFileHidden').value = '';
+});
+document.getElementById('avatarCropConfirm').addEventListener('click', () => {
+  const cx = cropState.stageW / 2, cy = cropState.stageH / 2, r = cropState.r, s = cropState.scale;
+  const sx = (cx - r - cropState.tx) / s, sy = (cy - r - cropState.ty) / s, sSize = (r * 2) / s;
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  canvas.getContext('2d').drawImage(avatarCropImgEl, sx, sy, sSize, sSize, 0, 0, 128, 128);
   try {
-    const data = await compressAvatar(f);
+    const data = canvas.toDataURL('image/jpeg', 0.85);
     if (safeSetItem(LS_AVATAR, data)) { applyAvatar(); showToast('头像已更换'); }
-  } catch(err) { showToast('图片处理失败，换一张试试'); }
-  e.target.value = '';
+  } catch(e) { showToast('图片处理失败，换一张试试'); }
+  closeAvatarCropper();
+  document.getElementById('avatarFileHidden').value = '';
+});
+document.getElementById('avatarFileHidden').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  openAvatarCropper(f);
 });
 document.getElementById('bgFileHidden').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -3806,6 +3968,16 @@ function setupViewportKeyboardHandling() {
 ============================================================ */
 function attachJellyFeedback(selector) {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const pressed = new Set();
+  const hardReset = el => {
+    el.style.animation = 'none';
+    el.style.transition = 'none';
+    el.style.transform = '';
+    el.style.opacity = '';
+    void el.offsetHeight;
+    el.style.animation = '';
+    el.style.transition = '';
+  };
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest(selector);
     if (!el) return;
@@ -3813,9 +3985,11 @@ function attachJellyFeedback(selector) {
     el.style.transition = 'none';
     if (reduceMotion) { el.style.opacity = '0.7'; }
     else { el.style.transform = 'scale(0.94, 0.91)'; }
+    pressed.add(el);
     const reset = () => {
       el.removeEventListener('pointerup', onUp);
       el.removeEventListener('pointercancel', onCancel);
+      pressed.delete(el);
       if (reduceMotion) { el.style.opacity = ''; return; }
       el.style.animation = 'jellyRebound 360ms cubic-bezier(0.34, 1.56, 0.64, 1)';
       const onAnimEnd = () => { el.style.animation = ''; el.style.transform = ''; el.removeEventListener('animationend', onAnimEnd); };
@@ -3826,6 +4000,10 @@ function attachJellyFeedback(selector) {
     el.addEventListener('pointerup', onUp);
     el.addEventListener('pointercancel', onCancel);
   });
+  const releaseStuck = () => { pressed.forEach(hardReset); pressed.clear(); };
+  window.addEventListener('blur', releaseStuck);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseStuck(); });
+  window.addEventListener('pageshow', releaseStuck);
 }
 attachJellyFeedback('.round-btn, #plusBtn, .subchat-plusbtn, .emoji-toggle-btn, #sendBtn, .subchat-sendbtn');
 
