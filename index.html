@@ -351,7 +351,7 @@ html.dark .think-cloud.inline { color: rgba(210,220,226,0.55); }
   margin-bottom: 4px; border-left: 2px solid var(--border-color); white-space: pre-wrap; word-break: break-word;
   max-width: 100%; align-self: flex-start;
 }
-.photo-single { width: 168px; height: 168px; border-radius: 12px; overflow: hidden; margin-bottom: 6px; background: var(--bg-elevated); cursor: pointer; }
+.photo-single { width: 168px; height: 168px; border-radius: 12px; overflow: hidden; margin-bottom: 6px; background: var(--bg-elevated); box-shadow: 0 1px 3px rgba(20,30,40,0.12), 0 3px 8px rgba(20,30,40,0.06); }
 .photo-single img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .photo-group { display: flex; flex-direction: column; gap: 6px; max-width: 100%; margin-bottom: 6px; }
@@ -362,10 +362,10 @@ html.dark .think-cloud.inline { color: rgba(210,220,226,0.55); }
 }
 .photo-stack-top {
   position: relative; width: 100%; height: 100%; border-radius: 12px; overflow: hidden;
-  background: var(--bg-elevated); z-index: 1; cursor: pointer;
+  background: var(--bg-elevated); z-index: 1;
   box-shadow: 0 1px 3px rgba(20,30,40,0.14), 0 4px 10px rgba(20,30,40,0.08);
 }
-.photo-stack-top img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; pointer-events: none; -webkit-user-drag: none; }
+.photo-stack-top img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
 .photo-stack.stack-2::before, .photo-stack.stack-3::before {
   content: ''; position: absolute; inset: 0; border-radius: 12px; z-index: 0;
   background: var(--bg-elevated); box-shadow: 0 1px 3px rgba(20,30,40,0.10);
@@ -380,11 +380,10 @@ html.dark .think-cloud.inline { color: rgba(210,220,226,0.55); }
 .photo-stack-top.load-error img { display: none; }
 .photo-stack-top.load-error::after { content: '⚠'; font-size: 22px; color: var(--text-faint); filter: grayscale(1); }
 .photo-list { display: flex; flex-direction: column; gap: 8px; max-width: 100%; }
-.photo-list-item { border-radius: 12px; overflow: hidden; cursor: pointer; max-width: 100%; }
+.photo-list-item { border-radius: 12px; overflow: hidden; max-width: 100%; box-shadow: 0 1px 3px rgba(20,30,40,0.12), 0 3px 8px rgba(20,30,40,0.06); }
 .photo-list-item img {
   display: block; object-fit: contain; width: auto; height: auto;
   max-width: min(300px, 76vw); max-height: 520px;
-  pointer-events: none; -webkit-user-drag: none;
 }
 .photo-list-item.enter { opacity: 0; transform: translateY(6px); }
 .photo-list-item.enter-active { opacity: 1; transform: translateY(0); transition: opacity 0.18s ease, transform 0.18s ease; }
@@ -405,21 +404,6 @@ html.dark .photo-group-toggle-btn { background: rgba(60,70,78,0.55); color: rgba
   .photo-group-toggle-btn:active { transform: none; opacity: 0.7; }
 }
 
-.img-lightbox-overlay {
-  position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.92);
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
-}
-.img-lightbox-overlay.show { opacity: 1; pointer-events: auto; }
-.img-lightbox-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; -webkit-user-drag: none; }
-.img-lightbox-nav {
-  position: absolute; top: 0; bottom: 0; width: 30%; background: transparent; border: none; cursor: pointer;
-}
-.img-lightbox-nav.prev { left: 0; } .img-lightbox-nav.next { right: 0; }
-.img-lightbox-count {
-  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 50%; transform: translateX(-50%);
-  color: rgba(255,255,255,0.82); font-size: 12px; background: rgba(255,255,255,0.14); padding: 3px 11px; border-radius: 11px;
-}
 .msg-files { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
 .msg-file-chip { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; display: inline-block; }
 
@@ -2802,7 +2786,7 @@ function patchChatAvatars() {
   });
 }
 /* ============================================================
-照片卡片栈（多图消息）+ 全屏预览
+照片卡片栈（多图消息）
 ============================================================ */
 const photoDeckStates = new Map();
 function getPhotoDeckState(msg) {
@@ -2810,34 +2794,12 @@ function getPhotoDeckState(msg) {
   if (!s) { s = { expanded: false }; photoDeckStates.set(msg.id, s); }
   return s;
 }
-let lightboxEl = null;
-function ensureLightbox() {
-  if (lightboxEl) return lightboxEl;
-  lightboxEl = document.createElement('div'); lightboxEl.className = 'img-lightbox-overlay';
-  const imgEl = document.createElement('img'); imgEl.draggable = false;
-  const countEl = document.createElement('div'); countEl.className = 'img-lightbox-count';
-  const prevBtn = document.createElement('button'); prevBtn.className = 'img-lightbox-nav prev'; prevBtn.setAttribute('aria-label', '上一张');
-  const nextBtn = document.createElement('button'); nextBtn.className = 'img-lightbox-nav next'; nextBtn.setAttribute('aria-label', '下一张');
-  lightboxEl.appendChild(imgEl); lightboxEl.appendChild(countEl); lightboxEl.appendChild(prevBtn); lightboxEl.appendChild(nextBtn);
-  document.body.appendChild(lightboxEl);
-  let images = [], idx = 0;
-  function render() { imgEl.src = images[idx]; const multi = images.length > 1; countEl.style.display = multi ? '' : 'none'; prevBtn.style.display = multi ? '' : 'none'; nextBtn.style.display = multi ? '' : 'none'; countEl.textContent = multi ? (idx + 1) + ' / ' + images.length : ''; }
-  prevBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + images.length) % images.length; render(); });
-  nextBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % images.length; render(); });
-  lightboxEl.addEventListener('click', () => close());
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-  function open(imgs, startIdx) { images = imgs; idx = startIdx || 0; render(); lightboxEl.classList.add('show'); }
-  function close() { lightboxEl.classList.remove('show'); }
-  lightboxEl._open = open;
-  return lightboxEl;
-}
-function openImageLightbox(images, startIndex) { ensureLightbox()._open(images, startIndex); }
 function buildCollapsedStack(msg) {
   const stack = document.createElement('div');
   const total = msg.images.length;
   stack.className = 'photo-stack' + (total >= 3 ? ' stack-3' : total === 2 ? ' stack-2' : '');
   const top = document.createElement('div'); top.className = 'photo-stack-top';
-  const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
+  const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async';
   img.addEventListener('error', () => { top.classList.add('load-error'); });
   img.addEventListener('load', () => { top.classList.remove('load-error'); });
   img.src = msg.images[0];
@@ -2849,9 +2811,8 @@ function buildExpandedList(msg) {
   const list = document.createElement('div'); list.className = 'photo-list';
   msg.images.forEach((src, i) => {
     const item = document.createElement('div'); item.className = 'photo-list-item';
-    const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false; img.src = src;
+    const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.src = src;
     item.appendChild(img);
-    item.addEventListener('click', (e) => { e.stopPropagation(); openImageLightbox(msg.images, i); });
     list.appendChild(item);
     if (!reduceMotion) {
       item.classList.add('enter');
@@ -2871,7 +2832,6 @@ function buildPhotoGroup(msg, role, ctx) {
   function updateBtn() { btn.innerHTML = state.expanded ? (ICONS.chevronsHorizontal + '<span>收起</span>') : (ICONS.layers + '<span>展开 ' + msg.images.length + '</span>'); }
   function render() {
     const next = state.expanded ? buildExpandedList(msg) : buildCollapsedStack(msg);
-    if (!state.expanded) next.addEventListener('click', (e) => { e.stopPropagation(); openImageLightbox(msg.images, 0); });
     if (contentEl) group.replaceChild(next, contentEl); else group.insertBefore(next, btn);
     contentEl = next;
     updateBtn();
@@ -2938,9 +2898,8 @@ function buildMsgRow(msg, ctx, prevMsg) {
   if (msg.images && msg.images.length > 0) {
     if (msg.images.length === 1) {
       const single = document.createElement('div'); single.className = 'photo-single';
-      const img = document.createElement('img'); img.src = msg.images[0]; img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
+      const img = document.createElement('img'); img.src = msg.images[0]; img.loading = 'lazy'; img.decoding = 'async';
       single.appendChild(img);
-      single.addEventListener('click', (e) => { e.stopPropagation(); openImageLightbox(msg.images, 0); });
       col.appendChild(single);
     } else {
       col.appendChild(buildPhotoGroup(msg, msg.role === 'user' ? 'user' : 'ai', ctx));
