@@ -353,10 +353,10 @@ white-space: nowrap;
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-#attachPreview {
+#attachPreview, #subAttachPreview {
 display: flex; gap: 8px; padding: 8px 12px 0 12px; overflow-x: auto;
 }
-#attachPreview:empty { display: none; }
+#attachPreview:empty, #subAttachPreview:empty { display: none; }
 .attach-thumb {
 position: relative; width: 56px; height: 56px; border-radius: 10px;
 overflow: hidden; flex-shrink: 0; background: var(--bg-elevated);
@@ -379,12 +379,12 @@ display: flex; align-items: flex-end; gap: 8px;
 padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px) 12px;
 background: var(--bg-surface); border-top: 1px solid var(--border-color);
 }
-#plusBtn {
+#plusBtn, .subchat-plusbtn {
 width: 36px; height: 36px; border-radius: 50%; background: var(--bg-subtle);
 border: none; font-size: 20px; color: var(--text-secondary); flex-shrink: 0; cursor: pointer;
 transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
-#plusBtn:active { transform: scale(0.88); opacity: 0.8; }
+#plusBtn:active, .subchat-plusbtn:active { transform: scale(0.88); opacity: 0.8; }
 #textInput, .subchat-textinput {
 flex: 1; border: 1px solid var(--border-strong); border-radius: 18px; padding: 9px 14px;
 font-size: 16px; resize: none; max-height: 100px; font-family: inherit; outline: none;
@@ -814,8 +814,11 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <button id="sendBtn">发送</button>
 </div>
 
+<div id="subAttachPreview"></div>
 <div id="subQuoteBar"></div>
 <div class="subchat-inputbar" id="subchatInputBar" style="display:none;">
+  <button class="subchat-plusbtn" id="subPlusBtn">＋</button>
+  <input type="file" id="subFileInputHidden" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip">
   <textarea class="subchat-textinput" id="subchatTextInput" rows="1" placeholder="说点什么…"></textarea>
   <button class="subchat-sendbtn" id="subchatSendBtn">发送</button>
 </div>
@@ -913,6 +916,7 @@ marked.setOptions({ renderer: safeRenderer });
 
 let messages = [];
 let pendingAttachments = [];
+let pendingSubAttachments = [];
 let memory = [];
 let subChats = [];
 let currentSubChatId = null;
@@ -2602,6 +2606,7 @@ function switchPage(pageName) {
   document.getElementById('subchatInputBar').style.display = isSubchat ? 'flex' : 'none';
   document.getElementById('attachPreview').style.display   = isChat ? '' : 'none';
   document.getElementById('quoteBar').style.display        = isChat ? '' : 'none';
+  document.getElementById('subAttachPreview').style.display = isSubchat ? '' : 'none';
   document.getElementById('subQuoteBar').style.display     = isSubchat ? '' : 'none';
   document.getElementById('topbar').style.display          = (pageName === 'log') ? 'none' : 'flex';
   document.getElementById('bottomNav').style.display        = (pageName === 'log') ? 'none' : 'flex';
@@ -2742,28 +2747,48 @@ function renderAttachPreview() {
     thumb.appendChild(rb); attachPreview.appendChild(thumb);
   });
 }
-document.getElementById('plusBtn').addEventListener('click', () => fileInputHidden.click());
-fileInputHidden.addEventListener('change', async e => {
-  const files = Array.from(e.target.files);
+const subAttachPreview   = document.getElementById('subAttachPreview');
+const subFileInputHidden = document.getElementById('subFileInputHidden');
+function renderSubAttachPreview() {
+  subAttachPreview.innerHTML = '';
+  pendingSubAttachments.forEach((att, idx) => {
+    const thumb = document.createElement('div'); thumb.className = 'attach-thumb';
+    if (att.type === 'image') { const img = document.createElement('img'); img.src = att.url; thumb.appendChild(img); }
+    else { thumb.classList.add('file-thumb'); thumb.textContent = att.name; }
+    const rb = document.createElement('button'); rb.className = 'attach-remove'; rb.textContent = '✕';
+    rb.addEventListener('click', () => { pendingSubAttachments.splice(idx, 1); renderSubAttachPreview(); });
+    thumb.appendChild(rb); subAttachPreview.appendChild(thumb);
+  });
+}
+async function handleAttachFiles(files, pendingArr, renderFn) {
   for (const file of files) {
     if (file.type.startsWith('image/')) {
-      try { const compressed = await compressImage(file); pendingAttachments.push({ type:'image', url: compressed, name:file.name }); renderAttachPreview(); }
+      try { const compressed = await compressImage(file); pendingArr.push({ type:'image', url: compressed, name:file.name }); renderFn(); }
       catch(err) { console.error('图片压缩失败', err); showToast('这张图片处理失败了，换一张试试', 3000); }
     } else if (isTextReadableFile(file)) {
       try {
         let text = await readFileAsText(file);
         let truncated = false;
         if (text.length > MAX_FILE_TEXT_CHARS) { text = text.slice(0, MAX_FILE_TEXT_CHARS); truncated = true; }
-        pendingAttachments.push({ type:'file', name:file.name, text, truncated });
-        renderAttachPreview();
+        pendingArr.push({ type:'file', name:file.name, text, truncated });
+        renderFn();
       } catch(err) { console.error('文件读取失败', err); showToast('这个文件读取失败了', 3000); }
     } else {
-      pendingAttachments.push({ type:'file', name:file.name });
-      renderAttachPreview();
+      pendingArr.push({ type:'file', name:file.name });
+      renderFn();
       showToast('该文件类型暂不支持读取内容，仅作为附件名附加', 3000);
     }
   }
+}
+document.getElementById('plusBtn').addEventListener('click', () => fileInputHidden.click());
+fileInputHidden.addEventListener('change', async e => {
+  await handleAttachFiles(Array.from(e.target.files), pendingAttachments, renderAttachPreview);
   fileInputHidden.value = '';
+});
+document.getElementById('subPlusBtn').addEventListener('click', () => subFileInputHidden.click());
+subFileInputHidden.addEventListener('change', async e => {
+  await handleAttachFiles(Array.from(e.target.files), pendingSubAttachments, renderSubAttachPreview);
+  subFileInputHidden.value = '';
 });
 
 /* ============================================================
@@ -3141,12 +3166,16 @@ const subchatTextInput = document.getElementById('subchatTextInput');
 const subchatSendBtn   = document.getElementById('subchatSendBtn');
 subchatTextInput.addEventListener('input', () => { subchatTextInput.style.height = 'auto'; subchatTextInput.style.height = Math.min(subchatTextInput.scrollHeight, 100) + 'px'; });
 async function sendSubChatMessage() {
-  const text = subchatTextInput.value.trim(); if (!text) return;
+  const text = subchatTextInput.value.trim();
+  if (!text && pendingSubAttachments.length === 0) return;
   const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
-  const userMsg = { id: genId(), role:'user', text, images:[], files:[], time:timeStr(), createdAt: Date.now(), quote: quotedSub || undefined };
+  const images = pendingSubAttachments.filter(a => a.type==='image').map(a => a.url);
+  const files  = pendingSubAttachments.filter(a => a.type==='file').map(a => ({ name:a.name, text:a.text, truncated:a.truncated }));
+  const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), createdAt: Date.now(), quote: quotedSub || undefined };
   quotedSub = null; renderQuoteBar('sub');
   sc.messages.push(userMsg); persistSubChats(); appendSubChatMessage(userMsg);
   subchatTextInput.value = ''; subchatTextInput.style.height = 'auto';
+  pendingSubAttachments = []; renderSubAttachPreview();
   await callSubChatAPI();
 }
 subchatSendBtn.addEventListener('click', () => { if (subGenerating) { if (subAbortController) subAbortController.abort(); } else { sendSubChatMessage(); } });
