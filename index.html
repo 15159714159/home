@@ -787,6 +787,15 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <input type="file" id="backupImportHidden" accept="application/json">
       <input type="file" id="avatarFileHidden" accept="image/*" style="display:none;">
       <input type="file" id="bgFileHidden" accept="image/*" style="display:none;">
+      <input type="file" id="appIconFileHidden" accept="image/*" style="display:none;">
+
+      <div class="space-divider"></div>
+      <div class="space-section-title">App 图标</div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="changeAppIconBtn">更换图标</button>
+        <button class="space-danger-btn" id="resetAppIconBtn">恢复默认</button>
+      </div>
+      <div class="space-hint">添加到主屏幕时使用的图标（会自动裁剪压缩成 180x180）。改完后需要重新"添加到主屏幕"才会生效。</div>
     </div>
   </div>
 
@@ -993,6 +1002,7 @@ const LS_TOPIC_START = 'nest_topic_start';
 const LS_WINDOW_START = 'nest_window_start';
 const LS_AVATAR   = 'nest_avatar';
 const LS_BG       = 'nest_bg';
+const LS_APPICON  = 'nest_appicon';
 const LS_DARK_MODE = 'nest_dark_mode';
 
 /* ============================================================
@@ -1215,6 +1225,35 @@ function applyBg() {
     p.classList.remove('has-bg');
   }
 }
+function applyAppIcon() {
+  const v = localStorage.getItem(LS_APPICON);
+  document.querySelectorAll('link[rel="apple-touch-icon"], link[rel="icon"]').forEach(el => el.remove());
+  if (!v) return;
+  ['apple-touch-icon', 'icon'].forEach(rel => {
+    const link = document.createElement('link');
+    link.rel = rel;
+    link.href = v;
+    document.head.appendChild(link);
+  });
+}
+function compressAppIcon(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(img.width, img.height);
+        const sx = (img.width - s) / 2, sy = (img.height - s) / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = 180; canvas.height = 180;
+        canvas.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, 180, 180);
+        try { resolve(canvas.toDataURL('image/png')); } catch(e) { reject(e); }
+      };
+      img.onerror = reject; img.src = ev.target.result;
+    };
+    reader.onerror = reject; reader.readAsDataURL(file);
+  });
+}
 function compressAvatar(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1249,6 +1288,16 @@ document.getElementById('bgFileHidden').addEventListener('change', async e => {
   } catch(err) { showToast('图片处理失败，换一张试试'); }
   e.target.value = '';
 });
+document.getElementById('appIconFileHidden').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = await compressAppIcon(f);
+    if (safeSetItem(LS_APPICON, data)) { applyAppIcon(); showToast('App 图标已更换，添加到主屏幕时生效'); }
+  } catch(err) { showToast('图片处理失败，换一张试试'); }
+  e.target.value = '';
+});
+document.getElementById('changeAppIconBtn').addEventListener('click', () => document.getElementById('appIconFileHidden').click());
+document.getElementById('resetAppIconBtn').addEventListener('click', () => { localStorage.removeItem(LS_APPICON); applyAppIcon(); showToast('已恢复默认图标'); });
 
 /* ============================================================
 多选模式
@@ -1665,7 +1714,8 @@ document.getElementById('exportBackupBtn').addEventListener('click', async () =>
     nest_presets: localStorage.getItem(LS_PRESETS),
     nest_config: localStorage.getItem(LS_CONFIG),
     nest_avatar: localStorage.getItem(LS_AVATAR),
-    nest_bg: localStorage.getItem(LS_BG)
+    nest_bg: localStorage.getItem(LS_BG),
+    nest_appicon: localStorage.getItem(LS_APPICON)
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -3127,6 +3177,7 @@ window.addEventListener('DOMContentLoaded', () => { initSupabaseMemorySync(); })
   loadChatSettings();
   applyAvatar();
   applyBg();
+  applyAppIcon();
   switchPage('chat');
   renderAllMessages();
   renderSubChatSidebarList();
