@@ -81,15 +81,26 @@ position: absolute; left: 0; right: 0;
 top: calc(env(safe-area-inset-top, 0px) + 7px); height: 44px;
 z-index: 10; pointer-events: none;
 }
+#topFadeLayer {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 72px);
+  z-index: 5; pointer-events: none;
+  background: rgba(195, 216, 228, 0.18);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, black calc(100% - 22px), transparent 100%);
+}
 .round-btn {
 width: 44px; height: 44px; border-radius: 50%;
 border: none; display: flex; pointer-events: auto;
 align-items: center; justify-content: center; cursor: pointer;
 transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 flex-shrink: 0; position: absolute; top: 0; font-size: 18px; color: var(--primary-text);
+overflow: hidden;
 }
 #sidebarToggleBtn { left: 16px; }
-#topRightSlot { right: 16px; width: 44px; height: 44px; }
+#topRightSlot { position: absolute; top: 0; right: 16px; width: 44px; height: 44px; overflow: hidden; }
 #topRightSlot .round-btn { position: static; }
 .round-btn img, .round-btn .avatar-emoji { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 #pageTitle {
@@ -221,14 +232,26 @@ color: var(--text-faint); font-size: 14px;
 .msg-row.user { justify-content: flex-end; }
 .msg-row.ai { justify-content: flex-start; gap: 6px; }
 .msg-row + .msg-row.same-sender { margin-top: -5px; }
-.msg-ai-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; overflow: hidden; align-self: flex-end; display: flex; align-items: center; justify-content: center; background: var(--bg-subtle); font-size: 16px; }
+.msg-ai-avatar { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; overflow: hidden; align-self: flex-start; display: flex; align-items: center; justify-content: center; font-size: 16px; }
 .msg-ai-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .msg-ai-avatar.spacer { visibility: hidden; }
 .msg-col { display: flex; flex-direction: column; min-width: 0; max-width: 80%; }
 .msg-row.user .msg-col { align-items: flex-end; }
 .msg-row.ai .msg-col { align-items: flex-start; }
-.msg-ai-name { font-size: 12px; line-height: 16px; margin-bottom: 3px; color: rgba(10,20,28,0.72); }
-html.dark .msg-ai-name { color: rgba(220,228,232,0.72); }
+.msg-name-line {
+  display: flex; align-items: center; gap: 5px;
+  height: 16px; min-height: 16px; margin-bottom: 4px; white-space: nowrap;
+}
+.msg-ai-name { font-size: 12px; line-height: 16px; color: rgba(15,25,32,0.74); font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
+.gen-thinking {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; line-height: 16px; color: rgba(25,40,50,0.38);
+  overflow: hidden; opacity: 0; width: 0; transition: opacity 0.16s ease, width 0.16s ease;
+}
+.gen-thinking.show { opacity: 1; width: auto; }
+.gen-thinking svg { width: 14px; height: 14px; flex-shrink: 0; animation: thinkingBreath 1.3s ease-in-out infinite; }
+html.dark .gen-thinking { color: rgba(210,220,226,0.42); }
 .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .msg-row.user .msg-bubble-wrap { flex-direction: row-reverse; }
 .msg-bubble {
@@ -267,12 +290,73 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   margin-bottom: 4px; border-left: 2px solid var(--border-color); white-space: pre-wrap; word-break: break-word;
   max-width: 100%; align-self: flex-start;
 }
-.msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
-.msg-images img { width: 90px; height: 90px; object-fit: cover; border-radius: 10px; }
+.photo-single { width: 168px; height: 168px; border-radius: 12px; overflow: hidden; margin-bottom: 6px; background: var(--bg-elevated); cursor: pointer; }
+.photo-single img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.photo-deck-row { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 6px; max-width: 100%; }
+.photo-deck-row.role-user { margin-left: auto; }
+.photo-deck-row.role-ai { margin-right: auto; }
+.photo-deck {
+  position: relative; width: min(62vw, 248px); min-height: 180px; max-height: 310px;
+  flex-shrink: 0; touch-action: pan-y;
+}
+.photo-deck-card {
+  position: absolute; inset: 0; border-radius: 12px; overflow: hidden;
+  background: var(--bg-elevated); will-change: transform, opacity;
+  box-shadow: 0 1px 3px rgba(20,30,40,0.14), 0 4px 10px rgba(20,30,40,0.08);
+  transition: transform 0.42s cubic-bezier(.19,1.32,.4,1), opacity 0.42s ease;
+}
+.photo-deck-card img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; }
+.photo-deck.dragging .photo-deck-card { transition: none !important; }
+.photo-deck-card.load-error { display: flex; align-items: center; justify-content: center; }
+.photo-deck-card.load-error img { display: none; }
+.photo-deck-card.load-error::after { content: '⚠'; font-size: 22px; color: var(--text-faint); filter: grayscale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .photo-deck-card { transition: opacity 0.15s ease !important; }
+}
+.photo-deck-expand-btn {
+  height: 27px; min-width: 52px; padding: 0 10px; border-radius: 14px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: 12px; color: rgba(20,30,36,0.76); border: none; cursor: pointer;
+  background: rgba(255,255,255,0.55); -webkit-backdrop-filter: blur(10px) saturate(160%); backdrop-filter: blur(10px) saturate(160%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5), 0 2px 6px rgba(20,30,40,0.10);
+}
+.photo-deck-expand-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+html.dark .photo-deck-expand-btn { background: rgba(60,70,78,0.55); color: rgba(228,234,238,0.85); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), 0 2px 6px rgba(0,0,0,0.25); }
+.photo-deck-expand-btn:active { transform: scale(0.94); }
+@media (prefers-reduced-motion: reduce) {
+  .photo-deck-expand-btn:active { transform: none; opacity: 0.7; }
+}
+
+.img-lightbox-overlay {
+  position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.92);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+}
+.img-lightbox-overlay.show { opacity: 1; pointer-events: auto; }
+.img-lightbox-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; -webkit-user-drag: none; }
+.img-lightbox-nav {
+  position: absolute; top: 0; bottom: 0; width: 30%; background: transparent; border: none; cursor: pointer;
+}
+.img-lightbox-nav.prev { left: 0; } .img-lightbox-nav.next { right: 0; }
+.img-lightbox-count {
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,0.82); font-size: 12px; background: rgba(255,255,255,0.14); padding: 3px 11px; border-radius: 11px;
+}
 .msg-files { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
 .msg-file-chip { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; display: inline-block; }
 
 .msg-notice { text-align: center; font-size: 11px; line-height: 16px; color: var(--secondary-text); margin: 14px 0 10px; word-break: break-word; user-select: none; -webkit-user-select: none; }
+.time-divider-row { display: flex; justify-content: center; margin: 14px 0 10px; user-select: none; -webkit-user-select: none; }
+.time-divider-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 22px; padding: 3px 11px; border-radius: 11px;
+  background: rgba(58,80,94,0.13); color: rgba(20,32,40,0.60);
+  font-size: 11px; line-height: 16px;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+html.dark .time-divider-pill { background: rgba(160,180,196,0.16); color: rgba(220,228,232,0.72); }
 
 .msg-edit-textarea {
 width: 100%; font-size: 16px; line-height: 1.5; font-family: inherit; border: 1px solid var(--border-strong);
@@ -444,7 +528,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 #composerStack, #subComposerStack {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
   display: flex; flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   transition: bottom 0.18s ease;
 }
 #inputBar, .subchat-inputbar {
@@ -475,10 +559,11 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   background: transparent; box-shadow: none; color: var(--primary-text);
 }
 .emoji-toggle-btn {
-  width: 32px; height: 36px; flex: 0 0 32px; border-radius: 50%;
-  background: transparent; border: none; font-size: 19px; line-height: 1;
-  color: var(--primary-text); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%;
+  background: rgba(44,62,73,0.10); border: none;
+  color: rgba(18,30,38,0.78); cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
+.emoji-toggle-btn svg { width: 18px; height: 18px; }
 .emoji-toggle-btn:active { background: rgba(60,77,88,0.08); }
 #sendBtn, .subchat-sendbtn {
   width: 36px; height: 36px; flex: 0 0 36px; border-radius: 50%;
@@ -509,17 +594,35 @@ html.dark #attachPanel, html.dark #subAttachPanel, html.dark .emoji-bottom-panel
 .emoji-bottom-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
 .emoji-bottom-option { font-size: 24px; text-align: center; padding: 6px 0; border-radius: 10px; cursor: pointer; }
 .emoji-bottom-option:active { background: var(--bg-subtle); }
-.attach-panel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.attach-panel-item {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 12px 4px; border-radius: 12px; cursor: pointer; font-size: 12px; color: var(--text-secondary);
+.attach-panel-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  align-content: start; gap: 20px 8px; padding: 24px 16px 12px 16px;
 }
-.attach-panel-item:active { background: var(--bg-hover); }
-.attach-panel-icon { font-size: 24px; }
+.attach-panel-item {
+  min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  cursor: pointer; min-height: 72px;
+}
+.attach-panel-item.disabled { opacity: 0.4; cursor: default; }
+.attach-panel-icon-bg {
+  width: 48px; height: 48px; border-radius: 50%; background: rgba(55,68,76,0.07);
+  display: grid; place-items: center; flex-shrink: 0;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.15s ease;
+}
+.attach-panel-icon-bg svg { width: 22px; height: 22px; color: rgba(17,28,35,0.82); }
+html.dark .attach-panel-icon-bg { background: rgba(200,212,220,0.10); }
+html.dark .attach-panel-icon-bg svg { color: rgba(220,228,232,0.85); }
+.attach-panel-item:active .attach-panel-icon-bg { transform: scale(0.94); background: rgba(55,68,76,0.13); }
+@media (prefers-reduced-motion: reduce) {
+  .attach-panel-item:active .attach-panel-icon-bg { transform: none; }
+}
+.attach-panel-label {
+  font-size: 12px; line-height: 17px; color: rgba(15,24,30,0.78); text-align: center; margin-top: 7px;
+}
+html.dark .attach-panel-label { color: rgba(220,228,232,0.78); }
 
 .sheet-overlay {
 position: fixed; inset: 0; background: rgba(0,0,0,0.35);
-opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 30;
+opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 45;
 display: flex; align-items: flex-end;
 }
 .sheet-overlay.show { opacity: 1; pointer-events: auto; }
@@ -771,6 +874,8 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
 </div>
 
+<div id="topFadeLayer"></div>
+
 <div id="sidebarOverlay"></div>
 <div id="sidebar">
   <div class="side-profile">
@@ -920,7 +1025,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
     <button id="plusBtn">＋</button>
     <input type="file" id="fileInputHidden" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip">
     <textarea id="textInput" rows="1" placeholder="跟然竣说点什么…"></textarea>
-    <button class="emoji-toggle-btn" id="emojiToggleBtn">☺</button>
+    <button class="emoji-toggle-btn" id="emojiToggleBtn"></button>
     <button id="sendBtn" disabled><span class="send-icon">↑</span></button>
   </div>
 </div>
@@ -934,7 +1039,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
     <button class="subchat-plusbtn" id="subPlusBtn">＋</button>
     <input type="file" id="subFileInputHidden" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip">
     <textarea class="subchat-textinput" id="subchatTextInput" rows="1" placeholder="说点什么…"></textarea>
-    <button class="emoji-toggle-btn" id="subEmojiToggleBtn">☺</button>
+    <button class="emoji-toggle-btn" id="subEmojiToggleBtn"></button>
     <button class="subchat-sendbtn" id="subchatSendBtn" disabled><span class="send-icon">↑</span></button>
   </div>
 </div>
@@ -1130,6 +1235,21 @@ const LS_NICKNAME = 'nest_nickname';
 const LS_BG       = 'nest_bg';
 const LS_APPICON  = 'nest_appicon';
 const LS_DARK_MODE = 'nest_dark_mode';
+
+/* ============================================================
+单色线性图标（内联 SVG，Lucide 风格路径，项目未引入图标库故内联）
+============================================================ */
+const ICONS = {
+  cloud: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.7-1.8A4 4 0 0 0 6.5 19h11z"/></svg>',
+  smile: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+  keyboard: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10"/><line x1="10" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="18" y1="10" x2="18" y2="10"/><line x1="6" y1="14" x2="18" y2="14"/></svg>',
+  image: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  fileText: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
+  layers: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
+  chevronsHorizontal: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 7-5 5 5 5"/><path d="m15 7 5 5-5 5"/></svg>',
+  x: '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+};
 
 /* ============================================================
 IndexedDB 存储（用于体积较大、随时间累积的数据：聊天记录/记忆/副聊天/计划/日记）
@@ -2408,6 +2528,7 @@ function deleteMessage(msg, ctx) {
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id); if (idx === -1) return;
   const page = document.getElementById(ctx.pageId); const savedScroll = page.scrollTop;
   arr.splice(idx, 1); ctx.persist(); ctx.renderAll();
+  photoDeckStates.delete(msg.id);
   requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = savedScroll; }); });
 }
 function regenerateMessage(msg, ctx) {
@@ -2420,6 +2541,132 @@ function buildAiAvatarEl() {
   if (v) { const img = document.createElement('img'); img.src = v; av.appendChild(img); }
   else { av.textContent = '🐾'; }
   return av;
+}
+/* ============================================================
+照片卡片栈（多图消息）+ 全屏预览
+============================================================ */
+const photoDeckStates = new Map();
+function getPhotoDeckState(msg) {
+  let s = photoDeckStates.get(msg.id);
+  if (!s) { s = { expanded: false, activeIndex: 0 }; photoDeckStates.set(msg.id, s); }
+  if (msg.images && s.activeIndex >= msg.images.length) s.activeIndex = Math.max(0, msg.images.length - 1);
+  return s;
+}
+let lightboxEl = null;
+function ensureLightbox() {
+  if (lightboxEl) return lightboxEl;
+  lightboxEl = document.createElement('div'); lightboxEl.className = 'img-lightbox-overlay';
+  const imgEl = document.createElement('img'); imgEl.draggable = false;
+  const countEl = document.createElement('div'); countEl.className = 'img-lightbox-count';
+  const prevBtn = document.createElement('button'); prevBtn.className = 'img-lightbox-nav prev'; prevBtn.setAttribute('aria-label', '上一张');
+  const nextBtn = document.createElement('button'); nextBtn.className = 'img-lightbox-nav next'; nextBtn.setAttribute('aria-label', '下一张');
+  lightboxEl.appendChild(imgEl); lightboxEl.appendChild(countEl); lightboxEl.appendChild(prevBtn); lightboxEl.appendChild(nextBtn);
+  document.body.appendChild(lightboxEl);
+  let images = [], idx = 0;
+  function render() { imgEl.src = images[idx]; const multi = images.length > 1; countEl.style.display = multi ? '' : 'none'; prevBtn.style.display = multi ? '' : 'none'; nextBtn.style.display = multi ? '' : 'none'; countEl.textContent = multi ? (idx + 1) + ' / ' + images.length : ''; }
+  prevBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + images.length) % images.length; render(); });
+  nextBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % images.length; render(); });
+  lightboxEl.addEventListener('click', () => close());
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  function open(imgs, startIdx) { images = imgs; idx = startIdx || 0; render(); lightboxEl.classList.add('show'); }
+  function close() { lightboxEl.classList.remove('show'); }
+  lightboxEl._open = open;
+  return lightboxEl;
+}
+function openImageLightbox(images, startIndex) { ensureLightbox()._open(images, startIndex); }
+function layoutDeck(deck, msg, state, role) {
+  const slots = deck._slots;
+  const total = msg.images.length;
+  const mirror = role !== 'user';
+  const dir = mirror ? 1 : -1;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  slots.forEach((card, layer) => {
+    const imgIdx = state.activeIndex + layer;
+    if (imgIdx >= total) { card.style.opacity = '0'; card.style.pointerEvents = 'none'; card.removeAttribute('data-top-card'); return; }
+    const img = card.querySelector('img');
+    if (img.src !== msg.images[imgIdx]) img.src = msg.images[imgIdx];
+    card.style.pointerEvents = layer === 0 ? 'auto' : 'none';
+    card.style.zIndex = String(10 - layer);
+    if (layer === 0) card.dataset.topCard = '1'; else card.removeAttribute('data-top-card');
+    let tx = 0, ty = 0, rot = 0, scale = 1, opacity = 1;
+    if (!state.expanded) {
+      if (layer === 1) { tx = 7 * dir; ty = -5; rot = 1.8 * dir; opacity = 0.97; }
+      else if (layer === 2) { tx = 13 * dir; ty = -9; rot = 3 * dir; opacity = 0.94; }
+    } else {
+      if (layer === 1) { tx = 20 * dir; ty = 0; rot = 5 * dir; scale = 0.96; opacity = 0.75; }
+      else if (layer === 2) { tx = 34 * dir; ty = 0; rot = 8 * dir; scale = 0.92; opacity = 0.5; }
+    }
+    if (reduceMotion) { tx = 0; ty = 0; rot = 0; scale = 1; }
+    card.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
+    card.style.opacity = String(opacity);
+  });
+}
+function attachDeckDrag(deck, msg, state, relayout) {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let pointerId = null, startX = 0, startY = 0, startTime = 0, curDx = 0, axis = null;
+  deck.addEventListener('pointerdown', (e) => {
+    const top = deck._slots.find(s => s.dataset.topCard === '1');
+    if (!top || !top.contains(e.target)) return;
+    pointerId = e.pointerId; startX = e.clientX; startY = e.clientY; startTime = Date.now(); curDx = 0; axis = null;
+  });
+  deck.addEventListener('pointermove', (e) => {
+    if (pointerId !== e.pointerId) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (axis === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (axis === 'x') { deck.classList.add('dragging'); try { deck.setPointerCapture(pointerId); } catch(err) {} }
+    }
+    if (axis !== 'x') return;
+    e.preventDefault();
+    curDx = dx;
+    if (reduceMotion) return;
+    const top = deck._slots.find(s => s.dataset.topCard === '1');
+    const idx = deck._slots.indexOf(top);
+    const next = deck._slots[idx + 1];
+    if (top) { const rot = Math.max(-7, Math.min(7, dx / 14)); top.style.transform = `translate(${dx}px, 0px) rotate(${rot}deg)`; }
+    if (next && state.activeIndex + 1 < msg.images.length) { const peek = dx * 0.15; next.style.transform = `translate(${peek}px, -5px) rotate(${peek / 12}deg)`; }
+  });
+  function end(e) {
+    if (pointerId !== e.pointerId) return;
+    const wasX = axis === 'x';
+    const tappedWithoutMove = axis === null;
+    const dt = Math.max(1, Date.now() - startTime);
+    const velocity = curDx / dt;
+    try { deck.releasePointerCapture(pointerId); } catch(err) {}
+    deck.classList.remove('dragging');
+    pointerId = null; axis = null;
+    if (!wasX) { if (tappedWithoutMove) openImageLightbox(msg.images, state.activeIndex); return; }
+    const total = msg.images.length;
+    if (Math.abs(curDx) > 52 || Math.abs(velocity) > 0.45) {
+      if (curDx < 0 && state.activeIndex < total - 1) state.activeIndex++;
+      else if (curDx > 0 && state.activeIndex > 0) state.activeIndex--;
+    }
+    relayout();
+  }
+  deck.addEventListener('pointerup', end);
+  deck.addEventListener('pointercancel', end);
+}
+function buildPhotoDeckRow(msg, role) {
+  const row = document.createElement('div'); row.className = 'photo-deck-row role-' + role;
+  const deck = document.createElement('div'); deck.className = 'photo-deck';
+  deck._slots = [0, 1, 2].map(() => {
+    const card = document.createElement('div'); card.className = 'photo-deck-card';
+    const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
+    img.addEventListener('error', () => { card.classList.add('load-error'); });
+    img.addEventListener('load', () => { card.classList.remove('load-error'); });
+    card.appendChild(img); deck.appendChild(card); return card;
+  });
+  const state = getPhotoDeckState(msg);
+  const btn = document.createElement('button'); btn.className = 'photo-deck-expand-btn';
+  function updateBtn() { btn.innerHTML = state.expanded ? (ICONS.chevronsHorizontal + '<span>收起</span>') : (ICONS.layers + '<span>展开 ' + msg.images.length + '</span>'); }
+  function relayout() { layoutDeck(deck, msg, state, role); updateBtn(); }
+  btn.addEventListener('click', (e) => { e.stopPropagation(); state.expanded = !state.expanded; relayout(); });
+  attachDeckDrag(deck, msg, state, relayout);
+  relayout();
+  if (role === 'user') { row.appendChild(btn); row.appendChild(deck); }
+  else { row.appendChild(deck); row.appendChild(btn); }
+  return row;
 }
 function buildMsgRow(msg, ctx, prevMsg) {
   if (msg.role === 'notice') {
@@ -2440,8 +2687,12 @@ function buildMsgRow(msg, ctx, prevMsg) {
     row.appendChild(avatarEl);
     col = document.createElement('div'); col.className = 'msg-col';
     if (!isSameSender) {
-      const nameEl = document.createElement('div'); nameEl.className = 'msg-ai-name'; nameEl.textContent = appName;
-      col.appendChild(nameEl);
+      const nameLine = document.createElement('div'); nameLine.className = 'msg-name-line';
+      const nameEl = document.createElement('span'); nameEl.className = 'msg-ai-name'; nameEl.textContent = appName;
+      const thinkEl = document.createElement('span'); thinkEl.className = 'gen-thinking';
+      thinkEl.innerHTML = ICONS.cloud + '<span>-thinking-</span>';
+      nameLine.appendChild(nameEl); nameLine.appendChild(thinkEl);
+      col.appendChild(nameLine);
     }
     row.appendChild(col);
   }
@@ -2455,8 +2706,15 @@ function buildMsgRow(msg, ctx, prevMsg) {
     col.appendChild(cloud); col.appendChild(thinkBody);
   }
   if (msg.images && msg.images.length > 0) {
-    const imgWrap = document.createElement('div'); imgWrap.className = 'msg-images';
-    msg.images.forEach(src => { const img = document.createElement('img'); img.src = src; imgWrap.appendChild(img); }); col.appendChild(imgWrap);
+    if (msg.images.length === 1) {
+      const single = document.createElement('div'); single.className = 'photo-single';
+      const img = document.createElement('img'); img.src = msg.images[0]; img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
+      single.appendChild(img);
+      single.addEventListener('click', (e) => { e.stopPropagation(); openImageLightbox(msg.images, 0); });
+      col.appendChild(single);
+    } else {
+      col.appendChild(buildPhotoDeckRow(msg, msg.role === 'user' ? 'user' : 'ai'));
+    }
   }
   if (msg.files && msg.files.length > 0) {
     const fw = document.createElement('div'); fw.className = 'msg-files';
@@ -2487,7 +2745,9 @@ function buildSelectCb(msg) {
   const cb = document.createElement('div'); cb.className = 'msg-select-cb' + (selectedIds.has(msg.id) ? ' checked' : ''); cb.textContent = selectedIds.has(msg.id) ? '✓' : ''; return cb;
 }
 function buildTimeDividerRow(createdAt) {
-  const div = document.createElement('div'); div.className = 'msg-notice'; div.textContent = formatTimeDivider(createdAt); return div;
+  const row = document.createElement('div'); row.className = 'time-divider-row';
+  const pill = document.createElement('span'); pill.className = 'time-divider-pill'; pill.textContent = formatTimeDivider(createdAt);
+  row.appendChild(pill); return row;
 }
 function shouldShowTimeDivider(prevMsg, curMsg) {
   if (!prevMsg || !curMsg || curMsg.createdAt == null || prevMsg.createdAt == null) return false;
@@ -2733,9 +2993,10 @@ pageCapsule.addEventListener('click', () => {
   if (currentPage !== 'chat') return;
   nicknameInput.value = pageTitles.chat;
   nicknameOverlay.classList.add('show');
+  document.getElementById('composerStack').style.display = 'none';
   setTimeout(() => { nicknameInput.focus(); nicknameInput.select(); }, 50);
 });
-function closeNicknameSheet() { nicknameOverlay.classList.remove('show'); }
+function closeNicknameSheet() { nicknameOverlay.classList.remove('show'); document.getElementById('composerStack').style.display = ''; }
 nicknameOverlay.addEventListener('click', e => { if (e.target === nicknameOverlay) closeNicknameSheet(); });
 document.getElementById('nicknameCancelBtn').addEventListener('click', closeNicknameSheet);
 document.getElementById('nicknameSaveBtn').addEventListener('click', () => {
@@ -2989,10 +3250,24 @@ function buildAttachPanelGrid(panelEl, fileInputEl) {
   if (panelEl.dataset.built) return;
   panelEl.dataset.built = '1';
   const grid = document.createElement('div'); grid.className = 'attach-panel-grid';
-  const item = document.createElement('div'); item.className = 'attach-panel-item';
-  item.innerHTML = '<span class="attach-panel-icon">🖼️</span><span>图片/文件</span>';
-  item.addEventListener('click', () => fileInputEl.click());
-  grid.appendChild(item);
+  const attachmentActions = [
+    { id: 'photos', label: '照片', icon: ICONS.image, accept: 'image/*', capture: null, multiple: true },
+    { id: 'camera', label: '相机', icon: ICONS.camera, accept: 'image/*', capture: 'environment', multiple: false },
+    { id: 'files',  label: '文件', icon: ICONS.fileText, accept: '', capture: null, multiple: true }
+  ];
+  attachmentActions.forEach(action => {
+    const item = document.createElement('div'); item.className = 'attach-panel-item';
+    const iconBg = document.createElement('div'); iconBg.className = 'attach-panel-icon-bg'; iconBg.innerHTML = action.icon;
+    const label = document.createElement('div'); label.className = 'attach-panel-label'; label.textContent = action.label;
+    item.appendChild(iconBg); item.appendChild(label);
+    item.addEventListener('click', () => {
+      fileInputEl.accept = action.accept;
+      if (action.capture) fileInputEl.setAttribute('capture', action.capture); else fileInputEl.removeAttribute('capture');
+      fileInputEl.multiple = action.multiple;
+      fileInputEl.click();
+    });
+    grid.appendChild(item);
+  });
   panelEl.appendChild(grid);
 }
 function closeComposerPanels(which) {
@@ -3001,8 +3276,8 @@ function closeComposerPanels(which) {
   const plusB  = document.getElementById(which === 'sub' ? 'subPlusBtn' : 'plusBtn');
   const emojiB = document.getElementById(which === 'sub' ? 'subEmojiToggleBtn' : 'emojiToggleBtn');
   attach.classList.remove('show'); emoji.classList.remove('show');
-  if (plusB) plusB.textContent = '＋';
-  if (emojiB) emojiB.textContent = '☺';
+  if (plusB) plusB.innerHTML = '＋';
+  if (emojiB) emojiB.innerHTML = ICONS.smile;
 }
 function setupComposerPanels(which, plusBtnEl, emojiBtnEl, fileInputEl, textInputEl) {
   const attach = document.getElementById(which === 'sub' ? 'subAttachPanel' : 'attachPanel');
@@ -3013,20 +3288,21 @@ function setupComposerPanels(which, plusBtnEl, emojiBtnEl, fileInputEl, textInpu
     textInputEl.blur();
     const opening = !attach.classList.contains('show');
     closeComposerPanels(which);
-    if (opening) { attach.classList.add('show'); plusBtnEl.textContent = '✕'; }
+    if (opening) { attach.classList.add('show'); plusBtnEl.innerHTML = ICONS.x; }
   });
   emojiBtnEl.addEventListener('click', () => {
     const opening = !emoji.classList.contains('show');
     if (opening) {
       textInputEl.blur();
       closeComposerPanels(which);
-      emoji.classList.add('show'); emojiBtnEl.textContent = '⌨';
+      emoji.classList.add('show'); emojiBtnEl.innerHTML = ICONS.keyboard;
     } else {
       closeComposerPanels(which);
       textInputEl.focus();
     }
   });
   textInputEl.addEventListener('focus', () => closeComposerPanels(which));
+  emojiBtnEl.innerHTML = ICONS.smile;
 }
 setupComposerPanels('main', document.getElementById('plusBtn'), document.getElementById('emojiToggleBtn'), fileInputHidden, document.getElementById('textInput'));
 fileInputHidden.addEventListener('change', async e => {
@@ -3063,6 +3339,33 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
   return {
     push(accumulated) { latestText = accumulated; if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); } },
     finalize(text) { bubbleEl.innerHTML = ''; try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; } addCopyButtons(bubbleEl); scrollFn(); }
+  };
+}
+/* ============================================================
+AI 生成状态机：thinking 状态绑定具体消息行，避免全局布尔导致的
+历史消息误显示 thinking、旧请求延迟数据污染新消息等问题
+============================================================ */
+function createGenTracker(row) {
+  const thinkEl = row ? row.querySelector('.gen-thinking') : null;
+  const requestId = genId();
+  let status = 'thinking';
+  let active = true, tokenArrived = false;
+  const showTimer = setTimeout(() => { if (active && !tokenArrived && thinkEl) thinkEl.classList.add('show'); }, 120);
+  return {
+    requestId,
+    isActive: () => active,
+    onToken() {
+      if (!active || tokenArrived) return;
+      tokenArrived = true; status = 'streaming';
+      clearTimeout(showTimer);
+      if (thinkEl) thinkEl.classList.remove('show');
+    },
+    stop(finalStatus) {
+      if (!active) return;
+      active = false; status = finalStatus || 'stopped';
+      clearTimeout(showTimer);
+      if (thinkEl) thinkEl.classList.remove('show');
+    }
   };
 }
 
@@ -3248,15 +3551,16 @@ async function callAPI(rerollTarget) {
   if (isReroll) {
     aiMsg = rerollTarget; aiRow = chatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
     if (!aiRow) { aiRow = appendMessage(aiMsg); }
-    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '';
   } else {
     aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
     messages.push(aiMsg); persistMessages(); aiRow = appendMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+    aiBubble.innerHTML = '';
   }
 
   const sendBtnEl = document.getElementById('sendBtn');
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
+  const gen = createGenTracker(aiRow);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   let accumulated = '', accumulatedReasoning = '';
 
@@ -3298,6 +3602,7 @@ async function callAPI(rerollTarget) {
       await readChatStream(res, useNative, (delta, reasoningDelta) => {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
         accumulated += delta; renderer.push(accumulated);
+        if (delta && delta.trim()) gen.onToken();
       });
     } else {
       const json = await res.json();
@@ -3308,7 +3613,7 @@ async function callAPI(rerollTarget) {
   } catch(err) {
     if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
     else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
-  } finally { mainGenerating = false; mainAbortController = null; updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0); }
+  } finally { mainGenerating = false; mainAbortController = null; gen.stop(); updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0); }
 }
 
 /* ============================================================
@@ -3328,15 +3633,16 @@ async function callSubChatAPI(rerollTarget) {
   if (isReroll) {
     aiMsg = rerollTarget; aiRow = subchatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
     if (!aiRow) { aiRow = appendSubChatMessage(aiMsg); }
-    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '';
   } else {
     aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
     sc.messages.push(aiMsg); persistSubChats(); aiRow = appendSubChatMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '<span class="thinking-text">🐾家猫正在思考中...</span>';
+    aiBubble.innerHTML = '';
   }
 
   const sendBtnEl = document.getElementById('subchatSendBtn');
   const controller = new AbortController(); subAbortController = controller; subGenerating = true; updateSendBtnState(sendBtnEl, true, false);
+  const gen = createGenTracker(aiRow);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(subchatScroll, 'page-subchat'));
   let accumulated = '', accumulatedReasoning = '';
 
@@ -3365,6 +3671,7 @@ async function callSubChatAPI(rerollTarget) {
       await readChatStream(res, useNative, (delta, reasoningDelta) => {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
         accumulated += delta; renderer.push(accumulated);
+        if (delta && delta.trim()) gen.onToken();
       });
     } else {
       const json = await res.json();
@@ -3375,7 +3682,7 @@ async function callSubChatAPI(rerollTarget) {
   } catch(err) {
     if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
     else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
-  } finally { subGenerating = false; subAbortController = null; updateSendBtnState(sendBtnEl, false, subchatTextInput.value.trim().length > 0 || pendingSubAttachments.length > 0); }
+  } finally { subGenerating = false; subAbortController = null; gen.stop(); updateSendBtnState(sendBtnEl, false, subchatTextInput.value.trim().length > 0 || pendingSubAttachments.length > 0); }
 }
 
 /* ============================================================
@@ -3466,7 +3773,11 @@ function setupViewportKeyboardHandling() {
     if (vv) {
       offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     }
-    composerStacks.forEach(el => { if (el) el.style.bottom = offset > 0 ? (offset + 'px') : '0px'; });
+    composerStacks.forEach(el => {
+      if (!el) return;
+      if (offset > 0) { el.style.bottom = offset + 'px'; el.style.paddingBottom = '8px'; }
+      else { el.style.bottom = '0px'; el.style.paddingBottom = ''; }
+    });
   }
   if (vv) {
     vv.addEventListener('resize', applyKeyboardOffset);
