@@ -342,7 +342,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   will-change: transform, opacity;
 }
 .photo-stack-card img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; pointer-events: none; -webkit-user-drag: none; }
-.photo-stack-card.front { z-index: 3; touch-action: pan-y; cursor: grab; }
+.photo-stack-card.front { z-index: 3; touch-action: none; cursor: grab; }
 .photo-stack-card.front:active { cursor: grabbing; }
 .photo-stack-card.behind-1 { z-index: 2; transform: translate(9px, -7px) rotate(1.4deg) scale(0.97); }
 .photo-stack-card.behind-2 { z-index: 1; transform: translate(16px, -12px) rotate(-1.2deg) scale(0.94); opacity: 0.85; }
@@ -2823,7 +2823,10 @@ function buildCollapsedStack(msg, state) {
     function onPointerMove(e) {
       if (!dragging || !dragCard) return;
       const dx = e.clientX - startX, dy = e.clientY - startY;
-      if (dragAxis === null) dragAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (dragAxis === null) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        dragAxis = Math.abs(dx) > Math.abs(dy) * 1.3 ? 'x' : 'y';
+      }
       if (dragAxis === 'y') return;
       e.preventDefault();
       currentX = dx;
