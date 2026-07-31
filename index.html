@@ -2199,6 +2199,14 @@ backupImportHidden.addEventListener('change', e => {
         if (IDB_KEYS.includes(key)) { try { await idbSet(key, JSON.parse(data[key])); } catch(e) { console.warn('导入到IndexedDB失败', key, e); } }
         else safeSetItem(key, data[key]);
       }
+      // 导入备份代表"以这份文件为准"，必须强制把聊天记录推上云端覆盖旧版本，
+      // 否则刷新时 initChatSync 会认为云端已有数据而反向拉取覆盖掉刚导入的内容
+      if (window.supabaseChats) {
+        try {
+          if (data[LS_MESSAGES] != null) await window.supabaseChats.upsertChat('main', JSON.parse(data[LS_MESSAGES]));
+          if (data[LS_SUBCHATS] != null) await window.supabaseChats.upsertChat('subchats', JSON.parse(data[LS_SUBCHATS]));
+        } catch(e) { console.warn('导入备份强制同步云端失败', e); }
+      }
       alert('导入成功，即将刷新'); location.reload();
     } catch(err) { showToast('导入失败：文件格式不对', 3000); }
   };
