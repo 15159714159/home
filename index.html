@@ -560,6 +560,12 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   display: flex; flex-direction: column;
   padding-bottom: 8px;
   transition: bottom 0.18s ease;
+  background: var(--composer-glass-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  #composerStack, #subComposerStack { background: rgba(240,246,249,0.94); }
 }
 #inputBar, .subchat-inputbar {
   display: flex; align-items: flex-end; gap: 6px;
@@ -4223,39 +4229,6 @@ window.addEventListener('DOMContentLoaded', () => { initSupabaseMemorySync(); })
   setupViewportKeyboardHandling();
   setupAutoFollowTracking('page-chat');
   setupAutoFollowTracking('page-subchat');
-
-  // === 临时体检浮层，排查完删除 ===
-  (function debugComposerGap() {
-    const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;height:0;padding-bottom:env(safe-area-inset-bottom,-1px);pointer-events:none;visibility:hidden;';
-    document.body.appendChild(probe);
-    const safeBottom = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
-    probe.remove();
-
-    const box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:rgba(0,0,0,0.88);color:#0f0;font:12px/1.6 monospace;padding:10px 12px;border-radius:10px;white-space:pre-wrap;';
-    function update() {
-      const stack = document.getElementById('composerStack');
-      const app = document.getElementById('app');
-      const sRect = stack.getBoundingClientRect();
-      const aRect = app.getBoundingClientRect();
-      box.textContent =
-        'innerHeight: ' + window.innerHeight + '\n' +
-        'app.bottom: ' + aRect.bottom.toFixed(1) + '  app.height: ' + aRect.height.toFixed(1) + '\n' +
-        'composerStack.bottom: ' + sRect.bottom.toFixed(1) + '\n' +
-        'gap(innerH - stack.bottom): ' + (window.innerHeight - sRect.bottom).toFixed(1) + '\n' +
-        'gap(app.bottom - stack.bottom): ' + (aRect.bottom - sRect.bottom).toFixed(1) + '\n' +
-        'env(safe-area-inset-bottom): ' + safeBottom.toFixed(1) + '\n' +
-        'stack computed paddingBottom: ' + getComputedStyle(stack).paddingBottom + '\n' +
-        'stack computed bottom: ' + getComputedStyle(stack).bottom + '\n' +
-        'visualViewport.height: ' + (window.visualViewport ? window.visualViewport.height.toFixed(1) : 'n/a');
-    }
-    document.body.appendChild(box);
-    update();
-    window.addEventListener('resize', update);
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', update);
-    box.addEventListener('click', () => { box.remove(); });
-  })();
 })();
 </script>
 <script type="module" src="supabase.js"></script>
