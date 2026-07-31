@@ -929,7 +929,25 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   font-variant-numeric: tabular-nums;
 }
 
+.chat-theme-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 6px;
+  border-radius: 12px; cursor: pointer; transition: background 0.15s ease;
+}
+.chat-theme-item:active { background: var(--bg-hover); }
+.chat-theme-thumb {
+  width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; overflow: hidden;
+  background: var(--bg-elevated); display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.chat-theme-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.chat-theme-info { flex: 1; min-width: 0; }
+.chat-theme-name { font-size: 15px; color: var(--text-primary); }
+.chat-theme-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+.chat-theme-check { font-size: 16px; color: var(--accent); flex-shrink: 0; opacity: 0; }
+.chat-theme-item.active .chat-theme-check { opacity: 1; }
+
 </style>
+<style id="chatThemeStyle"></style>
 </head>
 <body>
 <div id="app">
@@ -967,6 +985,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="side-nav-item active" data-nav="chat">主聊天</div>
   <div class="side-nav-item" data-nav="diary">日记</div>
   <div class="side-nav-item" id="personaSettingsLink">系统人设</div>
+  <div class="side-nav-item" id="chatThemeLink">聊天主题</div>
   <div class="side-nav-item" data-nav="space">Space</div>
   <div class="side-divider"></div>
   <div class="side-nav-item" id="ombreBrainLink">Ombre Brain</div>
@@ -1185,6 +1204,13 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
 </div>
 
+<div class="sheet-overlay" id="chatThemeOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title">聊天主题</div>
+    <div id="chatThemeList"></div>
+  </div>
+</div>
+
 <div id="diaryWriteOverlay">
   <div id="diaryWritePanel">
     <div class="diary-write-title">写日记</div>
@@ -1333,6 +1359,78 @@ const LS_NICKNAME = 'nest_nickname';
 const LS_BG       = 'nest_bg';
 const LS_APPICON  = 'nest_appicon';
 const LS_DARK_MODE = 'nest_dark_mode';
+const LS_CHAT_THEME = 'nest_chat_theme';
+
+/* ============================================================
+聊天主题（图片气泡皮肤）—— 素材来自 KakaoTalk 官方主题包，
+气泡用 CSS border-image 九宫格拉伸实现自适应宽高。
+cap-inset 数值取自主题包自带的 KakaoTalkTheme.css（形如
+"-ios-background-image: 'xxx.png' 34px 51px;"，对应 iOS 老 API
+stretchableImageWithLeftCapWidth:topCapHeight: 的语义——
+左上角 (leftCapWidth, topCapHeight) 区域固定不变形，右/下两边
+= 图片宽高 - 该值，中间留极窄的可拉伸带。素材是 @3x 图，
+DSL 数值是 @1x 单位，套用时先 ×3 换算成像素。
+============================================================ */
+const CHAT_THEME_ASSET_BASE = 'theme-assets/kakao-bb0ding02/';
+// slice: [top, right, bottom, left] 像素（对应源图自身分辨率，border-image-slice 用）
+// border: [top, right, bottom, left] CSS 逻辑像素（slice 数值 ÷3，换算回 1x 供 border-width 用）
+function bubbleSpec(file, w, h, leftCap1x, topCap1x) {
+  const left = leftCap1x * 3, top = topCap1x * 3;
+  const right = w - left, bottom = h - top;
+  return {
+    file,
+    slice: [top, right, bottom, left],
+    border: [top / 3, right / 3, bottom / 3, left / 3],
+  };
+}
+const CHAT_THEMES = [
+  { id: 'default', name: '默认', desc: '素色气泡', thumb: null },
+  {
+    id: 'kakao-bb0ding02',
+    name: '천사악마 뽀딩이',
+    desc: 'KakaoTalk 官方主题 · 天使恶魔布丁',
+    thumb: CHAT_THEME_ASSET_BASE + 'profileImg01@3x.png',
+    bg: CHAT_THEME_ASSET_BASE + 'chatroomBgImage@3x.png',
+    bubbles: {
+      sendFirst:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend01@3x.png',    264, 204, 34, 51),
+      sendGroup:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend02@3x.png',    264, 144, 34, 31),
+      receiveFirst: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive01@3x.png', 267, 189, 54, 46),
+      receiveGroup: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive02@3x.png', 258, 144, 54, 31),
+    },
+  },
+  (() => {
+    const BASE = 'theme-assets/tenshichi-clean/';
+    return {
+      id: 'tenshichi-clean',
+      name: 'TENSHIchi_clean',
+      desc: 'KakaoTalk 官方主题 · 粉色小天使',
+      thumb: BASE + 'profileImg01@3x.png',
+      bg: BASE + 'chatroomBgImage@3x.png',
+      bubbles: {
+        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    240, 210, 25, 47),
+        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    240, 132, 25, 21),
+        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 180, 201, 35, 44),
+        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 180, 132, 35, 21),
+      },
+    };
+  })(),
+  (() => {
+    const BASE = 'theme-assets/bear-bunny/';
+    return {
+      id: 'bear-bunny',
+      name: '토끼와 글루미베어',
+      desc: 'KakaoTalk 官方主题 · 兔子与暴力熊',
+      thumb: BASE + 'profileImg01@3x.png',
+      bg: BASE + 'chatroomBgImage@3x.png',
+      bubbles: {
+        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    189, 236, 12, 60),
+        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    189, 134, 20, 19),
+        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 168, 215, 40, 52),
+        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 168, 134, 40, 19),
+      },
+    };
+  })(),
+];
 
 /* ============================================================
 单色线性图标（内联 SVG，Lucide 风格路径，项目未引入图标库故内联）
@@ -1567,6 +1665,76 @@ function applyBg() {
     p.style.backgroundImage = '';
     p.classList.remove('has-bg');
   }
+}
+function findChatTheme(id) { return CHAT_THEMES.find(t => t.id === id) || CHAT_THEMES[0]; }
+function buildChatThemeCSS(theme) {
+  if (!theme || theme.id === 'default' || !theme.bubbles) return '';
+  const sel = '#page-chat[data-chat-theme="' + theme.id + '"]';
+  const rule = (bubbleSel, spec) => {
+    const [st, sr, sb, sl] = spec.slice;
+    const [bt, br, bb, bl] = spec.border;
+    // 短消息（单行）撑不满 top+bottom 两端固定装饰区高度时，装饰图案会被压扁重叠——
+    // 用 min-height 兜底，保证气泡至少有装饰完整展开所需的高度。
+    const minHeight = Math.ceil(bt + bb);
+    return sel + ' ' + bubbleSel + ' .msg-bubble {\n'
+      + '  background: none;\n'
+      + '  min-height: ' + minHeight + 'px;\n'
+      + '  box-sizing: border-box;\n'
+      + '  border-style: solid;\n'
+      + '  border-width: ' + bt + 'px ' + br + 'px ' + bb + 'px ' + bl + 'px;\n'
+      + '  border-image-source: url(' + spec.file + ');\n'
+      + '  border-image-slice: ' + st + ' ' + sr + ' ' + sb + ' ' + sl + ' fill;\n'
+      + '  border-image-repeat: stretch;\n'
+      + '}\n';
+  };
+  let css = sel + ' {\n'
+    + '  background-image: url(' + theme.bg + ');\n'
+    + '  background-size: cover; background-position: center; background-attachment: fixed;\n'
+    + '  background-color: transparent;\n'
+    + '}\n';
+  css += rule('.msg-row.user:not(.same-sender)', theme.bubbles.sendFirst);
+  css += rule('.msg-row.user.same-sender', theme.bubbles.sendGroup);
+  css += rule('.msg-row.ai:not(.same-sender)', theme.bubbles.receiveFirst);
+  css += rule('.msg-row.ai.same-sender', theme.bubbles.receiveGroup);
+  return css;
+}
+function applyChatTheme(id) {
+  const theme = findChatTheme(id);
+  const p = document.getElementById('page-chat');
+  const styleTag = document.getElementById('chatThemeStyle');
+  if (theme.id === 'default') {
+    p.removeAttribute('data-chat-theme');
+    styleTag.textContent = '';
+  } else {
+    p.setAttribute('data-chat-theme', theme.id);
+    styleTag.textContent = buildChatThemeCSS(theme);
+  }
+  safeSetItem(LS_CHAT_THEME, theme.id);
+  renderChatThemeList();
+}
+function loadChatTheme() {
+  const id = localStorage.getItem(LS_CHAT_THEME) || 'default';
+  applyChatTheme(id);
+}
+function renderChatThemeList() {
+  const list = document.getElementById('chatThemeList');
+  if (!list) return;
+  const current = localStorage.getItem(LS_CHAT_THEME) || 'default';
+  list.innerHTML = '';
+  CHAT_THEMES.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'chat-theme-item' + (t.id === current ? ' active' : '');
+    const thumb = document.createElement('div'); thumb.className = 'chat-theme-thumb';
+    thumb.innerHTML = t.thumb ? '<img src="' + t.thumb + '">' : '⚪';
+    const info = document.createElement('div'); info.className = 'chat-theme-info';
+    const name = document.createElement('div'); name.className = 'chat-theme-name'; name.textContent = t.name;
+    const desc = document.createElement('div'); desc.className = 'chat-theme-desc'; desc.textContent = t.desc;
+    info.appendChild(name); info.appendChild(desc);
+    const check = document.createElement('div'); check.className = 'chat-theme-check'; check.textContent = '✓';
+    item.appendChild(thumb); item.appendChild(info); item.appendChild(check);
+    item.addEventListener('click', () => { applyChatTheme(t.id); document.getElementById('chatThemeOverlay').classList.remove('show'); });
+    list.appendChild(item);
+  });
 }
 function applyAppIcon() {
   const v = localStorage.getItem(LS_APPICON);
@@ -3497,6 +3665,9 @@ document.getElementById('sideSettingsBtn').addEventListener('click', openSetting
 document.getElementById('personaSettingsLink').addEventListener('click', () => { openSettingsPanel(); closeSidebar(); });
 settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) closeSettingsPanel(); });
 document.getElementById('settingsCancelBtn').addEventListener('click', closeSettingsPanel);
+const chatThemeOverlay = document.getElementById('chatThemeOverlay');
+document.getElementById('chatThemeLink').addEventListener('click', () => { renderChatThemeList(); chatThemeOverlay.classList.add('show'); closeSidebar(); });
+chatThemeOverlay.addEventListener('click', e => { if (e.target === chatThemeOverlay) chatThemeOverlay.classList.remove('show'); });
 document.getElementById('settingsSaveBtn').addEventListener('click', () => {
   appUsername = settingsUsername.value.trim() || 'ao'; appName = settingsName.value.trim() || '然竣';
   appPersona = buildPersonaFromPresets(); persistSettings(); applyGlobalNames(); showToast('设定已保存'); closeSettingsPanel();
@@ -4277,6 +4448,7 @@ window.addEventListener('DOMContentLoaded', () => { initSupabaseMemorySync(); in
   applyAvatar();
   applyUserAvatar();
   applyBg();
+  loadChatTheme();
   applyAppIcon();
   switchPage('chat');
   renderAllMessages();
