@@ -558,14 +558,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 #composerStack, #subComposerStack {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
   display: flex; flex-direction: column;
-  padding-bottom: 8px;
   transition: bottom 0.18s ease;
-  background: var(--composer-glass-bg);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-}
-@supports not (backdrop-filter: blur(1px)) {
-  #composerStack, #subComposerStack { background: rgba(240,246,249,0.94); }
 }
 #inputBar, .subchat-inputbar {
   display: flex; align-items: flex-end; gap: 6px;
