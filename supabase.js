@@ -102,6 +102,16 @@ export async function deleteMemory(id) {
   return supabase.from('memories').delete().eq('id', id);
 }
 
+// 跨设备聊天记录同步：kind 是 'main'（主聊天）或 'subchats'（副聊天），
+// 每行整份数组存成一个 jsonb 列，upsert 整体覆盖，不做逐条 merge。
+export async function getChat(kind) {
+  return supabase.from('chats').select('data,updated_at').eq('kind', kind).maybeSingle();
+}
+export async function upsertChat(kind, data) {
+  return supabase.from('chats').upsert({ kind, data, updated_at: new Date().toISOString() });
+}
+
 // 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
 window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
 window.supabaseDiary = { addDiary, getDiaries, addComment };
+window.supabaseChats = { getChat, upsertChat };
