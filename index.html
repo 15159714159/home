@@ -83,57 +83,8 @@ transition: background-color 0.25s ease, color 0.25s ease;
 
 #topbar {
 position: absolute; left: 0; right: 0;
-top: calc(env(safe-area-inset-top, 0px) + 7px); height: 44px;
+top: calc(env(safe-area-inset-top, 0px) + 2px); height: 44px;
 z-index: 10; pointer-events: none;
-}
-#topFadeLayer {
-  position: absolute; left: 0; right: 0; top: 0;
-  height: calc(env(safe-area-inset-top, 0px) + 72px);
-  z-index: 5; pointer-events: none; overflow: hidden;
-  -webkit-transform: translateZ(0); transform: translateZ(0);
-}
-.tfl-layer { position: absolute; inset: 0; will-change: transform; }
-.tfl-layer.tfl-1 {
-  background: rgba(195, 216, 228, 0.05);
-  -webkit-backdrop-filter: blur(2px) saturate(115%);
-  backdrop-filter: blur(2px) saturate(115%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 42%, rgba(0,0,0,0.6) 62%, transparent 88%);
-  mask-image: linear-gradient(to bottom, black 0%, black 42%, rgba(0,0,0,0.6) 62%, transparent 88%);
-}
-.tfl-layer.tfl-2 {
-  background: rgba(195, 216, 228, 0.08);
-  -webkit-backdrop-filter: blur(4px) saturate(122%);
-  backdrop-filter: blur(4px) saturate(122%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 34%, rgba(0,0,0,0.6) 52%, transparent 76%);
-  mask-image: linear-gradient(to bottom, black 0%, black 34%, rgba(0,0,0,0.6) 52%, transparent 76%);
-}
-.tfl-layer.tfl-3 {
-  background: rgba(195, 216, 228, 0.12);
-  -webkit-backdrop-filter: blur(8px) saturate(132%);
-  backdrop-filter: blur(8px) saturate(132%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 26%, rgba(0,0,0,0.6) 42%, transparent 64%);
-  mask-image: linear-gradient(to bottom, black 0%, black 26%, rgba(0,0,0,0.6) 42%, transparent 64%);
-}
-.tfl-layer.tfl-4 {
-  background: rgba(195, 216, 228, 0.17);
-  -webkit-backdrop-filter: blur(14px) saturate(145%);
-  backdrop-filter: blur(14px) saturate(145%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 18%, rgba(0,0,0,0.6) 32%, transparent 52%);
-  mask-image: linear-gradient(to bottom, black 0%, black 18%, rgba(0,0,0,0.6) 32%, transparent 52%);
-}
-.tfl-layer.tfl-5 {
-  background: rgba(195, 216, 228, 0.22);
-  -webkit-backdrop-filter: blur(21px) saturate(158%);
-  backdrop-filter: blur(21px) saturate(158%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 10%, rgba(0,0,0,0.6) 22%, transparent 40%);
-  mask-image: linear-gradient(to bottom, black 0%, black 10%, rgba(0,0,0,0.6) 22%, transparent 40%);
-}
-.tfl-layer.tfl-6 {
-  background: rgba(195, 216, 228, 0.28);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  backdrop-filter: blur(28px) saturate(170%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 5%, rgba(0,0,0,0.6) 13%, transparent 28%);
-  mask-image: linear-gradient(to bottom, black 0%, black 5%, rgba(0,0,0,0.6) 13%, transparent 28%);
 }
 .round-btn {
 width: 44px; height: 44px; border-radius: 50%;
@@ -166,7 +117,7 @@ display: none; position: fixed;
 top: 0; left: 0; right: 0;
 align-items: center; justify-content: space-between;
 padding: calc(env(safe-area-inset-top, 20px) + 6px) 16px 10px 16px;
-background: var(--bg-surface); z-index: 12;
+background: var(--bg-surface); z-index: 12; pointer-events: auto;
 }
 #selectBar.show { display: flex; }
 #selectCancelBtn {
@@ -278,8 +229,22 @@ color: var(--text-faint); font-size: 14px;
 }
 
 #chatScroll, .subchat-scroll {
-  padding: calc(env(safe-area-inset-top, 0px) + 66px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
   min-width: 0;
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0,
+    rgba(0,0,0,0.12) calc(env(safe-area-inset-top, 0px) + 10px),
+    rgba(0,0,0,0.45) calc(env(safe-area-inset-top, 0px) + 28px),
+    rgba(0,0,0,0.8) calc(env(safe-area-inset-top, 0px) + 46px),
+    black calc(env(safe-area-inset-top, 0px) + 60px)
+  );
+  mask-image: linear-gradient(to bottom,
+    transparent 0,
+    rgba(0,0,0,0.12) calc(env(safe-area-inset-top, 0px) + 10px),
+    rgba(0,0,0,0.45) calc(env(safe-area-inset-top, 0px) + 28px),
+    rgba(0,0,0,0.8) calc(env(safe-area-inset-top, 0px) + 46px),
+    black calc(env(safe-area-inset-top, 0px) + 60px)
+  );
 }
 .msg-row { display: flex; margin-bottom: 10px; align-items: flex-end; min-width: 0; }
 .msg-row.user { justify-content: flex-end; }
@@ -299,16 +264,15 @@ color: var(--text-faint); font-size: 14px;
 html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .gen-thinking {
   display: inline-flex; align-items: center; gap: 3px;
-  font-size: 12px; line-height: 16px; color: rgba(25,40,50,0.38);
+  font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
   overflow: hidden; opacity: 0; width: 0; transition: opacity 0.16s ease, width 0.16s ease;
 }
 .gen-thinking.show { opacity: 1; width: auto; }
 .gen-thinking svg { width: 14px; height: 14px; flex-shrink: 0; animation: thinkingBreath 1.3s ease-in-out infinite; }
-html.dark .gen-thinking { color: rgba(210,220,226,0.42); }
 .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .msg-row.user .msg-bubble-wrap { flex-direction: row-reverse; }
 .msg-bubble {
-max-width: 100%; min-width: 0; padding: 8px 11px; border-radius: 12px; font-size: 15px; line-height: 21px;
+max-width: 100%; min-width: 0; padding: 8px 11px; border-radius: 12px; font-size: 14px; line-height: 20px;
 letter-spacing: 0; overflow-wrap: anywhere; word-wrap: break-word;
 user-select: text; -webkit-user-select: text; color: var(--primary-text);
 }
@@ -342,12 +306,12 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 .think-cloud:active { opacity: 0.6; }
 .think-cloud.inline {
   padding: 0; margin-bottom: 0; border-radius: 0; align-self: auto;
-  font-size: 12px; line-height: 16px; color: rgba(25,40,50,0.5);
+  font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
 }
-html.dark .think-cloud.inline { color: rgba(210,220,226,0.55); }
 .think-cloud.inline svg { width: 13px; height: 13px; }
 .think-content {
-  font-size: 12px; color: var(--text-faint); line-height: 1.6; padding: 6px 10px 6px 12px;
+  font-size: 12px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
+  line-height: 1.6; padding: 6px 10px 6px 12px;
   margin-bottom: 4px; border-left: 2px solid var(--border-color); white-space: pre-wrap; word-break: break-word;
   max-width: 100%; align-self: flex-start;
 }
@@ -357,28 +321,28 @@ html.dark .think-cloud.inline { color: rgba(210,220,226,0.55); }
 .photo-group { display: flex; flex-direction: column; gap: 6px; max-width: 100%; margin-bottom: 6px; }
 .photo-group.role-user { align-items: flex-end; margin-left: auto; }
 .photo-group.role-ai { align-items: flex-start; margin-right: auto; }
+.photo-group-content { position: relative; max-width: 100%; }
 .photo-stack {
   position: relative; width: clamp(180px, 56vw, 220px); height: clamp(260px, 78vw, 330px);
 }
-.photo-stack-top {
-  position: relative; width: 100%; height: 100%; border-radius: 12px; overflow: hidden;
-  background: var(--bg-elevated); z-index: 1;
-  box-shadow: 0 1px 3px rgba(20,30,40,0.14), 0 4px 10px rgba(20,30,40,0.08);
-}
-.photo-stack-top img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
-.photo-stack.stack-2::before, .photo-stack.stack-3::before {
-  content: ''; position: absolute; inset: 0; border-radius: 12px; z-index: 0;
-  background: var(--bg-elevated); box-shadow: 0 1px 3px rgba(20,30,40,0.10);
-  transform: translate(9px, -7px) rotate(1.4deg);
-}
-.photo-stack.stack-3::after {
-  content: ''; position: absolute; inset: 0; border-radius: 12px; z-index: -1; opacity: 0.85;
+.photo-stack-card {
+  position: absolute; inset: 0; border-radius: 12px; overflow: hidden;
   background: var(--bg-elevated);
-  transform: translate(16px, -12px) rotate(-1.2deg);
+  box-shadow: 0 1px 3px rgba(20,30,40,0.14), 0 4px 10px rgba(20,30,40,0.08);
+  transition: transform 0.32s cubic-bezier(.34,1.02,.64,1), opacity 0.32s ease;
+  will-change: transform, opacity;
 }
-.photo-stack-top.load-error { display: flex; align-items: center; justify-content: center; }
-.photo-stack-top.load-error img { display: none; }
-.photo-stack-top.load-error::after { content: '⚠'; font-size: 22px; color: var(--text-faint); filter: grayscale(1); }
+.photo-stack-card img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; pointer-events: none; -webkit-user-drag: none; }
+.photo-stack-card.front { z-index: 3; touch-action: pan-y; cursor: grab; }
+.photo-stack-card.front:active { cursor: grabbing; }
+.photo-stack-card.behind-1 { z-index: 2; transform: translate(9px, -7px) rotate(1.4deg) scale(0.97); }
+.photo-stack-card.behind-2 { z-index: 1; transform: translate(16px, -12px) rotate(-1.2deg) scale(0.94); opacity: 0.85; }
+.photo-stack-card.load-error { display: flex; align-items: center; justify-content: center; }
+.photo-stack-card.load-error img { display: none; }
+.photo-stack-card.load-error::after { content: '⚠'; font-size: 22px; color: var(--text-faint); filter: grayscale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .photo-stack-card { transition: none; }
+}
 .photo-list { display: flex; flex-direction: column; gap: 8px; max-width: 100%; }
 .photo-list-item { border-radius: 12px; overflow: hidden; max-width: 100%; box-shadow: 0 1px 3px rgba(20,30,40,0.12), 0 3px 8px rgba(20,30,40,0.06); }
 .photo-list-item img {
@@ -978,15 +942,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
 </div>
 
-<div id="topFadeLayer">
-  <div class="tfl-layer tfl-1"></div>
-  <div class="tfl-layer tfl-2"></div>
-  <div class="tfl-layer tfl-3"></div>
-  <div class="tfl-layer tfl-4"></div>
-  <div class="tfl-layer tfl-5"></div>
-  <div class="tfl-layer tfl-6"></div>
-</div>
-
 <div id="sidebarOverlay"></div>
 <div id="sidebar">
   <div class="side-profile">
@@ -1002,6 +957,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
   <div class="side-nav-item active" data-nav="chat">主聊天</div>
   <div class="side-nav-item" data-nav="diary">日记</div>
+  <div class="side-nav-item" id="personaSettingsLink">系统人设</div>
   <div class="side-nav-item" data-nav="space">Space</div>
   <div class="side-divider"></div>
   <div class="side-nav-item" id="ombreBrainLink">Ombre Brain</div>
@@ -1785,11 +1741,15 @@ document.getElementById('resetAppIconBtn').addEventListener('click', () => { loc
 function enterSelectMode() {
   selectMode = true; selectedIds.clear();
   document.getElementById('selectBar').classList.add('show');
+  document.getElementById('sidebarToggleBtn').style.visibility = 'hidden';
+  document.getElementById('topRightSlot').style.visibility = 'hidden';
   updateSelectBar(); renderAllMessages();
 }
 function exitSelectMode() {
   selectMode = false; selectedIds.clear();
   document.getElementById('selectBar').classList.remove('show');
+  document.getElementById('sidebarToggleBtn').style.visibility = '';
+  document.getElementById('topRightSlot').style.visibility = '';
   updateSelectBar(); renderAllMessages();
 }
 function updateSelectBar() {
@@ -2791,19 +2751,80 @@ function patchChatAvatars() {
 const photoDeckStates = new Map();
 function getPhotoDeckState(msg) {
   let s = photoDeckStates.get(msg.id);
-  if (!s) { s = { expanded: false }; photoDeckStates.set(msg.id, s); }
+  if (!s) { s = { expanded: false, index: 0 }; photoDeckStates.set(msg.id, s); }
   return s;
 }
-function buildCollapsedStack(msg) {
-  const stack = document.createElement('div');
+function buildCollapsedStack(msg, state) {
   const total = msg.images.length;
-  stack.className = 'photo-stack' + (total >= 3 ? ' stack-3' : total === 2 ? ' stack-2' : '');
-  const top = document.createElement('div'); top.className = 'photo-stack-top';
-  const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async';
-  img.addEventListener('error', () => { top.classList.add('load-error'); });
-  img.addEventListener('load', () => { top.classList.remove('load-error'); });
-  img.src = msg.images[0];
-  top.appendChild(img); stack.appendChild(top);
+  const stack = document.createElement('div');
+  stack.className = 'photo-stack';
+  const cardCount = Math.min(total, 3);
+  const cards = [];
+  for (let i = 0; i < cardCount; i++) {
+    const card = document.createElement('div');
+    const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async';
+    img.addEventListener('error', () => card.classList.add('load-error'));
+    img.addEventListener('load', () => card.classList.remove('load-error'));
+    card.appendChild(img);
+    stack.appendChild(card);
+    cards.push(card);
+  }
+  function layout(withTransition) {
+    for (let i = 0; i < cardCount; i++) {
+      const imgIndex = (state.index + i) % total;
+      const card = cards[i];
+      card.style.transition = withTransition === false ? 'none' : '';
+      card.className = 'photo-stack-card' + (i === 0 ? ' front' : ' behind-' + i);
+      card.style.transform = ''; card.style.opacity = '';
+      card.querySelector('img').src = msg.images[imgIndex];
+    }
+    if (withTransition === false) {
+      void stack.offsetWidth;
+      requestAnimationFrame(() => { cards.forEach(c => { c.style.transition = ''; }); });
+    }
+  }
+  layout(false);
+  if (total > 1) {
+    const front = cards[0];
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let dragging = false, dragAxis = null, startX = 0, startY = 0, currentX = 0;
+    function onPointerDown(e) {
+      dragging = true; dragAxis = null; startX = e.clientX; startY = e.clientY; currentX = 0;
+      front.setPointerCapture(e.pointerId);
+      front.style.transition = 'none';
+    }
+    function onPointerMove(e) {
+      if (!dragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (dragAxis === null) dragAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (dragAxis === 'y') return;
+      e.preventDefault();
+      currentX = dx;
+      front.style.transform = `translate(${dx}px, 0) rotate(${dx / 18}deg)`;
+    }
+    function onPointerUp() {
+      if (!dragging) return;
+      dragging = false;
+      front.style.transition = reduceMotion ? 'none' : '';
+      const threshold = 70;
+      if (dragAxis === 'x' && Math.abs(currentX) > threshold) {
+        const dir = currentX > 0 ? 1 : -1;
+        front.style.transform = `translate(${dir * 360}px, 0) rotate(${dir * 20}deg)`;
+        front.style.opacity = '0';
+        setTimeout(() => {
+          state.index = (state.index + 1) % total;
+          layout(false);
+        }, reduceMotion ? 0 : 260);
+      } else {
+        front.style.transform = '';
+      }
+      currentX = 0; dragAxis = null;
+    }
+    front.addEventListener('pointerdown', onPointerDown);
+    front.addEventListener('pointermove', onPointerMove);
+    front.addEventListener('pointerup', onPointerUp);
+    front.addEventListener('pointercancel', onPointerUp);
+  }
   return stack;
 }
 function buildExpandedList(msg) {
@@ -2828,13 +2849,42 @@ function buildPhotoGroup(msg, role, ctx) {
   const group = document.createElement('div'); group.className = 'photo-group role-' + role;
   const state = getPhotoDeckState(msg);
   const btn = document.createElement('button'); btn.className = 'photo-group-toggle-btn';
-  let contentEl = null;
+  const contentWrap = document.createElement('div'); contentWrap.className = 'photo-group-content';
   function updateBtn() { btn.innerHTML = state.expanded ? (ICONS.chevronsHorizontal + '<span>收起</span>') : (ICONS.layers + '<span>展开 ' + msg.images.length + '</span>'); }
   function render() {
-    const next = state.expanded ? buildExpandedList(msg) : buildCollapsedStack(msg);
-    if (contentEl) group.replaceChild(next, contentEl); else group.insertBefore(next, btn);
-    contentEl = next;
+    const next = state.expanded ? buildExpandedList(msg) : buildCollapsedStack(msg, state);
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const oldChild = contentWrap.firstElementChild;
     updateBtn();
+    if (!oldChild || reduceMotion) {
+      contentWrap.innerHTML = '';
+      contentWrap.appendChild(next);
+      contentWrap.style.height = ''; contentWrap.style.overflow = '';
+      return;
+    }
+    const oldHeight = contentWrap.getBoundingClientRect().height;
+    contentWrap.style.height = oldHeight + 'px';
+    contentWrap.style.overflow = 'hidden';
+    contentWrap.style.position = 'relative';
+    oldChild.style.transition = 'opacity 0.16s ease';
+    oldChild.style.opacity = '0';
+    next.style.position = 'absolute'; next.style.top = '0';
+    if (role === 'user') next.style.right = '0'; else next.style.left = '0';
+    next.style.opacity = '0';
+    contentWrap.appendChild(next);
+    const newHeight = next.getBoundingClientRect().height;
+    requestAnimationFrame(() => {
+      contentWrap.style.transition = 'height 0.28s cubic-bezier(.4,0,.2,1)';
+      contentWrap.style.height = newHeight + 'px';
+      next.style.transition = 'opacity 0.22s ease 0.08s';
+      next.style.opacity = '1';
+    });
+    setTimeout(() => {
+      oldChild.remove();
+      next.style.position = ''; next.style.top = ''; next.style.left = ''; next.style.right = '';
+      next.style.transition = ''; next.style.opacity = '';
+      contentWrap.style.height = ''; contentWrap.style.overflow = ''; contentWrap.style.transition = '';
+    }, 320);
   }
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -2847,6 +2897,7 @@ function buildPhotoGroup(msg, role, ctx) {
       pageEl.scrollBy({ top: newTop - oldTop, behavior: 'auto' });
     }
   });
+  group.appendChild(contentWrap);
   group.appendChild(btn);
   render();
   return group;
@@ -3283,6 +3334,7 @@ function closeSettingsPanel() { settingsOverlay.classList.remove('show'); }
 document.getElementById('sideAvatarBtn').addEventListener('click', () => openAvatarCropper(LS_AVATAR, applyAvatar));
 document.getElementById('sideUserAvatarBtn').addEventListener('click', () => openAvatarCropper(LS_USER_AVATAR, applyUserAvatar));
 document.getElementById('sideSettingsBtn').addEventListener('click', openSettingsPanel);
+document.getElementById('personaSettingsLink').addEventListener('click', () => { openSettingsPanel(); closeSidebar(); });
 settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) closeSettingsPanel(); });
 document.getElementById('settingsCancelBtn').addEventListener('click', closeSettingsPanel);
 document.getElementById('settingsSaveBtn').addEventListener('click', () => {
@@ -3960,7 +4012,9 @@ function setupViewportKeyboardHandling() {
   const KEYBOARD_THRESHOLD = 120;
   function applyKeyboardOffset() {
     let offset = 0;
-    if (vv) {
+    const active = document.activeElement;
+    const isComposerInputFocused = active && active.matches && active.matches('#textInput, #subchatTextInput');
+    if (vv && isComposerInputFocused) {
       const rawOffset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       offset = rawOffset > KEYBOARD_THRESHOLD ? rawOffset : 0;
     }
@@ -3977,6 +4031,8 @@ function setupViewportKeyboardHandling() {
   window.addEventListener('resize', applyKeyboardOffset);
   window.addEventListener('pageshow', applyKeyboardOffset);
   document.addEventListener('visibilitychange', applyKeyboardOffset);
+  document.getElementById('textInput').addEventListener('blur', applyKeyboardOffset);
+  document.getElementById('subchatTextInput').addEventListener('blur', applyKeyboardOffset);
   applyKeyboardOffset();
 
   function updateComposerHeightVar(stackEl) {
