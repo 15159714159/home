@@ -231,6 +231,8 @@ color: var(--text-faint); font-size: 14px;
 #chatScroll, .subchat-scroll {
   padding: calc(env(safe-area-inset-top, 0px) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
   min-width: 0;
+}
+#page-chat, #page-subchat {
   -webkit-mask-image: linear-gradient(to bottom,
     transparent 0,
     rgba(0,0,0,0.12) calc(env(safe-area-inset-top, 0px) + 10px),
@@ -265,6 +267,7 @@ html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .gen-thinking {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
+  -webkit-backdrop-filter: grayscale(1); backdrop-filter: grayscale(1);
   overflow: hidden; opacity: 0; width: 0; transition: opacity 0.16s ease, width 0.16s ease;
 }
 .gen-thinking.show { opacity: 1; width: auto; }
@@ -272,7 +275,7 @@ html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .msg-row.user .msg-bubble-wrap { flex-direction: row-reverse; }
 .msg-bubble {
-max-width: 100%; min-width: 0; padding: 8px 11px; border-radius: 12px; font-size: 14px; line-height: 20px;
+max-width: 100%; min-width: 0; padding: 8px 11px; border-radius: 12px; font-size: 13px; line-height: 19px;
 letter-spacing: 0; overflow-wrap: anywhere; word-wrap: break-word;
 user-select: text; -webkit-user-select: text; color: var(--primary-text);
 }
@@ -307,10 +310,12 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 .think-cloud.inline {
   padding: 0; margin-bottom: 0; border-radius: 0; align-self: auto;
   font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
+  -webkit-backdrop-filter: grayscale(1); backdrop-filter: grayscale(1);
 }
 .think-cloud.inline svg { width: 13px; height: 13px; }
 .think-content {
   font-size: 12px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
+  -webkit-backdrop-filter: grayscale(1); backdrop-filter: grayscale(1);
   line-height: 1.6; padding: 6px 10px 6px 12px;
   margin-bottom: 4px; border-left: 2px solid var(--border-color); white-space: pre-wrap; word-break: break-word;
   max-width: 100%; align-self: flex-start;
@@ -2759,7 +2764,7 @@ function buildCollapsedStack(msg, state) {
   const stack = document.createElement('div');
   stack.className = 'photo-stack';
   const cardCount = Math.min(total, 3);
-  const cards = [];
+  let cards = [];
   for (let i = 0; i < cardCount; i++) {
     const card = document.createElement('div');
     const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async';
@@ -2785,45 +2790,64 @@ function buildCollapsedStack(msg, state) {
   }
   layout(false);
   if (total > 1) {
-    const front = cards[0];
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let dragging = false, dragAxis = null, startX = 0, startY = 0, currentX = 0;
+    let dragging = false, dragAxis = null, startX = 0, startY = 0, currentX = 0, dragCard = null, rafId = null;
+
+    function cycleToBack(swiped) {
+      const others = cards.filter(c => c !== swiped);
+      state.index = (state.index + 1) % total;
+      others.forEach((c, idx) => {
+        c.style.transition = reduceMotion ? 'none' : '';
+        c.className = 'photo-stack-card' + (idx === 0 ? ' front' : ' behind-' + idx);
+        c.style.transform = ''; c.style.opacity = '';
+      });
+      const swipedPos = cardCount - 1;
+      swiped.style.transition = reduceMotion ? 'none' : '';
+      swiped.className = 'photo-stack-card' + (swipedPos === 0 ? ' front' : ' behind-' + swipedPos);
+      swiped.style.transform = ''; swiped.style.opacity = '';
+      swiped.querySelector('img').src = msg.images[(state.index + swipedPos) % total];
+      cards = others.concat([swiped]);
+    }
+
     function onPointerDown(e) {
+      if (!e.target.closest('.photo-stack-card.front')) return;
+      dragCard = cards[0];
       dragging = true; dragAxis = null; startX = e.clientX; startY = e.clientY; currentX = 0;
-      front.setPointerCapture(e.pointerId);
-      front.style.transition = 'none';
+      dragCard.setPointerCapture(e.pointerId);
+      dragCard.style.transition = 'none';
     }
     function onPointerMove(e) {
-      if (!dragging) return;
+      if (!dragging || !dragCard) return;
       const dx = e.clientX - startX, dy = e.clientY - startY;
       if (dragAxis === null) dragAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
       if (dragAxis === 'y') return;
       e.preventDefault();
       currentX = dx;
-      front.style.transform = `translate(${dx}px, 0) rotate(${dx / 18}deg)`;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          if (dragCard) dragCard.style.transform = `translate(${currentX}px, 0) rotate(${currentX / 18}deg)`;
+        });
+      }
     }
     function onPointerUp() {
-      if (!dragging) return;
+      if (!dragging || !dragCard) return;
       dragging = false;
-      front.style.transition = reduceMotion ? 'none' : '';
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      const card = dragCard; dragCard = null;
       const threshold = 70;
       if (dragAxis === 'x' && Math.abs(currentX) > threshold) {
-        const dir = currentX > 0 ? 1 : -1;
-        front.style.transform = `translate(${dir * 360}px, 0) rotate(${dir * 20}deg)`;
-        front.style.opacity = '0';
-        setTimeout(() => {
-          state.index = (state.index + 1) % total;
-          layout(false);
-        }, reduceMotion ? 0 : 260);
+        cycleToBack(card);
       } else {
-        front.style.transform = '';
+        card.style.transition = reduceMotion ? 'none' : '';
+        card.style.transform = '';
       }
       currentX = 0; dragAxis = null;
     }
-    front.addEventListener('pointerdown', onPointerDown);
-    front.addEventListener('pointermove', onPointerMove);
-    front.addEventListener('pointerup', onPointerUp);
-    front.addEventListener('pointercancel', onPointerUp);
+    stack.addEventListener('pointerdown', onPointerDown);
+    stack.addEventListener('pointermove', onPointerMove);
+    stack.addEventListener('pointerup', onPointerUp);
+    stack.addEventListener('pointercancel', onPointerUp);
   }
   return stack;
 }
