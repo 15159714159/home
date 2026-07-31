@@ -275,7 +275,7 @@ html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .msg-row.user .msg-bubble-wrap { flex-direction: row-reverse; }
 .msg-bubble {
-max-width: 100%; min-width: 0; padding: 8px 11px; border-radius: 12px; font-size: 13px; line-height: 19px;
+max-width: 100%; min-width: 0; padding: 9px 13px; border-radius: 13px; font-size: 15px; line-height: 21px;
 letter-spacing: 0; overflow-wrap: anywhere; word-wrap: break-word;
 user-select: text; -webkit-user-select: text; color: var(--primary-text);
 }
@@ -363,11 +363,11 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   height: 27px; min-width: 52px; padding: 0 10px; border-radius: 14px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   font-size: 12px; color: rgba(20,30,36,0.76); border: none; cursor: pointer;
-  background: rgba(255,255,255,0.55); -webkit-backdrop-filter: blur(10px) saturate(160%); backdrop-filter: blur(10px) saturate(160%);
+  background: rgba(255,255,255,0.85);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5), 0 2px 6px rgba(20,30,40,0.10);
 }
 .photo-group-toggle-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
-html.dark .photo-group-toggle-btn { background: rgba(60,70,78,0.55); color: rgba(228,234,238,0.85); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), 0 2px 6px rgba(0,0,0,0.25); }
+html.dark .photo-group-toggle-btn { background: rgba(60,70,78,0.85); color: rgba(228,234,238,0.85); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), 0 2px 6px rgba(0,0,0,0.25); }
 .photo-group-toggle-btn:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) {
   .photo-group-toggle-btn:active { transform: none; opacity: 0.7; }
@@ -377,16 +377,16 @@ html.dark .photo-group-toggle-btn { background: rgba(60,70,78,0.55); color: rgba
 .msg-file-chip { background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; display: inline-block; }
 
 .msg-notice { text-align: center; font-size: 11px; line-height: 16px; color: var(--secondary-text); margin: 14px 0 10px; word-break: break-word; user-select: none; -webkit-user-select: none; }
+.load-earlier-sentinel { text-align: center; font-size: 11px; line-height: 16px; color: var(--secondary-text); opacity: 0.6; margin: 6px 0 14px; user-select: none; -webkit-user-select: none; }
 .time-divider-row { display: flex; justify-content: center; margin: 14px 0 10px; user-select: none; -webkit-user-select: none; }
 .time-divider-pill {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 22px; padding: 3px 11px; border-radius: 11px;
-  background: rgba(58,80,94,0.13); color: rgba(20,32,40,0.60);
+  background: rgba(58,80,94,0.22); color: rgba(20,32,40,0.60);
   font-size: 11px; line-height: 16px;
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   white-space: nowrap;
 }
-html.dark .time-divider-pill { background: rgba(160,180,196,0.16); color: rgba(220,228,232,0.72); }
+html.dark .time-divider-pill { background: rgba(160,180,196,0.24); color: rgba(220,228,232,0.72); }
 
 .msg-edit-textarea {
 width: 100%; font-size: 16px; line-height: 1.5; font-family: inherit; border: 1px solid var(--border-strong);
@@ -558,7 +558,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 #composerStack, #subComposerStack {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
   display: flex; flex-direction: column;
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: 8px;
   transition: bottom 0.18s ease;
 }
 #inputBar, .subchat-inputbar {
@@ -1769,11 +1769,9 @@ function toggleSelect(msgId) {
 function deleteSelected() {
   if (selectedIds.size === 0) { showToast('没有选中任何消息'); return; }
   if (!confirm(`删除选中的 ${selectedIds.size} 条消息？`)) return;
-  const page = document.getElementById('page-chat');
-  const savedScroll = page.scrollTop;
   messages = messages.filter(m => !selectedIds.has(m.id));
+  mainRenderStart = null;
   persistMessages(); exitSelectMode();
-  requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = savedScroll; }); });
 }
 document.getElementById('selectCancelBtn').addEventListener('click', exitSelectMode);
 document.getElementById('selectDeleteBtn').addEventListener('click', deleteSelected);
@@ -2620,7 +2618,7 @@ function goToClearStep2() {
 clearChatBtn1.addEventListener('click', () => { if (clearChatStep === 1) goToClearStep2(); else clearChatOverlay.classList.remove('show'); });
 clearChatBtn2.addEventListener('click', () => {
   if (clearChatStep === 1) { document.getElementById('exportBackupBtn').click(); goToClearStep2(); }
-  else { messages = []; topicStartId = null; persistTopicStart(); windowStartId = null; persistWindowStart(); persistMessages(); renderAllMessages(); clearChatOverlay.classList.remove('show'); showToast('主聊天记录已清空'); }
+  else { messages = []; mainRenderStart = null; topicStartId = null; persistTopicStart(); windowStartId = null; persistWindowStart(); persistMessages(); renderAllMessages(); clearChatOverlay.classList.remove('show'); showToast('主聊天记录已清空'); }
 });
 clearChatOverlay.addEventListener('click', e => { if (e.target === clearChatOverlay) clearChatOverlay.classList.remove('show'); });
 
@@ -2727,6 +2725,8 @@ function triggerEditMessage(msg, ctx) {
 function deleteMessage(msg, ctx) {
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id); if (idx === -1) return;
   const page = document.getElementById(ctx.pageId); const savedScroll = page.scrollTop;
+  if (ctx.pageId === 'page-chat' && mainRenderStart != null && idx < mainRenderStart) mainRenderStart--;
+  if (ctx.pageId === 'page-subchat' && subRenderStart != null && idx < subRenderStart) subRenderStart--;
   arr.splice(idx, 1); ctx.persist(); ctx.renderAll();
   photoDeckStates.delete(msg.id);
   requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = savedScroll; }); });
@@ -3017,20 +3017,82 @@ function shouldShowTimeDivider(prevMsg, curMsg) {
   if (!prevMsg || !curMsg || curMsg.createdAt == null || prevMsg.createdAt == null) return false;
   return (curMsg.createdAt - prevMsg.createdAt) >= MSG_GAP_DIVIDER_MS;
 }
-function renderAllMessages() {
-  chatScroll.innerHTML = '';
-  let prev = null;
-  messages.forEach(msg => {
+const MSG_PAGE_SIZE = 30;
+let mainRenderStart = null;
+let subRenderStart = null;
+let lastSubChatIdRendered = undefined;
+function findPrevMsg(arr, idx) {
+  for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') return arr[i]; }
+  return null;
+}
+function buildLoadEarlierSentinel(pageEl, onReach) {
+  const el = document.createElement('div');
+  el.className = 'load-earlier-sentinel';
+  el.textContent = '正在加载更早的消息…';
+  const io = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) { io.disconnect(); onReach(); }
+  }, { root: pageEl, rootMargin: '200px 0px 0px 0px' });
+  io.observe(el);
+  return el;
+}
+function renderMessageWindow(container, page, arr, ctx, fromIdx, sentinelLoader) {
+  container.innerHTML = '';
+  if (fromIdx > 0) container.appendChild(buildLoadEarlierSentinel(page, sentinelLoader));
+  let prev = findPrevMsg(arr, fromIdx);
+  for (let i = fromIdx; i < arr.length; i++) {
+    const msg = arr[i];
     if (msg.role !== 'notice') {
       const divider = shouldShowTimeDivider(prev, msg);
-      if (divider) chatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
-      chatScroll.appendChild(buildMsgRow(msg, mainCtx, divider ? null : prev));
+      if (divider) container.appendChild(buildTimeDividerRow(msg.createdAt));
+      container.appendChild(buildMsgRow(msg, ctx, divider ? null : prev));
       prev = msg;
     } else {
-      chatScroll.appendChild(buildMsgRow(msg, mainCtx));
+      container.appendChild(buildMsgRow(msg, ctx));
     }
-  });
-  if (!selectMode) scrollToBottom(chatScroll, 'page-chat');
+  }
+}
+function loadEarlierRange(container, page, arr, ctx, renderStart, sentinelLoader) {
+  const oldHeight = page.scrollHeight;
+  const newStart = Math.max(0, renderStart - MSG_PAGE_SIZE);
+  const sentinel = container.querySelector('.load-earlier-sentinel');
+  const frag = document.createDocumentFragment();
+  let prev = findPrevMsg(arr, newStart);
+  for (let i = newStart; i < renderStart; i++) {
+    const msg = arr[i];
+    if (msg.role !== 'notice') {
+      const divider = shouldShowTimeDivider(prev, msg);
+      if (divider) frag.appendChild(buildTimeDividerRow(msg.createdAt));
+      frag.appendChild(buildMsgRow(msg, ctx, divider ? null : prev));
+      prev = msg;
+    } else {
+      frag.appendChild(buildMsgRow(msg, ctx));
+    }
+  }
+  if (sentinel) {
+    if (newStart > 0) {
+      sentinel.replaceWith(buildLoadEarlierSentinel(page, sentinelLoader), frag);
+    } else {
+      sentinel.remove();
+      container.insertBefore(frag, container.firstChild);
+    }
+  }
+  page.scrollTop += (page.scrollHeight - oldHeight);
+  return newStart;
+}
+function loadEarlierMain() {
+  mainRenderStart = loadEarlierRange(chatScroll, document.getElementById('page-chat'), messages, mainCtx, mainRenderStart, loadEarlierMain);
+}
+function loadEarlierSub() {
+  const arr = subCtx.getArray();
+  subRenderStart = loadEarlierRange(subchatScroll, document.getElementById('page-subchat'), arr, subCtx, subRenderStart, loadEarlierSub);
+}
+function renderAllMessages() {
+  const pageEl = document.getElementById('page-chat');
+  if (selectMode) { renderMessageWindow(chatScroll, pageEl, messages, mainCtx, 0, loadEarlierMain); return; }
+  if (mainRenderStart == null) mainRenderStart = Math.max(0, messages.length - MSG_PAGE_SIZE);
+  mainRenderStart = Math.min(mainRenderStart, messages.length);
+  renderMessageWindow(chatScroll, pageEl, messages, mainCtx, mainRenderStart, loadEarlierMain);
+  scrollToBottom(chatScroll, 'page-chat');
 }
 function appendMessage(msg) {
   let prev = null;
@@ -3039,10 +3101,24 @@ function appendMessage(msg) {
   if (divider) chatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
   const row = buildMsgRow(msg, mainCtx, divider ? null : prev); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
 }
-function scrollToBottom(container, pageId) { requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
-function isNearBottom(pageId) {
+function scrollToBottom(container, pageId) { autoFollowState[pageId] = true; requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
+const autoFollowState = { 'page-chat': true, 'page-subchat': true };
+function setupAutoFollowTracking(pageId) {
   const p = document.getElementById(pageId);
-  return (p.scrollHeight - p.scrollTop - p.clientHeight) < 80;
+  let ticking = false;
+  p.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const dist = p.scrollHeight - p.scrollTop - p.clientHeight;
+      if (dist > 150) autoFollowState[pageId] = false;
+      else if (dist < 50) autoFollowState[pageId] = true;
+    });
+  }, { passive: true });
+}
+function isNearBottom(pageId) {
+  return autoFollowState[pageId] !== false;
 }
 function scrollToBottomSticky(container, pageId) {
   if (isNearBottom(pageId)) scrollToBottom(container, pageId);
@@ -3077,15 +3153,13 @@ function renderSplitBubbles(parts, i) {
   }, 600 + Math.random() * 300);
 }
 function renderSubChatMessages() {
-  subchatScroll.innerHTML = '';
-  const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return;
-  let prev = null;
-  sc.messages.forEach(msg => {
-    const divider = shouldShowTimeDivider(prev, msg);
-    if (divider) subchatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
-    subchatScroll.appendChild(buildMsgRow(msg, subCtx, divider ? null : prev));
-    prev = msg;
-  });
+  const sc = subChats.find(s => s.id === currentSubChatId);
+  if (!sc) { subchatScroll.innerHTML = ''; return; }
+  if (lastSubChatIdRendered !== currentSubChatId) { subRenderStart = null; lastSubChatIdRendered = currentSubChatId; }
+  const arr = sc.messages;
+  if (subRenderStart == null) subRenderStart = Math.max(0, arr.length - MSG_PAGE_SIZE);
+  subRenderStart = Math.min(subRenderStart, arr.length);
+  renderMessageWindow(subchatScroll, document.getElementById('page-subchat'), arr, subCtx, subRenderStart, loadEarlierSub);
   scrollToBottom(subchatScroll, 'page-subchat');
 }
 function appendSubChatMessage(msg) {
@@ -3387,7 +3461,7 @@ importFileHidden.addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    try { const data = JSON.parse(ev.target.result); const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return; if (data.messages) sc.messages = data.messages; if (data.preset != null) { sc.preset = data.preset; presetTextarea.value = sc.preset; } persistSubChats(); renderSubChatMessages(); showToast('已导入'); }
+    try { const data = JSON.parse(ev.target.result); const sc = subChats.find(s => s.id === currentSubChatId); if (!sc) return; if (data.messages) { sc.messages = data.messages; subRenderStart = null; } if (data.preset != null) { sc.preset = data.preset; presetTextarea.value = sc.preset; } persistSubChats(); renderSubChatMessages(); showToast('已导入'); }
     catch(err) { showToast('导入失败：文件格式不对', 3000); }
   };
   reader.readAsText(file); importFileHidden.value = '';
@@ -4147,6 +4221,8 @@ window.addEventListener('DOMContentLoaded', () => { initSupabaseMemorySync(); })
   renderSubChatSidebarList();
   applyGlobalNames();
   setupViewportKeyboardHandling();
+  setupAutoFollowTracking('page-chat');
+  setupAutoFollowTracking('page-subchat');
 })();
 </script>
 <script type="module" src="supabase.js"></script>
