@@ -235,8 +235,6 @@ color: var(--text-faint); font-size: 14px;
 #chatScroll, .subchat-scroll {
   padding: calc(env(safe-area-inset-top, 0px) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
   min-width: 0;
-}
-#page-chat, #page-subchat {
   -webkit-mask-image: linear-gradient(to bottom,
     transparent 0,
     rgba(0,0,0,0.12) calc(env(safe-area-inset-top, 0px) + 10px),
@@ -251,6 +249,16 @@ color: var(--text-faint); font-size: 14px;
     rgba(0,0,0,0.8) calc(env(safe-area-inset-top, 0px) + 46px),
     black calc(env(safe-area-inset-top, 0px) + 60px)
   );
+}
+/* 顶部导航栏下的过渡遮罩层：主题色柔和渐隐，自动适配任意背景图/纯色 */
+.chat-top-frost {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 60px);
+  z-index: 5; pointer-events: none; overflow: hidden;
+}
+.chat-top-frost > div { position: absolute; inset: 0; }
+.ctf-scrim {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-app) 55%, transparent) 0%, transparent 100%);
 }
 .msg-row { display: flex; margin-bottom: 10px; align-items: flex-end; min-width: 0; }
 .msg-row.user { justify-content: flex-end; }
@@ -270,8 +278,7 @@ color: var(--text-faint); font-size: 14px;
 html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .gen-thinking {
   display: inline-flex; align-items: center; gap: 3px;
-  font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
-  -webkit-backdrop-filter: grayscale(1); backdrop-filter: grayscale(1);
+  font-size: 12px; line-height: 16px; color: var(--secondary-text);
   overflow: hidden; opacity: 0; width: 0; transition: opacity 0.16s ease, width 0.16s ease;
 }
 .gen-thinking.show { opacity: 1; width: auto; }
@@ -281,7 +288,7 @@ html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .msg-bubble {
 max-width: 100%; min-width: 0; padding: 9px 13px; border-radius: 13px; font-size: 15px; line-height: 21px;
 letter-spacing: 0; overflow-wrap: anywhere; word-wrap: break-word;
-user-select: text; -webkit-user-select: text; color: var(--primary-text);
+user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; color: var(--primary-text);
 }
 .msg-row.user .msg-bubble { background: var(--bubble-user); }
 .msg-row.ai .msg-bubble { background: var(--bubble-ai); }
@@ -313,17 +320,17 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 .think-cloud:active { opacity: 0.6; }
 .think-cloud.inline {
   padding: 0; margin-bottom: 0; border-radius: 0; align-self: auto;
-  font-size: 12px; line-height: 16px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
-  -webkit-backdrop-filter: grayscale(1); backdrop-filter: grayscale(1);
+  font-size: 12px; line-height: 16px; color: var(--secondary-text);
 }
 .think-cloud.inline svg { width: 13px; height: 13px; }
 .think-content {
-  font-size: 12px; color: rgba(255,255,255,0.85); mix-blend-mode: difference;
-  -webkit-backdrop-filter: grayscale(1); backdrop-filter: grayscale(1);
+  font-size: 12px; color: var(--secondary-text);
+  background: rgba(255,255,255,0.55);
   line-height: 1.6; padding: 6px 10px 6px 12px;
-  margin-bottom: 4px; border-left: 2px solid var(--border-color); white-space: pre-wrap; word-break: break-word;
+  margin-bottom: 4px; border-left: 2px solid rgba(15,25,32,0.74); white-space: pre-wrap; word-break: break-word;
   max-width: 100%; align-self: flex-start;
 }
+html.dark .think-content { border-left-color: rgba(220,228,232,0.74); }
 .photo-single { width: 168px; height: 168px; border-radius: 12px; overflow: hidden; margin-bottom: 6px; background: var(--bg-elevated); box-shadow: 0 1px 3px rgba(20,30,40,0.12), 0 3px 8px rgba(20,30,40,0.06); }
 .photo-single img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -386,7 +393,7 @@ html.dark .photo-group-toggle-btn { background: rgba(60,70,78,0.85); color: rgba
 .time-divider-pill {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 22px; padding: 3px 11px; border-radius: 11px;
-  background: rgba(58,80,94,0.22); color: rgba(20,32,40,0.60);
+  background: rgba(255,255,255,0.55); color: rgba(20,32,40,0.60);
   font-size: 11px; line-height: 16px;
   white-space: nowrap;
 }
@@ -984,7 +991,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   </div>
   <div class="side-nav-item active" data-nav="chat">主聊天</div>
   <div class="side-nav-item" data-nav="diary">日记</div>
-  <div class="side-nav-item" id="personaSettingsLink">系统人设</div>
   <div class="side-nav-item" id="chatThemeLink">聊天主题</div>
   <div class="side-nav-item" data-nav="space">Space</div>
   <div class="side-divider"></div>
@@ -1007,6 +1013,9 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 <div id="content">
   <div class="page active" id="page-chat">
     <div id="chatScroll"></div>
+  </div>
+  <div class="chat-top-frost" id="chatTopFrost">
+    <div class="ctf-scrim"></div>
   </div>
 
   <div class="page" id="page-diary">
@@ -1373,14 +1382,44 @@ DSL 数值是 @1x 单位，套用时先 ×3 换算成像素。
 ============================================================ */
 const CHAT_THEME_ASSET_BASE = 'theme-assets/kakao-bb0ding02/';
 // slice: [top, right, bottom, left] 像素（对应源图自身分辨率，border-image-slice 用）
-// border: [top, right, bottom, left] CSS 逻辑像素（slice 数值 ÷3，换算回 1x 供 border-width 用）
-function bubbleSpec(file, w, h, leftCap1x, topCap1x) {
-  const left = leftCap1x * 3, top = topCap1x * 3;
-  const right = w - left, bottom = h - top;
+// border: [top, right, bottom, left] CSS 逻辑像素（slice 数值 ÷3，换算回 1x，图案不缩放）
+// CSS border-image 只有一段连续的中间可拉伸区，没法做到"两侧固定、中间只拉伸1px"；
+// 中间区必须留够至少一行文字的原始尺寸（CONTENT_W/CONTENT_H），1 行消息才能 0 拉伸（缩放比=1）。
+// 压缩到 1 个原生像素试过了：会导致连 1 个字符都要把 1px 硬拉成十几px，比不压缩更糟，故撤回。
+const CONTENT_W = 2, CONTENT_H = 8; // 默认值：中间可拉伸区宽/高（1x），已按反馈下调
+const ZONE_SHIFT_Y = -1, ZONE_SHIFT_X = 0; // 默认值：拉伸区选区位置微调（原生像素，不改变选区大小，只挪窗口）
+const BUBBLE_SCALE = 0.97; // 气泡整体缩放系数（所有皮肤生效）：只缩小骨架尺寸和四角图案显示尺寸，
+// 不改 font-size/line-height（文字大小不变），四角图案等比缩小（不是拉伸变形）。
+function bubbleSpec(file, w, h, leftCap1x, topCap1x, shiftX, shiftY, stretchW, stretchH, textX, textY, zoneShiftX, zoneShiftY) {
+  // 左上角用官方 DSL 真实 cap 值（原图内容，不猜、不缩放），
+  // shiftX/shiftY 用来手动微调分割线位置（往右/下偏移），修正图案本身偏移导致的分割点错位。
+  // stretchW/stretchH：中间可拉伸区的宽/高（1x 单位，可留空用默认 CONTENT_W/CONTENT_H），
+  // 单独可调 —— 数值越大，中间带越宽，视觉上"拉伸感"越明显；越小则更贴近原图但要留够单行文字空间。
+  // zoneShiftX/zoneShiftY：拉伸区选区在原图上的位置微调（原生像素，可留空用默认 ZONE_SHIFT_X/Y），
+  // 只挪动选区窗口本身、不改变选区大小（stretchW/stretchH 不变）；窗口往上/左挪，
+  // 上/左固定角会跟着变矮/变窄这么多原生像素，下/右固定角相应变高/变宽，总尺寸不变。
+  // textX/textY：文字在气泡内的额外偏移（1x 单位，正值=右/下移，可留空=0），通过 padding 实现，
+  // 与 shiftX/shiftY（分割线位置）、stretchW/stretchH（拉伸区尺寸）相互独立，互不影响。
+  // 右/下角 = 骨架尺寸 - cap - 中间带宽/高，图片原始尺寸下（min-width/min-height = natW/natH）
+  // 若中间带 ≥ 单行文字所需尺寸，则 1 行消息缩放比=1，不产生任何拉伸；
+  // 消息变长/变多行时，中间这条带才会被拉伸——它仍会带到部分装饰（尾巴/丝带），
+  // 这是 border-image 单一中间拉伸区的结构性限制，无法在不拆分素材的前提下完全消除。
+  const natW = w / 3, natH = h / 3;
+  const sw = stretchW != null ? stretchW : CONTENT_W;
+  const sh = stretchH != null ? stretchH : CONTENT_H;
+  const zsx = zoneShiftX != null ? zoneShiftX : ZONE_SHIFT_X;
+  const zsy = zoneShiftY != null ? zoneShiftY : ZONE_SHIFT_Y;
+  const lc = leftCap1x + (shiftX || 0), tc = topCap1x + (shiftY || 0);
+  const left = Math.max(0, lc * 3 + zsx);
+  const top = Math.max(0, tc * 3 + zsy);
+  const right = Math.max(0, w - left - sw * 3);
+  const bottom = Math.max(0, h - top - sh * 3);
   return {
-    file,
+    file, natW: natW * BUBBLE_SCALE, natH: natH * BUBBLE_SCALE,
+    minW: natW * BUBBLE_SCALE, minH: natH * BUBBLE_SCALE,
     slice: [top, right, bottom, left],
-    border: [top / 3, right / 3, bottom / 3, left / 3],
+    border: [top / 3 * BUBBLE_SCALE, right / 3 * BUBBLE_SCALE, bottom / 3 * BUBBLE_SCALE, left / 3 * BUBBLE_SCALE],
+    textX: textX || 0, textY: textY || 0,
   };
 }
 const CHAT_THEMES = [
@@ -1392,10 +1431,10 @@ const CHAT_THEMES = [
     thumb: CHAT_THEME_ASSET_BASE + 'profileImg01@3x.png',
     bg: CHAT_THEME_ASSET_BASE + 'chatroomBgImage@3x.png',
     bubbles: {
-      sendFirst:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend01@3x.png',    264, 204, 34, 51),
-      sendGroup:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend02@3x.png',    264, 144, 34, 31),
-      receiveFirst: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive01@3x.png', 267, 189, 54, 46),
-      receiveGroup: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive02@3x.png', 258, 144, 54, 31),
+      sendFirst:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend01@3x.png',    264, 204, 34, 51, -2, -5, null, 9, 3, -4, null, -5),
+      sendGroup:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend02@3x.png',    264, 144, 34, 31, -2, -5, null, 9, 3, -4, null, -5),
+      receiveFirst: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive01@3x.png', 267, 189, 54, 46, -2, -5, null, 9, 3, -4, null, -5),
+      receiveGroup: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive02@3x.png', 258, 144, 54, 31, -2, -5, null, 9, 3, -4, null, -5),
     },
   },
   (() => {
@@ -1407,10 +1446,10 @@ const CHAT_THEMES = [
       thumb: BASE + 'profileImg01@3x.png',
       bg: BASE + 'chatroomBgImage@3x.png',
       bubbles: {
-        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    240, 210, 25, 47),
-        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    240, 132, 25, 21),
-        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 180, 201, 35, 44),
-        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 180, 132, 35, 21),
+        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    240, 210, 25, 47, 0, 0, null, 8, -1, -4, null, 4),
+        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    240, 132, 25, 21, 0, 0, null, 8, -1, -4, null, 4),
+        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 180, 201, 35, 44, 0, 0, null, 8, -1, -4, null, 4),
+        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 180, 132, 35, 21, 0, 0, null, 8, -1, -4, null, 4),
       },
     };
   })(),
@@ -1423,10 +1462,10 @@ const CHAT_THEMES = [
       thumb: BASE + 'profileImg01@3x.png',
       bg: BASE + 'chatroomBgImage@3x.png',
       bubbles: {
-        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    189, 236, 12, 60),
-        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    189, 134, 20, 19),
-        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 168, 215, 40, 52),
-        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 168, 134, 40, 19),
+        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    189, 236, 12, 60, 0, 0, 2, 13, 5, -5),
+        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    189, 134, 20, 19, 0, 0, 2, 13, 5, -5),
+        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 168, 215, 40, 52, 0, 0, 2, 13, -3, -5),
+        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 168, 134, 40, 19, 0, 0, 2, 13, -3, -5),
       },
     };
   })(),
@@ -1670,21 +1709,42 @@ function findChatTheme(id) { return CHAT_THEMES.find(t => t.id === id) || CHAT_T
 function buildChatThemeCSS(theme) {
   if (!theme || theme.id === 'default' || !theme.bubbles) return '';
   const sel = '#page-chat[data-chat-theme="' + theme.id + '"]';
+  // 九宫格切图：border-image 可拉伸区压缩到源图 1px 宽/高，四角装饰不被拉伸；
+  // min-width/min-height = 原图骨架尺寸，不预留固定字符槽位——浏览器按实际文字内容自然撑开，
+  // 那条 1px 拉伸线只按真实需要的量被拉伸，1 个字符时几乎不产生拉伸；
+  // border-width 必须等于 slice 换算回 1x 的原始尺寸，否则浏览器会按比例缩放四角装饰本身。
+  // 文字位置(textX/textY)与背景图分离：背景图放在 ::before 伪元素上，.msg-bubble 本体只放文字，
+  // 用 transform 让文字整体偏移，::before 用相反方向的 transform 抵消，背景图纹丝不动，
+  // 这样 textX/textY 支持任意方向（含负值），不受 padding 只能为正的限制。
   const rule = (bubbleSel, spec) => {
     const [st, sr, sb, sl] = spec.slice;
     const [bt, br, bb, bl] = spec.border;
-    // 短消息（单行）撑不满 top+bottom 两端固定装饰区高度时，装饰图案会被压扁重叠——
-    // 用 min-height 兜底，保证气泡至少有装饰完整展开所需的高度。
-    const minHeight = Math.ceil(bt + bb);
+    const tx = spec.textX || 0, ty = spec.textY || 0;
     return sel + ' ' + bubbleSel + ' .msg-bubble {\n'
+      + '  position: relative;\n'
       + '  background: none;\n'
-      + '  min-height: ' + minHeight + 'px;\n'
+      + '  box-sizing: border-box;\n'
+      + '  border: none;\n'
+      + '  min-width: ' + spec.minW + 'px;\n'
+      + '  min-height: ' + spec.minH + 'px;\n'
+      + '  padding: ' + bt + 'px ' + br + 'px ' + bb + 'px ' + bl + 'px;\n'
+      + '  transform: translate(' + tx + 'px, ' + ty + 'px);\n'
+      + '  font-size: 12px;\n'
+      + '  line-height: 17px;\n'
+      + '}\n'
+      + sel + ' ' + bubbleSel + ' .msg-bubble::before {\n'
+      + '  content: "";\n'
+      + '  position: absolute;\n'
+      + '  inset: 0;\n'
+      + '  z-index: -1;\n'
+      + '  pointer-events: none;\n'
       + '  box-sizing: border-box;\n'
       + '  border-style: solid;\n'
       + '  border-width: ' + bt + 'px ' + br + 'px ' + bb + 'px ' + bl + 'px;\n'
       + '  border-image-source: url(' + spec.file + ');\n'
       + '  border-image-slice: ' + st + ' ' + sr + ' ' + sb + ' ' + sl + ' fill;\n'
       + '  border-image-repeat: stretch;\n'
+      + '  transform: translate(' + (-tx) + 'px, ' + (-ty) + 'px);\n'
       + '}\n';
   };
   let css = sel + ' {\n'
@@ -3572,6 +3632,10 @@ document.getElementById('nicknameSaveBtn').addEventListener('click', () => {
   if (v) {
     pageTitles.chat = v;
     safeSetItem(LS_NICKNAME, v);
+    appName = v;
+    safeSetItem(LS_NAME, v);
+    applyGlobalNames();
+    renderAllMessages();
     pageCapsule.style.transition = 'opacity 0.15s ease';
     pageCapsule.style.opacity = '0';
     setTimeout(() => { pageCapsule.textContent = pageTitles.chat; pageCapsule.style.opacity = '1'; }, 150);
@@ -3624,6 +3688,7 @@ function switchPage(pageName) {
   document.getElementById('subAttachPreview').style.display = isSubchat ? '' : 'none';
   document.getElementById('subQuoteBar').style.display     = isSubchat ? '' : 'none';
   document.getElementById('topbar').style.display          = (pageName === 'log') ? 'none' : 'block';
+  document.getElementById('chatTopFrost').style.display     = (isChat || isSubchat) ? 'block' : 'none';
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
@@ -3662,7 +3727,6 @@ function closeSettingsPanel() { settingsOverlay.classList.remove('show'); }
 document.getElementById('sideAvatarBtn').addEventListener('click', () => openAvatarCropper(LS_AVATAR, applyAvatar));
 document.getElementById('sideUserAvatarBtn').addEventListener('click', () => openAvatarCropper(LS_USER_AVATAR, applyUserAvatar));
 document.getElementById('sideSettingsBtn').addEventListener('click', openSettingsPanel);
-document.getElementById('personaSettingsLink').addEventListener('click', () => { openSettingsPanel(); closeSidebar(); });
 settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) closeSettingsPanel(); });
 document.getElementById('settingsCancelBtn').addEventListener('click', closeSettingsPanel);
 const chatThemeOverlay = document.getElementById('chatThemeOverlay');
