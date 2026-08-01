@@ -286,7 +286,7 @@ html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .msg-row.user .msg-bubble-wrap { flex-direction: row-reverse; }
 .msg-bubble {
-max-width: 100%; min-width: 0; padding: 9px 13px; border-radius: 13px; font-size: 15px; line-height: 21px;
+max-width: 100%; min-width: 0; padding: 9px 13px; border-radius: 13px; font-size: 17px; line-height: 24px;
 letter-spacing: 0; overflow-wrap: anywhere; word-wrap: break-word;
 user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; color: var(--primary-text);
 }
@@ -1388,7 +1388,7 @@ const CHAT_THEME_ASSET_BASE = 'theme-assets/kakao-bb0ding02/';
 // 压缩到 1 个原生像素试过了：会导致连 1 个字符都要把 1px 硬拉成十几px，比不压缩更糟，故撤回。
 const CONTENT_W = 2, CONTENT_H = 8; // 默认值：中间可拉伸区宽/高（1x），已按反馈下调
 const ZONE_SHIFT_Y = -1, ZONE_SHIFT_X = 0; // 默认值：拉伸区选区位置微调（原生像素，不改变选区大小，只挪窗口）
-const BUBBLE_SCALE = 0.97; // 气泡整体缩放系数（所有皮肤生效）：只缩小骨架尺寸和四角图案显示尺寸，
+const BUBBLE_SCALE = 1; // 气泡整体缩放系数（所有皮肤生效）：只缩小骨架尺寸和四角图案显示尺寸，
 // 不改 font-size/line-height（文字大小不变），四角图案等比缩小（不是拉伸变形）。
 function bubbleSpec(file, w, h, leftCap1x, topCap1x, shiftX, shiftY, stretchW, stretchH, textX, textY, zoneShiftX, zoneShiftY) {
   // 左上角用官方 DSL 真实 cap 值（原图内容，不猜、不缩放），
@@ -1729,8 +1729,8 @@ function buildChatThemeCSS(theme) {
       + '  min-height: ' + spec.minH + 'px;\n'
       + '  padding: ' + bt + 'px ' + br + 'px ' + bb + 'px ' + bl + 'px;\n'
       + '  transform: translate(' + tx + 'px, ' + ty + 'px);\n'
-      + '  font-size: 12px;\n'
-      + '  line-height: 17px;\n'
+      + '  font-size: 17px;\n'
+      + '  line-height: 24px;\n'
       + '}\n'
       + sel + ' ' + bubbleSel + ' .msg-bubble::before {\n'
       + '  content: "";\n'
