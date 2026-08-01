@@ -1761,16 +1761,22 @@ function buildChatThemeCSS(theme) {
   css += rule('.msg-row.ai.same-sender', theme.bubbles.receiveGroup);
   return css;
 }
+function setThemeColorMeta(content) {
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.remove();
+  meta = document.createElement('meta');
+  meta.setAttribute('name', 'theme-color');
+  meta.setAttribute('content', content);
+  document.head.appendChild(meta);
+  document.body.style.backgroundColor = content;
+}
 function updateThemeColorFromBg(imgUrl) {
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (!meta) return;
   if (!imgUrl) {
     const fallback = getComputedStyle(document.documentElement).getPropertyValue('--chat-bg').trim();
-    if (fallback) meta.setAttribute('content', fallback);
+    if (fallback) setThemeColorMeta(fallback);
     return;
   }
   const img = new Image();
-  img.crossOrigin = 'anonymous';
   img.onload = () => {
     try {
       const canvas = document.createElement('canvas');
@@ -1781,7 +1787,7 @@ function updateThemeColorFromBg(imgUrl) {
       let r = 0, g = 0, b = 0, n = 0;
       for (let i = 0; i < data.length; i += 4) { r += data[i]; g += data[i+1]; b += data[i+2]; n++; }
       r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
-      meta.setAttribute('content', `rgb(${r},${g},${b})`);
+      setThemeColorMeta(`rgb(${r},${g},${b})`);
     } catch (e) { /* tainted canvas, ignore */ }
   };
   img.src = imgUrl;
