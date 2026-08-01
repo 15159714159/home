@@ -1698,11 +1698,14 @@ function applyBg() {
     p.style.backgroundImage = 'url(' + v + ')';
     p.style.backgroundSize = 'cover';
     p.style.backgroundPosition = 'center';
-    p.style.backgroundAttachment = 'fixed';
+    p.style.backgroundAttachment = 'scroll';
     p.classList.add('has-bg');
+    updateThemeColorFromBg(v);
   } else {
     p.style.backgroundImage = '';
     p.classList.remove('has-bg');
+    const theme = findChatTheme(localStorage.getItem(LS_CHAT_THEME) || 'default');
+    updateThemeColorFromBg(theme.id === 'default' ? null : theme.bg);
   }
 }
 function findChatTheme(id) { return CHAT_THEMES.find(t => t.id === id) || CHAT_THEMES[0]; }
@@ -1749,7 +1752,7 @@ function buildChatThemeCSS(theme) {
   };
   let css = sel + ' {\n'
     + '  background-image: url(' + theme.bg + ');\n'
-    + '  background-size: cover; background-position: center; background-attachment: fixed;\n'
+    + '  background-size: cover; background-position: center; background-attachment: scroll;\n'
     + '  background-color: transparent;\n'
     + '}\n';
   css += rule('.msg-row.user:not(.same-sender)', theme.bubbles.sendFirst);
@@ -1758,6 +1761,31 @@ function buildChatThemeCSS(theme) {
   css += rule('.msg-row.ai.same-sender', theme.bubbles.receiveGroup);
   return css;
 }
+function updateThemeColorFromBg(imgUrl) {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  if (!imgUrl) {
+    const fallback = getComputedStyle(document.documentElement).getPropertyValue('--chat-bg').trim();
+    if (fallback) meta.setAttribute('content', fallback);
+    return;
+  }
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 16; canvas.height = 16;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 16, 16);
+      const data = ctx.getImageData(0, 0, 16, 16).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < data.length; i += 4) { r += data[i]; g += data[i+1]; b += data[i+2]; n++; }
+      r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
+      meta.setAttribute('content', `rgb(${r},${g},${b})`);
+    } catch (e) { /* tainted canvas, ignore */ }
+  };
+  img.src = imgUrl;
+}
 function applyChatTheme(id) {
   const theme = findChatTheme(id);
   const p = document.getElementById('page-chat');
@@ -1765,9 +1793,11 @@ function applyChatTheme(id) {
   if (theme.id === 'default') {
     p.removeAttribute('data-chat-theme');
     styleTag.textContent = '';
+    updateThemeColorFromBg(localStorage.getItem(LS_BG) || null);
   } else {
     p.setAttribute('data-chat-theme', theme.id);
     styleTag.textContent = buildChatThemeCSS(theme);
+    updateThemeColorFromBg(localStorage.getItem(LS_BG) || theme.bg);
   }
   safeSetItem(LS_CHAT_THEME, theme.id);
   renderChatThemeList();
@@ -1775,6 +1805,14 @@ function applyChatTheme(id) {
 function loadChatTheme() {
   const id = localStorage.getItem(LS_CHAT_THEME) || 'default';
   applyChatTheme(id);
+}
+function preloadChatThemeAssets() {
+  CHAT_THEMES.forEach(t => {
+    if (t.id === 'default') return;
+    const urls = [t.bg, t.thumb];
+    Object.values(t.bubbles || {}).forEach(b => urls.push(b.file));
+    urls.forEach(u => { if (u) { const img = new Image(); img.src = u; } });
+  });
 }
 function renderChatThemeList() {
   const list = document.getElementById('chatThemeList');
@@ -4516,6 +4554,7 @@ window.addEventListener('DOMContentLoaded', () => { initSupabaseMemorySync(); in
   applyUserAvatar();
   applyBg();
   loadChatTheme();
+  preloadChatThemeAssets();
   applyAppIcon();
   switchPage('chat');
   renderAllMessages();
