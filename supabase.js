@@ -5,7 +5,11 @@ const SUPABASE_URL = 'https://itfqxewtpuudmewmczxz.supabase.co';
 // 绝不能把 service_role/secret key 放在这个文件里。
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0ZnF4ZXd0cHV1ZG1ld21jenh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE5NTYsImV4cCI6MjEwMDIwNzk1Nn0.JwhDFJmke7E2wMuvK_kBzYqnXE2D5v9CTh-8M0I0xu8';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// keepalive: true 让请求能在页面刷新/关闭的卸载过程中继续发完，
+// 配合 index.html 里 pagehide 时的 flushChatSync 用，否则刷新会把没发完的同步请求直接掐断
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { fetch: (url, options) => fetch(url, { ...options, keepalive: true }) }
+});
 
 const MEMORY_TYPES = ['侧写', '共鸣', '学业', '造巢'];
 const DIARY_AUTHORS = ['然竣', 'ao'];

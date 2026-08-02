@@ -2361,16 +2361,25 @@ loadModelsBtn.addEventListener('click', () => {
 持久化：其余
 ============================================================ */
 // 聊天记录改动点很多（发消息/流式收尾/删除/清空/开新话题…），不在每个调用点分别同步，
-// 而是在 persistMessages/persistSubChats 内部统一防抖后整体 upsert，800ms 内的多次改动合并成一次网络请求
+// 而是在 persistMessages/persistSubChats 内部统一防抖后整体 upsert，800ms 内的多次改动合并成一次网络请求。
+// 但如果用户在 800ms 窗口内刷新/切走页面，这次同步就会被打断、云端停留在旧数据——下次加载又是"云端为准"
+// 整体覆盖本地，表现为刚才的改动（包括删除）像是"撤销"了。所以页面隐藏/卸载时要跳过防抖立即同步一次。
 let chatSyncTimer = null;
+let chatSyncDirty = false;
+function flushChatSync() {
+  if (!window.supabaseChats || !chatSyncDirty) return;
+  clearTimeout(chatSyncTimer); chatSyncDirty = false;
+  window.supabaseChats.upsertChat('main', messages).catch(e => console.warn('聊天云端同步失败', e));
+  window.supabaseChats.upsertChat('subchats', subChats).catch(e => console.warn('副聊天云端同步失败', e));
+}
 function scheduleChatSync() {
   if (!window.supabaseChats) return;
+  chatSyncDirty = true;
   clearTimeout(chatSyncTimer);
-  chatSyncTimer = setTimeout(() => {
-    window.supabaseChats.upsertChat('main', messages).catch(e => console.warn('聊天云端同步失败', e));
-    window.supabaseChats.upsertChat('subchats', subChats).catch(e => console.warn('副聊天云端同步失败', e));
-  }, 800);
+  chatSyncTimer = setTimeout(flushChatSync, 800);
 }
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushChatSync(); });
+window.addEventListener('pagehide', flushChatSync);
 function persistMessages() { safeIdbSet(LS_MESSAGES, messages); scheduleChatSync(); }
 async function loadMessages() {
   try { const r = await idbGet(LS_MESSAGES); if (r) messages = r; } catch(e) { messages = []; }
