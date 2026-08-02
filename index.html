@@ -1360,6 +1360,8 @@ const LS_USERNAME = 'nest_username';
 const LS_NAME     = 'nest_name';
 const LS_PERSONA  = 'nest_persona';
 const LS_PRESETS  = 'nest_presets';
+const LS_MAIN_TOUCHED_AT = 'nest_messages_touched_at';
+const LS_SUB_TOUCHED_AT  = 'nest_subchats_touched_at';
 const LS_TOPIC_START = 'nest_topic_start';
 const LS_WINDOW_START = 'nest_window_start';
 const LS_AVATAR   = 'nest_avatar';
@@ -2369,12 +2371,19 @@ loadModelsBtn.addEventListener('click', () => {
 // 它也会用内存里过时的聊天记录覆盖掉云端刚同步好的新内容，导致数据被静默回退。所以同步必须带上乐观锁
 // （mainChatUpdatedAt/subChatsUpdatedAt，记录"我上次拉取云端时看到的版本号"），一旦云端已经被别人改过，
 // 拒绝写入，转而重新拉取云端最新数据并提示用户，而不是盲目覆盖。
+//
+// 事故复盘2：光有乐观锁还不够——mainChatUpdatedAt/subChatsUpdatedAt 在 initChatSync() 确认云端版本前
+// 一直是 null，而 upsertChat 把 null 当成"云端还没这行，无条件写入"处理。如果这段确认云端版本的异步请求
+// 还没跑完时就发生锁屏/切后台（手机上很容易发生），触发的 flush 会带着 null 直接抢跑覆盖云端，
+// 乐观锁形同虚设。所以加一道 chatSyncReady 闸门：云端版本没确认完之前，flush 一律不写，
+// 等确认完成后如果期间攒了没同步的改动，立刻补一次 flush，不会丢改动。
 let chatSyncTimer = null;
 let chatSyncDirty = false;
+let chatSyncReady = false;
 let mainChatUpdatedAt = null;
 let subChatsUpdatedAt = null;
 async function flushChatSync() {
-  if (!window.supabaseChats || !chatSyncDirty) return;
+  if (!window.supabaseChats || !chatSyncDirty || !chatSyncReady) return;
   clearTimeout(chatSyncTimer); chatSyncDirty = false;
   const [mainRes, subRes] = await Promise.all([
     window.supabaseChats.upsertChat('main', messages, mainChatUpdatedAt),
@@ -2397,7 +2406,7 @@ function scheduleChatSync() {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushChatSync(); });
 window.addEventListener('pagehide', flushChatSync);
-function persistMessages() { safeIdbSet(LS_MESSAGES, messages); scheduleChatSync(); }
+function persistMessages() { safeIdbSet(LS_MESSAGES, messages); try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(Date.now())); } catch(e) {} scheduleChatSync(); }
 async function loadMessages() {
   try { const r = await idbGet(LS_MESSAGES); if (r) messages = r; } catch(e) { messages = []; }
   let migrated = false;
@@ -2429,7 +2438,7 @@ async function loadMemory() {
   });
   if (migrated) persistMemory();
 }
-function persistSubChats() { safeIdbSet(LS_SUBCHATS, subChats); scheduleChatSync(); }
+function persistSubChats() { safeIdbSet(LS_SUBCHATS, subChats); try { localStorage.setItem(LS_SUB_TOUCHED_AT, String(Date.now())); } catch(e) {} scheduleChatSync(); }
 async function loadSubChats() {
   try { const r = await idbGet(LS_SUBCHATS); if (r) subChats = r; } catch(e) { subChats = []; }
   let migrated = false;
@@ -2738,18 +2747,61 @@ async function initChatSync() {
       const { data: subData } = await window.supabaseChats.upsertChat('subchats', subChats, null);
       if (mainData && mainData[0]) mainChatUpdatedAt = mainData[0].updated_at;
       if (subData && subData[0]) subChatsUpdatedAt = subData[0].updated_at;
+      chatSyncReady = true;
+      if (chatSyncDirty) flushChatSync();
       return;
     }
     await refreshChatsFromSupabase();
+    chatSyncReady = true;
+    if (chatSyncDirty) flushChatSync();
   } catch(e) { console.warn('Supabase聊天记录同步初始化出错，使用本地缓存', e); }
 }
+function localTouchedAt(key) {
+  try { const v = localStorage.getItem(key); return v ? parseInt(v, 10) || 0 : 0; } catch(e) { return 0; }
+}
+// 事故复盘3：锁屏/切后台可能让"存本地"成功了但"传云端"的请求被系统掐断，云端那一行停留在旧版本。
+// 如果这时无条件"云端为准"，反而会用这份滞后的云端数据覆盖掉本地已经真实存在的新改动（包括删除）——
+// 本地明明没丢，是这里自己覆盖丢的。所以拉取前先比一下：本地最后一次改动的时间(persistMessages/
+// persistSubChats 每次调用都会记一笔)，是不是比云端这一行的写入时间(updated_at)还新。注意不能拿消息内容
+// 自己的 createdAt 来比——删除消息不会产生新的 createdAt，那样比较会漏掉"最后一次操作是删除"的情况，
+// 用独立的本地时间戳才能覆盖增/删/改所有场景。更新，说明本地有云端还没收到的内容（多半是刚才被打断的
+// 那次同步），改成把本地内容带着乐观锁推回云端，而不是拿旧云端盖掉本地；不更新，才说明云端确实是最新的，
+// 正常拉取覆盖本地。
 async function refreshChatsFromSupabase() {
   if (!window.supabaseChats) return;
   try {
     const { data: mainRow } = await window.supabaseChats.getChat('main');
-    if (mainRow && Array.isArray(mainRow.data)) { messages = mainRow.data; safeIdbSet(LS_MESSAGES, messages); mainChatUpdatedAt = mainRow.updated_at; }
+    if (mainRow && Array.isArray(mainRow.data)) {
+      if (localTouchedAt(LS_MAIN_TOUCHED_AT) > new Date(mainRow.updated_at).getTime()) {
+        console.warn('本地主聊天记录比云端最后写入时间新，怀疑上次同步被中断，放弃用云端覆盖本地，改为把本地内容推回云端');
+        const { data, error } = await window.supabaseChats.upsertChat('main', messages, mainRow.updated_at);
+        if (error) {
+          console.warn('回推本地主聊天记录失败', error);
+          // 极小概率：推回时云端又被别的设备抢先改了一次。不重试硬冲突，只把 mainChatUpdatedAt 对齐到云端最新版本，
+          // 避免它继续停留在 null——否则乐观锁又会退化成"无条件写入"，回到事故复盘2的老问题
+          const { data: latest } = await window.supabaseChats.getChat('main');
+          if (latest) mainChatUpdatedAt = latest.updated_at;
+        }
+        else if (data && data[0]) mainChatUpdatedAt = data[0].updated_at;
+      } else {
+        messages = mainRow.data; safeIdbSet(LS_MESSAGES, messages); mainChatUpdatedAt = mainRow.updated_at;
+      }
+    }
     const { data: subRow } = await window.supabaseChats.getChat('subchats');
-    if (subRow && Array.isArray(subRow.data)) { subChats = subRow.data; safeIdbSet(LS_SUBCHATS, subChats); subChatsUpdatedAt = subRow.updated_at; }
+    if (subRow && Array.isArray(subRow.data)) {
+      if (localTouchedAt(LS_SUB_TOUCHED_AT) > new Date(subRow.updated_at).getTime()) {
+        console.warn('本地副聊天记录比云端最后写入时间新，怀疑上次同步被中断，放弃用云端覆盖本地，改为把本地内容推回云端');
+        const { data, error } = await window.supabaseChats.upsertChat('subchats', subChats, subRow.updated_at);
+        if (error) {
+          console.warn('回推本地副聊天记录失败', error);
+          const { data: latest } = await window.supabaseChats.getChat('subchats');
+          if (latest) subChatsUpdatedAt = latest.updated_at;
+        }
+        else if (data && data[0]) subChatsUpdatedAt = data[0].updated_at;
+      } else {
+        subChats = subRow.data; safeIdbSet(LS_SUBCHATS, subChats); subChatsUpdatedAt = subRow.updated_at;
+      }
+    }
   } catch(e) { console.warn('Supabase聊天记录拉取失败，使用本地缓存', e); }
 }
 // initChatSync() 在 DOMContentLoaded 时才跑（要等 supabase.js 模块脚本挂好 window.supabaseChats），
