@@ -111,8 +111,25 @@ export async function deleteMemory(id) {
 export async function getChat(kind) {
   return supabase.from('chats').select('data,updated_at').eq('kind', kind).maybeSingle();
 }
-export async function upsertChat(kind, data) {
-  return supabase.from('chats').upsert({ kind, data, updated_at: new Date().toISOString() });
+// 乐观锁写入：只有当云端 updated_at 跟调用方上次读到的时间戳一致时才真正写入。
+// 事故复盘：一个开了很久没刷新的旧标签页，切走时会把内存里过时的聊天记录当最新数据同步上云端，
+// 无条件覆盖掉其他设备/标签页刚同步好的新内容。expectedUpdatedAt 就是用来拦住这种"用旧数据覆盖新数据"的写入——
+// 云端已经变了就直接拒绝，交给调用方重新拉取最新数据，而不是盲目覆盖。
+// expectedUpdatedAt 为空时（比如云端还没有这一行）退回普通 upsert。
+export async function upsertChat(kind, data, expectedUpdatedAt) {
+  const nowIso = new Date().toISOString();
+  if (!expectedUpdatedAt) {
+    return supabase.from('chats').upsert({ kind, data, updated_at: nowIso }).select();
+  }
+  const { data: rows, error } = await supabase.from('chats')
+    .update({ data, updated_at: nowIso })
+    .eq('kind', kind).eq('updated_at', expectedUpdatedAt)
+    .select();
+  if (error) return { data: rows, error };
+  if (!rows || rows.length === 0) {
+    return { data: null, error: { code: 'CHAT_SYNC_CONFLICT', message: '云端数据已被其他设备/页面更新，拒绝用本地旧数据覆盖' } };
+  }
+  return { data: rows, error: null };
 }
 
 // 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
