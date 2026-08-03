@@ -108,23 +108,46 @@ export async function deleteMemory(id) {
 
 // 跨设备聊天记录同步：kind 是 'main'（主聊天）或 'subchats'（副聊天），
 // 每行整份数组存成一个 jsonb 列，upsert 整体覆盖，不做逐条 merge。
+//
+// 每个页面实例一个写入方标识，故意不存 localStorage——就是要区分同设备的不同标签页/窗口，
+// 下次再发生数据回退，能直接从 written_by 看出是哪个实例写的，不用猜。
+const CLIENT_ID = (navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop') + '-' +
+  Math.random().toString(36).slice(2, 8) + '-' + new Date().toISOString().slice(5, 16);
+
+// written_by 列要跑过 supabase_migration_6.sql 才存在；没跑之前 select 这一列会直接报错，
+// 导致整个聊天同步瘫痪，所以先带 written_by 查，报错（列不存在）就退回不带它的旧查询。
 export async function getChat(kind) {
-  return supabase.from('chats').select('data,updated_at').eq('kind', kind).maybeSingle();
+  const withWriter = await supabase.from('chats').select('data,updated_at,written_by').eq('kind', kind).maybeSingle();
+  if (withWriter.error) {
+    return supabase.from('chats').select('data,updated_at').eq('kind', kind).maybeSingle();
+  }
+  return withWriter;
 }
 // 乐观锁写入：只有当云端 updated_at 跟调用方上次读到的时间戳一致时才真正写入。
 // 事故复盘：一个开了很久没刷新的旧标签页，切走时会把内存里过时的聊天记录当最新数据同步上云端，
 // 无条件覆盖掉其他设备/标签页刚同步好的新内容。expectedUpdatedAt 就是用来拦住这种"用旧数据覆盖新数据"的写入——
 // 云端已经变了就直接拒绝，交给调用方重新拉取最新数据，而不是盲目覆盖。
 // expectedUpdatedAt 为空时（比如云端还没有这一行）退回普通 upsert。
+//
+// written_by 同 getChat：migration 6 没跑之前这一列不存在，带着它写会直接报错——
+// 先带 written_by 写，报错就退回不带它的写法重试一次，避免同步在 migration 落地前整体瘫痪。
 export async function upsertChat(kind, data, expectedUpdatedAt) {
   const nowIso = new Date().toISOString();
   if (!expectedUpdatedAt) {
-    return supabase.from('chats').upsert({ kind, data, updated_at: nowIso }).select();
+    const withWriter = await supabase.from('chats').upsert({ kind, data, updated_at: nowIso, written_by: CLIENT_ID }).select();
+    if (withWriter.error) return supabase.from('chats').upsert({ kind, data, updated_at: nowIso }).select();
+    return withWriter;
   }
-  const { data: rows, error } = await supabase.from('chats')
-    .update({ data, updated_at: nowIso })
+  let { data: rows, error } = await supabase.from('chats')
+    .update({ data, updated_at: nowIso, written_by: CLIENT_ID })
     .eq('kind', kind).eq('updated_at', expectedUpdatedAt)
     .select();
+  if (error) {
+    ({ data: rows, error } = await supabase.from('chats')
+      .update({ data, updated_at: nowIso })
+      .eq('kind', kind).eq('updated_at', expectedUpdatedAt)
+      .select());
+  }
   if (error) return { data: rows, error };
   if (!rows || rows.length === 0) {
     return { data: null, error: { code: 'CHAT_SYNC_CONFLICT', message: '云端数据已被其他设备/页面更新，拒绝用本地旧数据覆盖' } };

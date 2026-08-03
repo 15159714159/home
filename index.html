@@ -2767,14 +2767,26 @@ function localTouchedAt(key) {
 // 用独立的本地时间戳才能覆盖增/删/改所有场景。更新，说明本地有云端还没收到的内容（多半是刚才被打断的
 // 那次同步），改成把本地内容带着乐观锁推回云端，而不是拿旧云端盖掉本地；不更新，才说明云端确实是最新的，
 // 正常拉取覆盖本地。
+//
+// 事故复盘4：上面这个"本地更新"判断用的 LS_MAIN_TOUCHED_AT/LS_SUB_TOUCHED_AT 是 localStorage，
+// 同设备所有标签页共享；但真正拿来回推的 messages/subChats 是各自标签页自己内存里的一份。
+// 一个开了很久的后台旧标签页，会因为另一个标签页刚写的新时间戳而误判"我本地更新"，
+// 结果把自己内存里那份旧聊天数组当"更新内容"推上云端，把别的标签页刚同步好的新内容覆盖掉——
+// 这正是"同一段旧聊天反复覆盖新内容"的嫌疑路径之一。IndexedDB 才是同设备各标签页共享、
+// 永远落盘到最新的版本，所以回推前必须先重读一次 IDB，用它代替内存里可能过时的数据；
+// 读失败或读到空值才退回内存数据，不让同步因为这一步读取失败而整个瘫掉。
 async function refreshChatsFromSupabase() {
   if (!window.supabaseChats) return;
   try {
     const { data: mainRow } = await window.supabaseChats.getChat('main');
     if (mainRow && Array.isArray(mainRow.data)) {
+      console.warn('云端主聊天记录版本', { written_by: mainRow.written_by, updated_at: mainRow.updated_at });
       if (localTouchedAt(LS_MAIN_TOUCHED_AT) > new Date(mainRow.updated_at).getTime()) {
         console.warn('本地主聊天记录比云端最后写入时间新，怀疑上次同步被中断，放弃用云端覆盖本地，改为把本地内容推回云端');
-        const { data, error } = await window.supabaseChats.upsertChat('main', messages, mainRow.updated_at);
+        let pushData = messages;
+        try { const r = await idbGet(LS_MESSAGES); if (Array.isArray(r)) { pushData = r; messages = r; } }
+        catch(e) { console.warn('回推前重读IndexedDB主聊天记录失败，退回内存数据', e); }
+        const { data, error } = await window.supabaseChats.upsertChat('main', pushData, mainRow.updated_at);
         if (error) {
           console.warn('回推本地主聊天记录失败', error);
           // 极小概率：推回时云端又被别的设备抢先改了一次。不重试硬冲突，只把 mainChatUpdatedAt 对齐到云端最新版本，
@@ -2789,9 +2801,13 @@ async function refreshChatsFromSupabase() {
     }
     const { data: subRow } = await window.supabaseChats.getChat('subchats');
     if (subRow && Array.isArray(subRow.data)) {
+      console.warn('云端副聊天记录版本', { written_by: subRow.written_by, updated_at: subRow.updated_at });
       if (localTouchedAt(LS_SUB_TOUCHED_AT) > new Date(subRow.updated_at).getTime()) {
         console.warn('本地副聊天记录比云端最后写入时间新，怀疑上次同步被中断，放弃用云端覆盖本地，改为把本地内容推回云端');
-        const { data, error } = await window.supabaseChats.upsertChat('subchats', subChats, subRow.updated_at);
+        let pushData = subChats;
+        try { const r = await idbGet(LS_SUBCHATS); if (Array.isArray(r)) { pushData = r; subChats = r; } }
+        catch(e) { console.warn('回推前重读IndexedDB副聊天记录失败，退回内存数据', e); }
+        const { data, error } = await window.supabaseChats.upsertChat('subchats', pushData, subRow.updated_at);
         if (error) {
           console.warn('回推本地副聊天记录失败', error);
           const { data: latest } = await window.supabaseChats.getChat('subchats');
