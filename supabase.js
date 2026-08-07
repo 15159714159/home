@@ -106,6 +106,52 @@ export async function deleteMemory(id) {
   return supabase.from('memories').delete().eq('id', id);
 }
 
+// 定时清单：字段照抄 timed-checklist-main/SPEC.md §2，三种形态靠 is_fixed/trigger_at 区分。
+export async function getChecklist() {
+  return supabase.from('checklist').select('*').order('position', { ascending: true });
+}
+
+export async function addChecklistItem(fields) {
+  const now = Date.now();
+  return supabase.from('checklist').insert({
+    body: fields.body,
+    is_fixed: fields.trigger_at != null ? 0 : (fields.is_fixed ? 1 : 0),
+    done: 0,
+    position: fields.position || 0,
+    created_by: fields.created_by || 'user',
+    trigger_at: fields.trigger_at ?? null,
+    notified: 0,
+    created_at: now,
+    updated_at: now
+  }).select();
+}
+
+export async function updateChecklistItem(id, fields) {
+  const payload = { updated_at: Date.now() };
+  if (fields.body != null) payload.body = fields.body;
+  if (fields.is_fixed != null) payload.is_fixed = fields.is_fixed ? 1 : 0;
+  if (fields.done != null) { payload.done = fields.done ? 1 : 0; payload.done_at = fields.done ? Date.now() : null; }
+  if (fields.position != null) payload.position = fields.position;
+  if (fields.trigger_at !== undefined) { payload.trigger_at = fields.trigger_at; payload.notified = 0; }
+  return supabase.from('checklist').update(payload).eq('id', id).select();
+}
+
+export async function deleteChecklistItem(id) {
+  return supabase.from('checklist').delete().eq('id', id);
+}
+
+// 闹钟原子占位：只更新 notified=0 的行，返回的行数就是本次真正抢到的提醒——
+// 多个标签页/多次 tick 并发时，后到的 update 会匹配 0 行，天然防止同一提醒重复触发。
+export async function claimDueChecklistAlarms(nowMs) {
+  return supabase.from('checklist')
+    .update({ notified: 1, updated_at: nowMs })
+    .not('trigger_at', 'is', null)
+    .lte('trigger_at', nowMs)
+    .eq('notified', 0)
+    .eq('done', 0)
+    .select();
+}
+
 // 跨设备聊天记录同步：kind 是 'main'（主聊天）或 'subchats'（副聊天），
 // 每行整份数组存成一个 jsonb 列，upsert 整体覆盖，不做逐条 merge。
 //
@@ -159,3 +205,4 @@ export async function upsertChat(kind, data, expectedUpdatedAt) {
 window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
 window.supabaseDiary = { addDiary, getDiaries, addComment };
 window.supabaseChats = { getChat, upsertChat };
+window.supabaseChecklist = { getChecklist, addChecklistItem, updateChecklistItem, deleteChecklistItem, claimDueChecklistAlarms };
