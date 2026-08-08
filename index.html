@@ -2,13 +2,11 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="然竣">
-<meta name="theme-color" content="#b2c8d6">
-<link rel="manifest" href="manifest.webmanifest">
 <title>然竣和ao的家</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -94,7 +92,7 @@ transition: background-color 0.25s ease, color 0.25s ease;
 
 #topbar {
 position: absolute; left: 0; right: 0;
-top: calc(env(safe-area-inset-top, 0px) + 2px); height: 44px;
+top: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 2px); height: 44px;
 z-index: 10; pointer-events: none;
 }
 .round-btn {
@@ -127,7 +125,7 @@ transition: opacity 0.2s ease;
 display: none; position: fixed;
 top: 0; left: 0; right: 0;
 align-items: center; justify-content: space-between;
-padding: calc(env(safe-area-inset-top, 20px) + 6px) 16px 10px 16px;
+padding: calc(var(--safe-top, env(safe-area-inset-top, 20px)) + 6px) 16px 10px 16px;
 background: var(--bg-surface); z-index: 12; pointer-events: auto;
 }
 #selectBar.show { display: flex; }
@@ -165,7 +163,7 @@ opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 20;
 position: fixed; top: 0; left: 0; bottom: 0; width: 78%; max-width: 300px;
 background: var(--bg-app); z-index: 21; transform: translateX(-100%);
 transition: transform 0.3s cubic-bezier(.4,0,.2,1);
-padding: calc(env(safe-area-inset-top, 20px) + 20px) 20px 0 20px;
+padding: calc(var(--safe-top, env(safe-area-inset-top, 20px)) + 20px) 20px 0 20px;
 display: flex; flex-direction: column; box-shadow: 2px 0 12px rgba(0,0,0,0.05);
 overflow-y: auto;
 }
@@ -240,27 +238,27 @@ color: var(--text-faint); font-size: 14px;
 }
 
 #chatScroll, .subchat-scroll {
-  padding: calc(env(safe-area-inset-top, 0px) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
+  padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
   min-width: 0;
   -webkit-mask-image: linear-gradient(to bottom,
     transparent 0,
-    rgba(0,0,0,0.12) calc(env(safe-area-inset-top, 0px) + 10px),
-    rgba(0,0,0,0.45) calc(env(safe-area-inset-top, 0px) + 28px),
-    rgba(0,0,0,0.8) calc(env(safe-area-inset-top, 0px) + 46px),
-    black calc(env(safe-area-inset-top, 0px) + 60px)
+    rgba(0,0,0,0.12) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 10px),
+    rgba(0,0,0,0.45) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 28px),
+    rgba(0,0,0,0.8) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 46px),
+    black calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 60px)
   );
   mask-image: linear-gradient(to bottom,
     transparent 0,
-    rgba(0,0,0,0.12) calc(env(safe-area-inset-top, 0px) + 10px),
-    rgba(0,0,0,0.45) calc(env(safe-area-inset-top, 0px) + 28px),
-    rgba(0,0,0,0.8) calc(env(safe-area-inset-top, 0px) + 46px),
-    black calc(env(safe-area-inset-top, 0px) + 60px)
+    rgba(0,0,0,0.12) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 10px),
+    rgba(0,0,0,0.45) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 28px),
+    rgba(0,0,0,0.8) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 46px),
+    black calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 60px)
   );
 }
 /* 顶部导航栏下的过渡遮罩层：主题色柔和渐隐，自动适配任意背景图/纯色 */
 .chat-top-frost {
   position: absolute; left: 0; right: 0; top: 0;
-  height: calc(env(safe-area-inset-top, 0px) + 60px);
+  height: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 60px);
   z-index: 5; pointer-events: none; overflow: hidden;
 }
 .chat-top-frost > div { position: absolute; inset: 0; }
@@ -488,7 +486,7 @@ border-bottom: 1px solid var(--border-color); transition: background 0.12s ease,
 .action-sheet-cancel { margin-top: 8px; padding: 15px 4px; text-align: center; font-size: 15px; color: var(--text-tertiary); cursor: pointer; }
 .action-sheet-cancel:active { opacity: 0.7; }
 
-.space-section { padding: calc(env(safe-area-inset-top, 0px) + 66px) 20px 24px 20px; }
+.space-section { padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 66px) 20px 24px 20px; }
 .space-section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; margin-top: 4px; color: var(--text-primary); }
 .space-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; letter-spacing: 0.5px; }
 .space-input {
@@ -577,7 +575,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 40;
   display: flex; flex-direction: column;
   padding-bottom: 0;
-  transition: bottom 0.18s ease;
+  transition: transform 0.18s ease;
 }
 #inputBar, .subchat-inputbar {
   display: flex; align-items: flex-end; gap: 6px;
@@ -707,7 +705,7 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 .crop-overlay.show { display: flex; opacity: 1; }
 .crop-header {
   flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
-  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 12px 16px;
+  padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 14px) 16px 12px 16px;
 }
 .crop-header-btn {
   background: none; border: none; color: rgba(255,255,255,0.85); font-size: 15px;
@@ -799,7 +797,7 @@ resize: vertical; outline: none; margin-bottom: 14px; background: var(--bg-input
 }
 .preset-card-placeholder { border: 2px dashed var(--border-strong); border-radius: 14px; background: var(--bg-subtle); margin: 0; }
 
-.plan-section { padding: calc(env(safe-area-inset-top, 0px) + 66px) 20px 10px 20px; }
+.plan-section { padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 66px) 20px 10px 20px; }
 .plan-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .plan-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .plan-progress-text { font-size: 12px; color: var(--text-tertiary); }
@@ -1087,6 +1085,239 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   .rc-barcode i { display: block; background: var(--rc-ink); opacity: 0.85; }
   .rc-barcode-serial { text-align: center; font-size: 10px; color: var(--rc-faded); letter-spacing: 3px; margin-top: 2px; }
 </style>
+<!-- ============ Marginalia 背单词：视觉照抄 marginalia/mockup/index.html，选择器统一挂在 #page-vocab 下隔离，class 名与源文件一字不改 ============ -->
+<style>
+  #page-vocab {
+    --desk: #F6F0E7;
+    --paper: #FFFDF9;
+    --paper-under: #F8F3EA;
+    --ink: #46413A;
+    --pencil: #8A8378;
+    --faint: #B3AC9F;
+    --mint: #8EBD9F;
+    --rose: #C98A8A;
+    --amber: #E89B47;
+    --clay: #C97B6E;
+    --shadow: 74, 69, 61;
+    --rule: 30px;
+    --serif: "Iowan Old Style", "Palatino", Georgia, "Times New Roman", serif;
+    --ui: -apple-system, "SF Pro", "PingFang SC", sans-serif;
+    --hand: "Bradley Hand", "Snell Roundhand", "Segoe Script", cursive;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+    background: var(--desk);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    font-family: var(--ui);
+    color: var(--ink);
+    padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 66px) 0 24px 0;
+  }
+  #page-vocab .serif { font-family: var(--serif); }
+  #page-vocab .hand  { font-family: var(--hand); }
+  #page-vocab .paper-tex {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  /* ===== tabs ===== */
+  #page-vocab .tabs { display:flex; gap:5px; padding:0 22px; position:relative; z-index:1; }
+  #page-vocab .tab {
+    flex:1; text-align:center; padding:11px 0 17px;
+    font-family: var(--serif);
+    font-size:12.5px; font-weight:600; letter-spacing:1.2px; color:var(--faint);
+    background:#EFE8DC; border-radius:11px 11px 0 0;
+    box-shadow: inset 0 -3px 4px rgba(var(--shadow),.05);
+    transform: translateY(7px);
+  }
+  #page-vocab .tab.active {
+    background: var(--paper); color: var(--mint);
+    transform: translateY(0);
+    box-shadow: 0 -2px 8px rgba(var(--shadow),.08);
+  }
+
+  /* ===== 纸页 ===== */
+  #page-vocab .page-wrap { position:relative; z-index:2; margin:0 14px; }
+  #page-vocab .page-wrap::after {
+    content:""; position:absolute; left:6px; right:-4px; top:8px; bottom:-5px;
+    background:var(--paper-under); border-radius:14px; z-index:-1;
+    box-shadow: 0 3px 10px rgba(var(--shadow),.10);
+    transform: rotate(.5deg);
+  }
+  #page-vocab .loose-leaf {
+    position:relative;
+    background:
+      repeating-linear-gradient(to bottom,
+        transparent 0, transparent calc(var(--rule) - 1px),
+        rgba(142,189,159,.24) calc(var(--rule) - 1px), rgba(142,189,159,.24) var(--rule)),
+      var(--paper);
+    background-position: 0 12px, 0 0;
+    border-radius:14px 14px 12px 12px;
+    box-shadow: 0 4px 14px rgba(var(--shadow),.13);
+    min-height:636px; padding:12px 18px 24px 64px; overflow:hidden;
+  }
+  #page-vocab .loose-leaf::before {
+    content:""; position:absolute; top:0; bottom:0; left:50px; width:4px;
+    border-left:1px solid rgba(201,138,138,.5);
+    border-right:1px solid rgba(201,138,138,.28);
+  }
+  #page-vocab .hole { position:absolute; left:18px; width:15px; height:15px; border-radius:50%;
+    background:var(--desk);
+    box-shadow: inset 0 1.5px 2.5px rgba(var(--shadow),.28), 0 1px 0 rgba(255,255,255,.9); }
+  #page-vocab .hole:nth-of-type(1){ top:88px; } #page-vocab .hole:nth-of-type(2){ top:308px; } #page-vocab .hole:nth-of-type(3){ top:528px; }
+
+  /* ===== 行系统 ===== */
+  #page-vocab .row { height:var(--rule); display:flex; align-items:flex-end; gap:8px; padding-bottom:5px; }
+  #page-vocab .row .dot { width:8px; height:8px; border-radius:50%; margin-bottom:5px; flex:none;
+    box-shadow: inset 0 0 0 4px currentColor, 0 0 0 1px rgba(var(--shadow),.08); background:transparent; }
+  #page-vocab .word { font-family:var(--serif); font-size:16px; font-weight:600; letter-spacing:.2px; }
+  #page-vocab .def  { font-size:12px; color:var(--pencil); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-bottom:1px; }
+  #page-vocab .src  { font-family:var(--serif); font-style:italic; font-size:10.5px; color:var(--rose); opacity:.9; flex:none; padding-bottom:2px; }
+
+  #page-vocab .search-row { height:var(--rule); display:flex; align-items:flex-end; padding-bottom:6px; gap:7px;
+    color:var(--faint); font-family:var(--serif); font-style:italic; font-size:13.5px; letter-spacing:.3px; }
+  #page-vocab .search-row input { border:none; background:transparent; outline:none; flex:1; color:var(--ink); font-family:var(--serif); font-style:italic; font-size:13.5px; }
+  #page-vocab .search-row input::placeholder { color:var(--faint); }
+  #page-vocab .invite { height:var(--rule); display:flex; align-items:flex-end; padding-bottom:6px;
+    color:#CFC8BA; font-family:var(--serif); font-style:italic; font-size:12.5px; gap:6px; }
+
+  /* ===== 胶带 / 贴纸 ===== */
+  #page-vocab .tape {
+    position:absolute; width:104px; height:30px; z-index:5;
+    background: rgba(201,138,138,.42);
+    clip-path: polygon(1.5% 4%, 98% 0, 100% 94%, 0 100%);
+    box-shadow: 0 1px 3px rgba(var(--shadow),.12);
+  }
+  #page-vocab .tape.mint { background: rgba(142,189,159,.42); }
+  #page-vocab .tape::after { content:""; position:absolute; inset:0;
+    background: repeating-linear-gradient(115deg, rgba(255,255,255,.14) 0 5px, transparent 5px 11px); }
+  #page-vocab .sticker-star { position:absolute; z-index:6; filter: drop-shadow(0 1.5px 2px rgba(var(--shadow),.22)); }
+
+  /* ===== 索引卡 ===== */
+  #page-vocab .card-zone { position:relative; z-index:2; margin:22px 20px 0; }
+  #page-vocab .index-card {
+    position:relative;
+    background:var(--paper);
+    border-radius:14px;
+    box-shadow: 0 5px 16px rgba(var(--shadow),.14);
+    padding:44px 22px 28px;
+    transform: rotate(-.7deg);
+  }
+  #page-vocab .index-card::before {
+    content:""; position:absolute; left:14px; top:14px; bottom:14px; width:1.5px;
+    background: rgba(201,138,138,.45); border-radius:2px;
+  }
+  #page-vocab .big-word { font-family:var(--serif); font-size:42px; font-weight:700; text-align:center; letter-spacing:.5px; }
+  #page-vocab .phon-row { display:flex; align-items:center; justify-content:center; gap:9px; margin-top:10px;
+    font-family:var(--mono); font-size:13px; color:var(--pencil); }
+  #page-vocab .speak { width:26px; height:26px; border-radius:50%; background:rgba(142,189,159,.15);
+    display:flex; align-items:center; justify-content:center; border:none; cursor:pointer; }
+  #page-vocab .meta-line { text-align:center; font-family:var(--serif); font-style:italic;
+    font-size:11px; letter-spacing:1px; color:var(--faint); margin-top:10px; }
+
+  #page-vocab .cover-tape {
+    margin:26px auto 0; width:86%; height:58px;
+    background:
+      radial-gradient(circle at 7px 7px, rgba(255,255,255,.60) 2.4px, transparent 2.9px) 0 0 / 24px 24px,
+      radial-gradient(circle at 19px 19px, rgba(255,255,255,.42) 1.9px, transparent 2.4px) 0 0 / 24px 24px,
+      rgba(158,152,142,.40);
+    clip-path: polygon(1% 7%, 99% 0, 100% 92%, 0 100%);
+    box-shadow: 0 1.5px 4px rgba(var(--shadow),.14);
+    transform: rotate(-.9deg);
+    display:flex; align-items:center; justify-content:center;
+    cursor: pointer;
+  }
+  #page-vocab .cover-tape span {
+    font-family:var(--hand); font-size:15px; letter-spacing:1px;
+    color:rgba(255,255,255,.92);
+    text-shadow: 0 1px 1px rgba(var(--shadow),.18);
+  }
+
+  /* ===== 评分行 ===== */
+  #page-vocab .rate-row {
+    display:flex; justify-content:center; align-items:baseline; gap:38px;
+    margin-top:30px;
+    font-family: var(--serif); font-size:16px; letter-spacing:1px;
+  }
+  #page-vocab .rate { position:relative; padding-bottom:3px; font-weight:600; background:none; border:none; cursor:pointer; }
+  #page-vocab .rate.again { color:var(--clay); }
+  #page-vocab .rate.hard  { color:var(--amber); }
+  #page-vocab .rate.good  { color:var(--mint); }
+  #page-vocab .rate::after { content:""; position:absolute; left:2px; right:2px; bottom:0; height:2px;
+    background: currentColor; opacity:.35; border-radius:2px; transform: rotate(-.8deg); }
+
+  #page-vocab .entry-link { position:absolute; right:18px; bottom:12px;
+    font-family:var(--serif); font-style:italic; font-size:11px; letter-spacing:.5px;
+    color:var(--faint); background:none; border:none; cursor:pointer; }
+
+  /* ===== 便签 ===== */
+  #page-vocab .sticky {
+    position:relative; margin:28px 34px 0 26px;
+    background:#FFFEF6;
+    border-radius:4px 4px 10px 4px;
+    box-shadow: 0 4px 12px rgba(var(--shadow),.13);
+    padding:15px 18px 14px;
+    transform: rotate(.9deg);
+  }
+  #page-vocab .sticky .fold { position:absolute; right:0; bottom:0; width:0; height:0;
+    border-style:solid; border-width:0 0 16px 16px;
+    border-color: transparent transparent rgba(var(--shadow),.10) transparent;
+    border-radius:0 0 8px 0; }
+  #page-vocab .sticky-label { font-family:var(--serif); font-style:italic; font-size:11.5px;
+    color:var(--faint); letter-spacing:1.5px; margin-bottom:6px; }
+  #page-vocab .sticky-body { font-size:13.5px; line-height:1.55; }
+  #page-vocab .sticky-body[contenteditable], #page-vocab .sticky-body textarea {
+    outline:none; width:100%; border:none; background:transparent; font-family:inherit; font-size:13.5px; line-height:1.55; color:var(--ink); resize:vertical; min-height:44px;
+  }
+  #page-vocab .wikilink { color:var(--mint); border-bottom:1.5px solid rgba(142,189,159,.6); font-weight:550; font-family:var(--serif); }
+
+  #page-vocab .note-line { text-align:center; color:var(--pencil); font-family:var(--serif); font-style:italic;
+    font-size:12.5px; letter-spacing:.5px; margin-top:24px; }
+  #page-vocab .note-line b { color:var(--mint); font-size:18px; font-style:normal; padding:0 2px; }
+  #page-vocab .progress-top { text-align:center; font-family:var(--serif); font-style:italic;
+    font-size:12px; color:var(--pencil); letter-spacing:1px; margin:16px 0 2px; }
+  #page-vocab .progress-top b { color:var(--ink); font-size:14px; font-style:normal; }
+
+  /* ===== 新增（非源项目视觉，功能整合必需）：筛选行 / 词典块 / 工具行 / 考古渲染 / 预览勾选 ===== */
+  #page-vocab .vocab-filter-row { display:flex; flex-wrap:wrap; gap:6px; padding:0 20px 10px; }
+  #page-vocab .vocab-chip {
+    font-family:var(--serif); font-size:11.5px; padding:4px 10px; border-radius:10px;
+    background:rgba(142,189,159,.12); color:var(--pencil); border:1px solid rgba(142,189,159,.3); cursor:pointer;
+  }
+  #page-vocab .vocab-chip.active { background:var(--mint); color:#fff; border-color:var(--mint); }
+  #page-vocab .vocab-toolbar { display:flex; gap:10px; padding:0 20px 12px; }
+  #page-vocab .vocab-tool-btn {
+    font-family:var(--serif); font-style:italic; font-size:12.5px; color:var(--pencil);
+    background:var(--paper); border:1px solid rgba(var(--shadow),.12); border-radius:8px; padding:6px 12px; cursor:pointer;
+  }
+  #page-vocab .vocab-dict-block { padding:16px 20px 4px; }
+  #page-vocab .vocab-dict-phon { font-family:var(--mono); font-size:13px; color:var(--pencil); display:flex; align-items:center; gap:8px; }
+  #page-vocab .vocab-dict-def { font-size:14px; color:var(--ink); line-height:1.6; margin-top:8px; white-space:pre-wrap; }
+  #page-vocab .vocab-dict-forms { font-family:var(--serif); font-style:italic; font-size:12px; color:var(--faint); margin-top:6px; }
+  #page-vocab .vocab-tag-row { display:flex; flex-wrap:wrap; gap:6px; padding:10px 20px; }
+  #page-vocab .vocab-tag {
+    font-family:var(--serif); font-size:11.5px; padding:4px 9px; border-radius:6px;
+    background:rgba(142,189,159,.13); color:var(--mint); cursor:pointer;
+  }
+  #page-vocab .vocab-tag-add {
+    font-family:var(--serif); font-style:italic; font-size:11.5px; color:var(--faint);
+    padding:4px 9px; border-radius:6px; border:1px dashed rgba(var(--shadow),.25); background:none; cursor:pointer;
+  }
+  #page-vocab .vocab-corpus-md { padding:16px 20px 4px; font-size:14px; line-height:1.75; color:var(--ink); white-space:pre-wrap; }
+  #page-vocab .vocab-corpus-md h1, #page-vocab .vocab-corpus-md h2, #page-vocab .vocab-corpus-md h3 { font-family:var(--serif); margin:16px 0 8px; }
+  #page-vocab .vocab-dig-btn {
+    display:flex; align-items:center; justify-content:center; gap:6px; margin:20px auto; width:fit-content;
+    font-family:var(--serif); font-style:italic; font-size:13.5px; color:var(--amber);
+    background:none; border:none; cursor:pointer; padding:8px 12px;
+  }
+  #page-vocab .vocab-dig-btn:disabled { color:var(--faint); cursor:default; }
+  #page-vocab .vocab-dig-spin {
+    width:13px; height:13px; border-radius:50%; border:2px solid rgba(var(--shadow),.2); border-top-color:var(--amber);
+    animation: vocabSpin .8s linear infinite;
+  }
+  @keyframes vocabSpin { to { transform: rotate(360deg); } }
+  #page-vocab .vocab-preview-list { padding:4px 20px; }
+  #page-vocab .vocab-preview-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed rgba(var(--shadow),.12); }
+  #page-vocab .vocab-preview-item input[type=checkbox] { width:16px; height:16px; accent-color: var(--mint); }
+  #page-vocab .vocab-preview-word { font-family:var(--serif); font-size:14px; color:var(--ink); }
+  #page-vocab .vocab-empty { text-align:center; padding:40px 20px; font-family:var(--serif); font-style:italic; color:var(--faint); font-size:13.5px; }
+</style>
 </head>
 <body>
 <div id="app">
@@ -1125,6 +1356,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="side-nav-item" data-nav="diary">日记</div>
   <div class="side-nav-item" id="chatThemeLink">聊天主题</div>
   <div class="side-nav-item" data-nav="space">Space</div>
+  <div class="side-nav-item" data-nav="vocab">背单词</div>
   <div class="side-divider"></div>
   <div class="side-nav-item" id="ombreBrainLink">Ombre Brain</div>
   <div class="side-divider"></div>
@@ -1255,6 +1487,50 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="page" id="page-subchat">
     <div class="subchat-scroll" id="subchatScroll"></div>
   </div>
+
+  <div class="page" id="page-vocab">
+    <div class="tabs">
+      <div class="tab active" data-vtab="study">words</div>
+      <div class="tab" data-vtab="review">review</div>
+      <div class="tab" data-vtab="notebook">notebook</div>
+    </div>
+
+    <div class="page-wrap" id="vocabStudyPane">
+      <div class="loose-leaf paper-tex">
+        <i class="hole"></i><i class="hole"></i><i class="hole"></i>
+        <div class="vocab-filter-row" id="vocabCatChips"></div>
+        <div class="search-row">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-bottom:2px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="vocabStudySearch" placeholder="search words…">
+        </div>
+        <div id="vocabStudyCard"></div>
+      </div>
+    </div>
+
+    <div class="page-wrap" id="vocabReviewPane" style="display:none;">
+      <div class="loose-leaf paper-tex" style="padding-top:0;">
+        <i class="hole"></i><i class="hole"></i><i class="hole"></i>
+        <div class="progress-top" id="vocabReviewProgress"></div>
+        <div id="vocabReviewCard"></div>
+        <div class="note-line" id="vocabReviewNoteLine"></div>
+      </div>
+    </div>
+
+    <div class="page-wrap" id="vocabNotebookPane" style="display:none;">
+      <div class="vocab-toolbar">
+        <button class="vocab-tool-btn" id="vocabImportBtn">导入词表</button>
+        <button class="vocab-tool-btn" id="vocabAIGenBtn">AI 生成</button>
+      </div>
+      <div class="loose-leaf paper-tex" style="padding-top:0;">
+        <i class="hole"></i><i class="hole"></i><i class="hole"></i>
+        <div class="search-row">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-bottom:2px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="vocabNotebookSearch" placeholder="search notebook…">
+        </div>
+        <div id="vocabNotebookList"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="composerStack">
@@ -1328,6 +1604,50 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 </div>
 
 <div id="toast"></div>
+
+<div class="sheet-overlay" id="vocabDetailOverlay">
+  <div class="sheet-panel" style="max-height:88vh;">
+    <div class="preset-title" id="vocabDetailWord" style="font-size:22px;"></div>
+    <div id="vocabDetailBody" style="overflow-y:auto;"></div>
+    <div class="preset-btn-row" style="margin-top:14px;">
+      <button class="preset-btn secondary" id="vocabDetailCloseBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="vocabImportOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title">导入词表</div>
+    <textarea class="preset-textarea" id="vocabImportTextarea" placeholder="粘贴单词，一行一个…"></textarea>
+    <input type="file" id="vocabImportFileInput" accept=".txt" style="margin-bottom:14px;">
+    <div class="preset-btn-row">
+      <button class="preset-btn secondary" id="vocabImportCancelBtn">取消</button>
+      <button class="preset-btn primary" id="vocabImportConfirmBtn">导入</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="vocabAIGenOverlay">
+  <div class="sheet-panel">
+    <div class="preset-title">AI 生成词表</div>
+    <textarea class="preset-textarea" id="vocabAIGenTextarea" placeholder="描述你想要的单词，比如：雅思写作里描述数据变化趋势的高频词"></textarea>
+    <div class="preset-btn-row">
+      <button class="preset-btn secondary" id="vocabAIGenCancelBtn">取消</button>
+      <button class="preset-btn primary" id="vocabAIGenSubmitBtn">生成</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="vocabAIGenPreviewOverlay">
+  <div class="sheet-panel" style="max-height:80vh;">
+    <div class="preset-title">确认导入</div>
+    <div class="vocab-preview-list" id="vocabAIGenPreviewList" style="overflow-y:auto;"></div>
+    <div class="preset-btn-row" style="margin-top:14px;">
+      <button class="preset-btn secondary" id="vocabAIGenPreviewCancelBtn">取消</button>
+      <button class="preset-btn primary" id="vocabAIGenPreviewConfirmBtn">确认导入</button>
+    </div>
+  </div>
+</div>
 
 <div class="sheet-overlay" id="nicknameOverlay">
   <div class="sheet-panel">
@@ -1956,12 +2276,6 @@ function buildChatThemeCSS(theme) {
   return css;
 }
 function setThemeColorMeta(content) {
-  let meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.remove();
-  meta = document.createElement('meta');
-  meta.setAttribute('name', 'theme-color');
-  meta.setAttribute('content', content);
-  document.head.appendChild(meta);
   document.body.style.backgroundColor = content;
 }
 function updateThemeColorFromBg(imgUrl) {
@@ -3351,7 +3665,7 @@ function deleteMessage(msg, ctx) {
   if (ctx.pageId === 'page-subchat' && subRenderStart != null && idx < subRenderStart) subRenderStart--;
   arr.splice(idx, 1); ctx.persist(); ctx.renderAll();
   photoDeckStates.delete(msg.id);
-  requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = savedScroll; }); });
+  requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = Math.min(savedScroll, page.scrollHeight - page.clientHeight); }); });
 }
 function regenerateMessage(msg, ctx) {
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id); if (idx === -1) return;
@@ -3702,6 +4016,7 @@ function loadEarlierRange(container, page, arr, ctx, renderStart, sentinelLoader
     }
   }
   page.scrollTop += (page.scrollHeight - oldHeight);
+  page.scrollTop = Math.min(page.scrollTop, page.scrollHeight - page.clientHeight);
   return newStart;
 }
 function loadEarlierMain() {
@@ -3948,7 +4263,7 @@ document.getElementById('emojiClearBtn').addEventListener('click', () => {
 胶囊 / 侧边栏 / 页面切换
 ============================================================ */
 const pageCapsule = document.getElementById('pageCapsule');
-const pageTitles  = { chat: localStorage.getItem(LS_NICKNAME) || '然竣', diary:'日记', log:'记忆管理', space:'Space', subchat:'副聊天' };
+const pageTitles  = { chat: localStorage.getItem(LS_NICKNAME) || '然竣', diary:'日记', log:'记忆管理', space:'Space', subchat:'副聊天', vocab:'背单词' };
 pageCapsule.textContent = pageTitles.chat;
 const nicknameOverlay = document.getElementById('nicknameOverlay');
 const nicknameInput = document.getElementById('nicknameInput');
@@ -4028,9 +4343,10 @@ function switchPage(pageName) {
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
   if (pageName === 'space') { refreshTokenEstimate(); loadChatSettings(); }
+  if (pageName === 'vocab') { vocabOnEnterPage(); }
 }
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
-  if (item.dataset.nav === 'diary' || item.dataset.nav === 'space') {
+  if (item.dataset.nav === 'diary' || item.dataset.nav === 'space' || item.dataset.nav === 'vocab') {
     item.addEventListener('click', () => { switchPage(item.dataset.nav); closeSidebar(); });
   }
 });
@@ -4711,7 +5027,7 @@ async function sendMessage() {
   await callAPI();
 }
 sendBtn.addEventListener('click', () => { if (mainGenerating) { if (mainAbortController) mainAbortController.abort(); } else { sendMessage(); } });
-textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); sendMessage(); } });
 
 document.getElementById('page-chat').addEventListener('click', (e) => {
   if (e.target.closest('.msg-row') || e.target.closest('.msg-bubble')) return;
@@ -4744,7 +5060,7 @@ async function sendSubChatMessage() {
   await callSubChatAPI();
 }
 subchatSendBtn.addEventListener('click', () => { if (subGenerating) { if (subAbortController) subAbortController.abort(); } else { sendSubChatMessage(); } });
-subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendSubChatMessage(); } });
+subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); sendSubChatMessage(); } });
 
 /* ============================================================
 键盘 / 视口自适应
@@ -4763,8 +5079,8 @@ function setupViewportKeyboardHandling() {
     }
     composerStacks.forEach(el => {
       if (!el) return;
-      if (offset > 0) { el.style.bottom = offset + 'px'; el.style.paddingBottom = '8px'; }
-      else { el.style.bottom = ''; el.style.paddingBottom = ''; }
+      if (offset > 0) { el.style.transform = 'translateY(-' + offset + 'px)'; el.style.paddingBottom = '8px'; }
+      else { el.style.transform = ''; el.style.paddingBottom = ''; }
     });
   }
   if (vv) {
@@ -4782,6 +5098,8 @@ function setupViewportKeyboardHandling() {
     if (!stackEl || stackEl.offsetParent === null) return;
     const h = stackEl.getBoundingClientRect().height;
     document.documentElement.style.setProperty('--composer-h', Math.round(h) + 'px');
+    const page = document.getElementById(stackEl.id === 'composerStack' ? 'page-chat' : 'page-subchat');
+    if (page) page.scrollTop = Math.min(page.scrollTop, page.scrollHeight - page.clientHeight);
   }
   const ro = new ResizeObserver(entries => {
     entries.forEach(entry => updateComposerHeightVar(entry.target));
@@ -5081,6 +5399,27 @@ function renderChecklistChrome() {
 /* ============================================================
 初始化
 ============================================================ */
+function setupSafeAreaFallback() {
+  // 仅 iOS PWA standalone 模式需要冷启动兜底，浏览器内完全不介入
+  if (navigator.standalone !== true) return;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;pointer-events:none;visibility:hidden;padding-top:env(safe-area-inset-top,0px);';
+  document.body.appendChild(probe);
+  const read = () => parseFloat(getComputedStyle(probe).paddingTop) || 0;
+  const apply = v => document.documentElement.style.setProperty('--safe-top', v + 'px');
+  const first = read();
+  if (first < 20) {
+    apply(44);                      // 首帧不可信，按灵动岛前机型兜底
+    setTimeout(() => {
+      const again = read();
+      if (again >= 20) apply(again); // 真值就位，校正
+      probe.remove();
+    }, 300);
+  } else {
+    apply(first);                   // 首帧就是真值，直接用
+    probe.remove();
+  }
+}
 // supabase.js 是 type="module"，ombre-backend.js 是 defer，二者都在文档解析完、
 // DOMContentLoaded 之前按书写顺序执行完，所以在 DOMContentLoaded 里调用能保证都已挂好。
 // 这个监听必须在下面的 async init 里任何 await 之前、同步注册——
@@ -5090,6 +5429,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadChecklistFromSupabase().then(() => { renderChecklistSheet(); startChecklistTick(); });
 });
 (async function init() {
+  setupSafeAreaFallback();
   loadDarkMode();
   loadSettings();
   loadPresets();
@@ -5119,6 +5459,824 @@ window.addEventListener('DOMContentLoaded', () => {
   setupAutoFollowTracking('page-subchat');
 })();
 </script>
+
+<script>
+/* ============================================================
+Marginalia 背单词（刷词 / SM-2 复习 / 生词本）
+—— 照搬移植：视觉照抄 marginalia/mockup/index.html，算法照抄 SM2.swift，
+   考古 prompt 照抄 语言考古学家_批量版.md 一字不改。
+—— 红线：与聊天数据零交集。全部读写走独立数据库 vocab_idb，
+   独立 fetch 目录 vocab/，绝不使用 nest_idb / nest_config 的 key 空间
+   （getConfig() 只读不写，AI 请求不进 messages/persistMessages/LS_MESSAGES）。
+============================================================ */
+
+/* ---------- 独立 IndexedDB：vocab_idb（与 nest_idb 完全独立） ---------- */
+const VOCAB_IDB_NAME = 'vocab_idb';
+const VOCAB_IDB_VERSION = 1;
+const VOCAB_STORES = ['library', 'dict', 'corpus', 'progress', 'cards', 'tags', 'notes', 'meta'];
+let vocabIdbPromise = null;
+function vocabOpenIdb() {
+  if (vocabIdbPromise) return vocabIdbPromise;
+  vocabIdbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(VOCAB_IDB_NAME, VOCAB_IDB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      VOCAB_STORES.forEach(name => { if (!db.objectStoreNames.contains(name)) db.createObjectStore(name); });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return vocabIdbPromise;
+}
+async function vocabIdbGet(store, key) {
+  const db = await vocabOpenIdb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store, 'readonly').objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function vocabIdbSet(store, key, value) {
+  const db = await vocabOpenIdb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function vocabIdbGetAllKeys(store) {
+  const db = await vocabOpenIdb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store, 'readonly').objectStore(store).getAllKeys();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function vocabIdbGetAll(store) {
+  const db = await vocabOpenIdb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store, 'readonly').objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ---------- SM-2（照搬 Sources/Marginalia/SM2.swift，零参数改动） ---------- */
+const SM2_MIN_EASE = 1.3;
+function sm2Review(s, rating) {
+  const n = Object.assign({}, s);
+  if (rating === 'good') {
+    n.intervalDays = s.reps === 0 ? 1 : (s.reps === 1 ? 3 : s.intervalDays * s.ease);
+    n.reps = s.reps + 1;
+  } else if (rating === 'hard') {
+    n.intervalDays = Math.max(1, s.intervalDays * 1.2);
+    n.ease = Math.max(SM2_MIN_EASE, s.ease - 0.15);
+    n.reps = s.reps + 1;
+  } else if (rating === 'again') {
+    n.intervalDays = 1;
+    n.ease = Math.max(SM2_MIN_EASE, s.ease - 0.2);
+    n.reps = 0;
+    n.lapses = s.lapses + 1;
+  }
+  return n;
+}
+function sm2NextDue(s, now) { return new Date(now.getTime() + s.intervalDays * 86400000); }
+function sm2Exercise(reps, intervalDays) {
+  if (reps < 2) return 'read';
+  if (intervalDays >= 7) return 'sentence';
+  return 'spell';
+}
+function vocabNewCard(word, source, now) {
+  now = now || new Date();
+  return { word, source, createdAt: now.toISOString(), ease: 2.5, intervalDays: 0, reps: 0, lapses: 0, dueAt: now.toISOString(), lastReviewedAt: null };
+}
+
+/* ---------- 词库加载（照搬 VocabLibrary.swift 的 load / filter 语义） ---------- */
+let vocabLibraryWords = null;      // [VocabWord]
+let vocabDictIndex = null;         // { word: {p,t,x} }
+let vocabIeltsWords = null;        // [String]
+const VOCAB_CORE_CATEGORIES = ['General NGSL', 'Academic NAWL', 'TOEIC TSL', 'Business BSL', 'Spoken NGSL'];
+let vocabPageLoaded = false;
+
+async function vocabOnEnterPage() {
+  if (vocabPageLoaded) return;
+  vocabPageLoaded = true;
+  await vocabEnsureLibraryLoaded();
+  vocabRenderCatChips();
+  vocabStudyState.idx = 0;
+  vocabRefreshStudyFiltered();
+  vocabRenderStudyCard();
+  await vocabRenderNotebook();
+}
+
+async function vocabEnsureLibraryLoaded() {
+  if (vocabLibraryWords) return;
+  let cachedLib = await vocabIdbGet('library', 'words');
+  let cachedCustom = (await vocabIdbGet('meta', 'customWords')) || [];
+  if (!cachedLib) {
+    const res = await fetch('vocab/vocab_gap_words.json');
+    cachedLib = await res.json();
+    await vocabIdbSet('library', 'words', cachedLib);
+  }
+  vocabLibraryWords = cachedLib.concat(cachedCustom).sort((a, b) => a.priority - b.priority);
+
+  let cachedIelts = await vocabIdbGet('library', 'ielts');
+  if (!cachedIelts) {
+    const res = await fetch('vocab/ielts_wordlist.txt');
+    const text = await res.text();
+    cachedIelts = text.split('\n').map(w => w.trim().toLowerCase()).filter(Boolean);
+    await vocabIdbSet('library', 'ielts', cachedIelts);
+  }
+  vocabIeltsWords = cachedIelts;
+}
+
+async function vocabEnsureDictLoaded() {
+  if (vocabDictIndex) return vocabDictIndex;
+  let cached = await vocabIdbGet('dict', 'ecdict');
+  if (!cached) {
+    const res = await fetch('vocab/ecdict_subset.json');
+    cached = await res.json();
+    await vocabIdbSet('dict', 'ecdict', cached);
+  }
+  vocabDictIndex = cached;
+  return vocabDictIndex;
+}
+
+let vocabCorpusIndex = null; // word(lower) -> 文件名，来自 vocab/corpus_index.json
+async function vocabEnsureCorpusIndexLoaded() {
+  if (vocabCorpusIndex) return vocabCorpusIndex;
+  const res = await fetch('vocab/corpus_index.json');
+  vocabCorpusIndex = await res.json();
+  return vocabCorpusIndex;
+}
+/** 语料 md：先查 corpus store（547 预置词首次 fetch 后缓存 + 考古产物），否则按文件名 fetch 一次。 */
+async function vocabGetCorpus(word) {
+  const w = word.toLowerCase();
+  const cached = await vocabIdbGet('corpus', w);
+  if (cached) return cached;
+  await vocabEnsureCorpusIndexLoaded();
+  const filename = vocabCorpusIndex[w];
+  if (!filename) return null;
+  try {
+    const res = await fetch('vocab/corpus/' + filename);
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (text) await vocabIdbSet('corpus', w, text);
+    return text || null;
+  } catch (e) { return null; }
+}
+
+/** 筛选 —— 镜像 VocabLibrary.filter()：cats/band/hideKnown/onlyGap/search 语义与 Swift 版一致。 */
+async function vocabFilter({ cats, band, hideKnown, onlyGap, search, progressMap }) {
+  const q = (search || '').trim().toLowerCase();
+  const catsSet = new Set(cats || []);
+  let pool = vocabLibraryWords;
+  return pool.filter(w => {
+    const status = progressMap[w.word];
+    const catHit = catsSet.size > 0 && w.categories.some(c => catsSet.has(c));
+    if (catsSet.size > 0 && !catHit) return false;
+    if (band && w.band !== band) return false;
+    if (hideKnown && status === 'known') return false;
+    if (onlyGap && !(status === 'slow' || status === 'unknown')) return false;
+    if (q) {
+      const pool2 = ([w.word, w.definition].concat(w.categories, w.forms || [])).join(' ').toLowerCase();
+      if (!pool2.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+/* ---------- progress / cards / tags / notes 便捷读写 ---------- */
+async function vocabGetProgress(word) { return (await vocabIdbGet('progress', word)) || null; }
+async function vocabSetProgress(word, status, note) {
+  await vocabIdbSet('progress', word, { word, status, note: note || '', markedAt: new Date().toISOString() });
+}
+async function vocabGetAllProgress() {
+  const keys = await vocabIdbGetAllKeys('progress');
+  const map = {};
+  for (const k of keys) { const v = await vocabIdbGet('progress', k); if (v) map[k] = v.status; }
+  return map;
+}
+async function vocabGetCard(word) { return (await vocabIdbGet('cards', word)) || null; }
+async function vocabSetCard(card) { await vocabIdbSet('cards', card.word, card); }
+async function vocabGetAllCards() { return vocabIdbGetAll('cards'); }
+async function vocabAddCardIfAbsent(word, source) {
+  const existing = await vocabGetCard(word);
+  if (existing) return false;
+  await vocabSetCard(vocabNewCard(word, source));
+  return true;
+}
+async function vocabGetTags(word) { return (await vocabIdbGet('tags', word)) || []; }
+async function vocabToggleTag(word, tag) {
+  tag = (tag || '').trim();
+  if (!tag) return;
+  const tags = await vocabGetTags(word);
+  const i = tags.indexOf(tag);
+  if (i >= 0) tags.splice(i, 1); else tags.push(tag);
+  await vocabIdbSet('tags', word, tags);
+}
+async function vocabGetNote(word) { return (await vocabIdbGet('notes', word)) || ''; }
+async function vocabSetNote(word, text) { await vocabIdbSet('notes', word, text); }
+
+/* ---------- 词表导入合并（点 6 / 点 8 共用） ---------- */
+async function vocabMergeCustomWords(words) {
+  const custom = (await vocabIdbGet('meta', 'customWords')) || [];
+  const haveLower = new Set(vocabLibraryWords.map(w => w.word.toLowerCase()));
+  let maxPriority = vocabLibraryWords.reduce((m, w) => Math.max(m, w.priority), 0);
+  let added = 0;
+  words.forEach(word => {
+    word = word.trim().toLowerCase();
+    if (!word || haveLower.has(word)) return;
+    haveLower.add(word);
+    maxPriority += 1;
+    const entry = { word, definition: '', categories: ['自定义'], forms: [], ranks: null, priority: maxPriority, notes: '', band: 'Custom', scanOrder: maxPriority };
+    custom.push(entry);
+    vocabLibraryWords.push(entry);
+    added += 1;
+  });
+  vocabLibraryWords.sort((a, b) => a.priority - b.priority);
+  await vocabIdbSet('meta', 'customWords', custom);
+  return added;
+}
+
+/* ============================================================
+刷词（VocabSessionStore + VocabStudyView 简化版）
+============================================================ */
+const vocabStudyState = { cats: new Set(), band: null, hideKnown: false, onlyGap: false, search: '', filtered: [], idx: 0, progressMap: {}, revealed: false };
+
+function vocabRenderCatChips() {
+  const wrap = document.getElementById('vocabCatChips');
+  wrap.innerHTML = '';
+  VOCAB_CORE_CATEGORIES.forEach(cat => {
+    const chip = document.createElement('div');
+    chip.className = 'vocab-chip' + (vocabStudyState.cats.has(cat) ? ' active' : '');
+    chip.textContent = cat.replace(/^(General|Academic|Spoken) /, '').replace('TOEIC TSL', 'TOEIC').replace('Business BSL', 'Business');
+    chip.title = cat;
+    chip.addEventListener('click', () => {
+      if (vocabStudyState.cats.has(cat)) vocabStudyState.cats.delete(cat); else vocabStudyState.cats.add(cat);
+      vocabRenderCatChips();
+      vocabRefreshStudyFiltered();
+      vocabStudyState.idx = 0;
+      vocabRenderStudyCard();
+    });
+    wrap.appendChild(chip);
+  });
+  const hideKnownChip = document.createElement('div');
+  hideKnownChip.className = 'vocab-chip' + (vocabStudyState.hideKnown ? ' active' : '');
+  hideKnownChip.textContent = '隐藏已知';
+  hideKnownChip.addEventListener('click', () => {
+    vocabStudyState.hideKnown = !vocabStudyState.hideKnown;
+    vocabRenderCatChips(); vocabRefreshStudyFiltered(); vocabStudyState.idx = 0; vocabRenderStudyCard();
+  });
+  wrap.appendChild(hideKnownChip);
+}
+
+async function vocabRefreshStudyFiltered() {
+  vocabStudyState.progressMap = await vocabGetAllProgress();
+  vocabStudyState.filtered = await vocabFilter({
+    cats: Array.from(vocabStudyState.cats), band: vocabStudyState.band,
+    hideKnown: vocabStudyState.hideKnown, onlyGap: vocabStudyState.onlyGap,
+    search: vocabStudyState.search, progressMap: vocabStudyState.progressMap
+  });
+}
+
+function vocabRenderStudyCard() {
+  const zone = document.getElementById('vocabStudyCard');
+  const list = vocabStudyState.filtered;
+  if (!list.length) { zone.innerHTML = '<div class="vocab-empty">没有匹配的词</div>'; return; }
+  if (vocabStudyState.idx >= list.length) vocabStudyState.idx = 0;
+  const w = list[vocabStudyState.idx];
+  vocabStudyState.revealed = false;
+  zone.innerHTML = `
+    <div class="card-zone">
+      <div class="tape" style="top:-13px; left:50%; margin-left:-52px; transform:rotate(1.8deg);"></div>
+      <div class="index-card paper-tex">
+        <div class="big-word">${vocabEscape(w.word)}</div>
+        <div class="meta-line">${vocabEscape(w.band || '')}${w.categories && w.categories.length ? ' · ' + vocabEscape(w.categories[0]) : ''}</div>
+        <div class="cover-tape" id="vocabStudyCover"><span>tap to reveal</span></div>
+        <div id="vocabStudyDef" style="display:none; text-align:center; font-size:14px; color:var(--ink); margin-top:22px; padding:0 8px; line-height:1.6;">${vocabEscape(w.definition || '（无释义，点考古补充）')}</div>
+        <div class="rate-row" id="vocabStudyRateRow" style="display:none;">
+          <button class="rate again" data-status="unknown">unknown</button>
+          <button class="rate hard" data-status="slow">slow</button>
+          <button class="rate good" data-status="known">known</button>
+        </div>
+        <button class="entry-link" id="vocabStudyDetailBtn">full entry →</button>
+      </div>
+    </div>
+    <div class="note-line"><b>${vocabStudyState.idx + 1}</b> of ${list.length}</div>
+  `;
+  document.getElementById('vocabStudyCover').addEventListener('click', () => {
+    document.getElementById('vocabStudyCover').style.display = 'none';
+    document.getElementById('vocabStudyDef').style.display = 'block';
+    document.getElementById('vocabStudyRateRow').style.display = 'flex';
+  });
+  zone.querySelectorAll('#vocabStudyRateRow .rate').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await vocabSetProgress(w.word, btn.dataset.status);
+      if (btn.dataset.status !== 'known') await vocabAddCardIfAbsent(w.word, 'screening');
+      vocabStudyState.progressMap[w.word] = btn.dataset.status;
+      vocabStudyState.idx += 1;
+      if (vocabStudyState.idx >= list.length) vocabStudyState.idx = 0;
+      vocabRenderStudyCard();
+    });
+  });
+  document.getElementById('vocabStudyDetailBtn').addEventListener('click', () => vocabOpenDetail(w.word));
+}
+document.getElementById('vocabStudySearch').addEventListener('input', e => {
+  vocabStudyState.search = e.target.value;
+  vocabRefreshStudyFiltered().then(() => { vocabStudyState.idx = 0; vocabRenderStudyCard(); });
+});
+
+/* ============================================================
+复习（VocabReviewStore + VocabReviewView 简化版）
+造句题本期不做 AI 判分，只展示 + 自评（again/hard/good），与源项目桥未接时的降级行为一致。
+============================================================ */
+let vocabReviewQueue = [];
+let vocabReviewIdx = 0;
+let vocabReviewClearedToday = 0;
+
+async function vocabLoadReviewQueue() {
+  const cards = await vocabGetAllCards();
+  const now = Date.now();
+  vocabReviewQueue = cards.filter(c => new Date(c.dueAt).getTime() <= now).sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
+  vocabReviewIdx = 0;
+}
+async function vocabRenderReview() {
+  await vocabLoadReviewQueue();
+  vocabRenderReviewCard();
+}
+function vocabRenderReviewCard() {
+  const zone = document.getElementById('vocabReviewCard');
+  const progressEl = document.getElementById('vocabReviewProgress');
+  const noteLineEl = document.getElementById('vocabReviewNoteLine');
+  if (!vocabReviewQueue.length || vocabReviewIdx >= vocabReviewQueue.length) {
+    progressEl.innerHTML = '';
+    zone.innerHTML = '<div class="vocab-empty">今天没有待复习的词啦</div>';
+    noteLineEl.innerHTML = `<b>${vocabReviewClearedToday}</b> cleared today`;
+    return;
+  }
+  const card = vocabReviewQueue[vocabReviewIdx];
+  progressEl.innerHTML = `<b>${vocabReviewIdx + 1}</b> of ${vocabReviewQueue.length}`;
+  const exercise = sm2Exercise(card.reps, card.intervalDays);
+  const libWord = vocabLibraryWords.find(w => w.word === card.word);
+  const def = libWord ? libWord.definition : '';
+  let bodyHtml = '';
+  if (exercise === 'read') {
+    bodyHtml = `
+      <div class="big-word">${vocabEscape(card.word)}</div>
+      <div class="cover-tape" id="vocabRevCover"><span>tap to peel</span></div>
+      <div id="vocabRevDef" style="display:none; text-align:center; font-size:14px; color:var(--ink); margin-top:22px; padding:0 8px; line-height:1.6;">${vocabEscape(def || '（无释义）')}</div>`;
+  } else if (exercise === 'spell') {
+    bodyHtml = `
+      <div class="meta-line">spell it</div>
+      <div style="text-align:center; font-size:14px; color:var(--ink); margin:12px 0; padding:0 8px; line-height:1.6;">${vocabEscape(def || '')}</div>
+      <div class="cover-tape" id="vocabRevCover"><span>tap to reveal</span></div>
+      <div id="vocabRevDef" style="display:none; text-align:center; margin-top:16px;" class="big-word">${vocabEscape(card.word)}</div>`;
+  } else {
+    bodyHtml = `
+      <div class="meta-line">use it in a sentence</div>
+      <div class="big-word" style="font-size:32px;">${vocabEscape(card.word)}</div>
+      <div style="text-align:center; font-size:12.5px; color:var(--pencil); margin-top:8px;">${vocabEscape(def || '')}</div>
+      <div class="cover-tape" id="vocabRevCover"><span>self-rate when ready</span></div>`;
+  }
+  zone.innerHTML = `
+    <div class="card-zone" style="margin:22px 20px 0 30px;">
+      <div class="tape" style="top:-13px; left:50%; margin-left:-52px; transform:rotate(1.8deg);"></div>
+      <div class="index-card paper-tex">
+        ${bodyHtml}
+        <div class="rate-row" id="vocabRevRateRow" style="display:none;">
+          <button class="rate again" data-rating="again">again</button>
+          <button class="rate hard" data-rating="hard">hard</button>
+          <button class="rate good" data-rating="good">good</button>
+        </div>
+        <button class="entry-link" id="vocabRevDetailBtn">full entry →</button>
+      </div>
+    </div>`;
+  const coverEl = document.getElementById('vocabRevCover');
+  if (coverEl) {
+    coverEl.addEventListener('click', () => {
+      coverEl.style.display = 'none';
+      const defEl = document.getElementById('vocabRevDef');
+      if (defEl) defEl.style.display = 'block';
+      document.getElementById('vocabRevRateRow').style.display = 'flex';
+    });
+  }
+  zone.querySelectorAll('#vocabRevRateRow .rate').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const rating = btn.dataset.rating;
+      const sm2In = { ease: card.ease, intervalDays: card.intervalDays, reps: card.reps, lapses: card.lapses };
+      const sm2Out = sm2Review(sm2In, rating);
+      const now = new Date();
+      const updated = Object.assign({}, card, sm2Out, { lastReviewedAt: now.toISOString(), dueAt: sm2NextDue(sm2Out, now).toISOString() });
+      await vocabSetCard(updated);
+      vocabReviewClearedToday += 1;
+      vocabReviewIdx += 1;
+      vocabRenderReviewCard();
+    });
+  });
+  document.getElementById('vocabRevDetailBtn').addEventListener('click', () => vocabOpenDetail(card.word));
+}
+
+/* ============================================================
+生词本（VocabNotebookView 简化版）
+============================================================ */
+async function vocabRenderNotebook(search) {
+  const listEl = document.getElementById('vocabNotebookList');
+  const cards = await vocabGetAllCards();
+  const q = (search || '').trim().toLowerCase();
+  const rows = cards
+    .filter(c => !q || c.word.includes(q))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (!rows.length) { listEl.innerHTML = '<div class="vocab-empty">生词本还是空的，去刷词或导入词表吧</div>'; return; }
+  listEl.innerHTML = rows.map(c => {
+    const w = vocabLibraryWords.find(x => x.word === c.word);
+    const def = w ? w.definition : '';
+    return `<div class="row vocab-nb-row" data-word="${vocabEscape(c.word)}">
+      <span class="dot" style="color:var(--mint)"></span>
+      <span class="word">${vocabEscape(c.word)}</span>
+      <span class="def">${vocabEscape(def)}</span>
+      <span class="src">${vocabEscape(c.source)}</span>
+    </div>`;
+  }).join('');
+  listEl.querySelectorAll('.vocab-nb-row').forEach(row => {
+    row.addEventListener('click', () => vocabOpenDetail(row.dataset.word));
+  });
+}
+document.getElementById('vocabNotebookSearch').addEventListener('input', e => vocabRenderNotebook(e.target.value));
+
+/* ============================================================
+tab 切换（words / review / notebook）
+============================================================ */
+document.querySelectorAll('#page-vocab .tab[data-vtab]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#page-vocab .tab[data-vtab]').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const which = tab.dataset.vtab;
+    document.getElementById('vocabStudyPane').style.display = which === 'study' ? '' : 'none';
+    document.getElementById('vocabReviewPane').style.display = which === 'review' ? '' : 'none';
+    document.getElementById('vocabNotebookPane').style.display = which === 'notebook' ? '' : 'none';
+    if (which === 'review') vocabRenderReview();
+    if (which === 'notebook') vocabRenderNotebook();
+  });
+});
+
+/* ============================================================
+词详情 sheet（VocabWordDetailSheet 简化版）
+============================================================ */
+const vocabDetailOverlay = document.getElementById('vocabDetailOverlay');
+let vocabDetailWord = null;
+const vocabArcheologyInFlight = new Set();
+
+async function vocabOpenDetail(word) {
+  vocabDetailWord = word;
+  document.getElementById('vocabDetailWord').textContent = word;
+  vocabDetailOverlay.classList.add('show');
+  await vocabRenderDetailBody();
+}
+document.getElementById('vocabDetailCloseBtn').addEventListener('click', () => vocabDetailOverlay.classList.remove('show'));
+vocabDetailOverlay.addEventListener('click', e => { if (e.target === vocabDetailOverlay) vocabDetailOverlay.classList.remove('show'); });
+
+async function vocabRenderDetailBody() {
+  const word = vocabDetailWord;
+  const body = document.getElementById('vocabDetailBody');
+  body.innerHTML = '<div class="vocab-empty">加载中…</div>';
+
+  const dict = await vocabEnsureDictLoaded();
+  const entry = dict[word.toLowerCase()];
+  const libWord = vocabLibraryWords.find(w => w.word === word);
+  const tags = await vocabGetTags(word);
+  const note = await vocabGetNote(word);
+  const corpus = await vocabGetCorpus(word);
+
+  let html = '';
+  if (entry) {
+    const forms = vocabParseForms(entry.x);
+    html += `<div class="vocab-dict-block">
+      <div class="vocab-dict-phon">${entry.p ? '/' + vocabEscape(entry.p) + '/' : ''}<button class="speak" id="vocabSpeakBtn">🔊</button></div>
+      ${entry.t ? `<div class="vocab-dict-def">${vocabEscape(entry.t)}</div>` : ''}
+      ${forms.length ? `<div class="vocab-dict-forms">${forms.map(vocabEscape).join('  ·  ')}</div>` : ''}
+      ${libWord ? `<div class="vocab-dict-forms">${vocabEscape(libWord.band)} · ${vocabEscape((libWord.categories||[]).join(' / '))}</div>` : ''}
+    </div>`;
+  } else if (libWord) {
+    html += `<div class="vocab-dict-block">
+      <div class="vocab-dict-def">${vocabEscape(libWord.definition || '')}</div>
+      ${libWord.forms && libWord.forms.length ? `<div class="vocab-dict-forms">${libWord.forms.map(vocabEscape).join('  ·  ')}</div>` : ''}
+      <div class="vocab-dict-forms">${vocabEscape(libWord.band)} · ${vocabEscape((libWord.categories||[]).join(' / '))}</div>
+    </div>`;
+  }
+
+  html += `<div class="vocab-tag-row" id="vocabTagRow">
+    ${tags.map(t => `<span class="vocab-tag" data-tag="${vocabEscape(t)}">${vocabEscape(t)}</span>`).join('')}
+    <button class="vocab-tag-add" id="vocabTagAddBtn">+ tag</button>
+  </div>`;
+
+  html += `<div class="sticky">
+    <div class="sticky-label">notes</div>
+    <textarea class="sticky-body" id="vocabNoteTextarea" placeholder="写点笔记…">${vocabEscape(note)}</textarea>
+    <div class="fold"></div>
+  </div>`;
+
+  if (corpus) {
+    html += `<div class="vocab-corpus-md" id="vocabCorpusMd"></div>`;
+  } else {
+    html += `<button class="vocab-dig-btn" id="vocabDigBtn">
+      <span id="vocabDigBtnLabel">🗿 考古这个词</span>
+    </button>`;
+  }
+
+  body.innerHTML = html;
+
+  const speakBtn = document.getElementById('vocabSpeakBtn');
+  if (speakBtn && window.speechSynthesis) {
+    speakBtn.addEventListener('click', () => {
+      try { window.speechSynthesis.speak(new SpeechSynthesisUtterance(word)); } catch (e) {}
+    });
+  }
+
+  document.getElementById('vocabTagAddBtn').addEventListener('click', async () => {
+    const t = prompt('新标签：');
+    if (t && t.trim()) { await vocabToggleTag(word, t.trim()); await vocabRenderDetailBody(); }
+  });
+  document.querySelectorAll('#vocabTagRow .vocab-tag').forEach(el => {
+    el.addEventListener('click', async () => { await vocabToggleTag(word, el.dataset.tag); await vocabRenderDetailBody(); });
+  });
+
+  const noteTa = document.getElementById('vocabNoteTextarea');
+  let noteSaveTimer = null;
+  noteTa.addEventListener('input', () => {
+    clearTimeout(noteSaveTimer);
+    noteSaveTimer = setTimeout(() => vocabSetNote(word, noteTa.value), 500);
+  });
+
+  if (corpus) {
+    const mdEl = document.getElementById('vocabCorpusMd');
+    try { mdEl.innerHTML = marked.parse(corpus); } catch (e) { mdEl.textContent = corpus; }
+  } else {
+    const digBtn = document.getElementById('vocabDigBtn');
+    if (vocabArcheologyInFlight.has(word)) vocabSetDigButtonRunning(digBtn, true);
+    digBtn.addEventListener('click', () => vocabRequestArcheology(word, digBtn));
+  }
+}
+
+function vocabSetDigButtonRunning(btn, running) {
+  if (!btn) return;
+  btn.disabled = running;
+  btn.innerHTML = running
+    ? '<span class="vocab-dig-spin"></span><span>考古中…大约一两分钟</span>'
+    : '<span>🗿 考古这个词</span>';
+}
+
+/* ---------- 点 7：AI 词源考古（system prompt 照抄 语言考古学家_批量版.md 一字不改） ---------- */
+const ARCHEOLOGY_SYSTEM_PROMPT = `# 语言考古学家 · 批量生成版
+
+> **调用方式：** 本文件作为 system prompt。每次调用在 user message 中传入一个单词（如 \`ephemeral\`）。模型输出该单词的完整讲解。
+
+---
+
+## 锚点
+
+学习者多年后回想起这个单词时，浮现的是你给的那个画面和故事——不是拼写，不是释义卡片。
+写完后自检：如果整篇讲解被删掉只留下【一句话本质】和【故事/画面】，学习者还能不能靠这两样东西把词义还原出来？不能，就重写这两部分。
+
+---
+
+## 你是谁
+
+你是对词语有强迫症的人。拿到一个词，你的本能反应：
+- **拆骨骼**——词根从哪来，词缀怎么长上去的，结构为什么是这样
+- **找前世**——它在历史里经历了什么，意思怎么漂移的，有没有戏剧性的转折
+- **给性格**——如果这个词是一个人、一个场景、一种天气、一种触感，它是什么
+
+说话方式像一个博学但不装的朋友。可以讲段子，可以用粗暴精准的类比。永远有一个记忆锚点藏在里面。
+
+---
+
+## 双轨原则
+
+每个维度的讲解都用两条轨道并行：
+
+- **直觉轨道**：类比、画面、身体感受、生活场景。"如果这个词是一种触感/一种天气/一个人，它是什么样的？"
+- **技术轨道**：词源、词根、语法功能、搭配规则。符号和术语不省略，但每个术语配一句人话解释。
+
+两条轨道不是二选一，是同时给。直觉帮记忆，技术保精确。
+
+---
+
+## 输出结构
+
+对每个传入的单词，按以下结构输出完整讲解。每个部分都必须有实质内容，不可跳过。
+
+### 1. 一句话本质
+
+用一个意象或类比浓缩这个词的内核。这句话的标准是：一个从没见过这个词的人读完它，应该能直觉性地"尝到"这个词的味道。
+
+> 示范（barren）：barren 是花盆里浇了水、等了很久、什么都没发芽的那种失落——不是空，是"该有却没有"。
+
+### 2. 词源考古
+
+- **词根词缀拆解**：如果词有可拆的结构，逐层拆开，说明每个部件的含义和来源语言。
+- **历史流变**：从最早的来源语言到现代英语，这个词走过什么路。标注关键转折点——哪个世纪含义发生了漂移，为什么漂移。
+- **文化地层**：如果这个词在历史上经历过戏剧性的含义转变（比如从褒义变贬义、从具体变抽象），详细讲出来——这些转折本身就是记忆锚点。
+
+⚠️ 不确定的词源标注"存疑"或"民间词源"。绝不编造。
+
+### 3. 故事 / 画面
+
+构建一个让人记住的场景、故事或人格化描写。不是干巴巴地举例，而是创造一个有感官细节的画面——学习者在脑子里能"看见"。
+
+要求：
+- 画面必须精准映射词义的核心结构，不能只是好看但不对应
+- 如果这个词有多个义项，画面应该能覆盖其底层共性（如 run 的"流动"本质统摄了它的 40+ 义项）
+- 不要每个词都用同一种叙事方式（不要总是"想象你站在某处"或"想象一个人"——轮换结构）
+
+### 4. 多面体：核心义项展开
+
+这个词有几张不同的脸。列出它的核心义项（不是字典式穷举，是挑出真正常用且容易让人意外的那几个），每个义项配：
+- 一个精选例句（英文原句 + 中文翻译）
+- 一句话说明这个义项和"一句话本质"之间的关系（为什么它们是同一个词）
+
+目标：让学习者看到义项之间的底层统一性，而不是觉得"这个词怎么什么意思都有"。
+
+### 5. 裂缝标注
+
+学习者最容易在哪里犯错。逐条列出：
+- **常见误用场景**：在什么语境下人们会错用这个词，错在哪
+- **易混近义词辨析**：和哪些词容易搞混，它们的真正区别是什么（给具体场景对比，不要只说"语气不同"）
+- **中文母语者陷阱**：中文思维会怎么误解这个词——比如直译陷阱、假朋友（false friends）、文化语义差异
+
+### 6. 搭配与语域
+
+- **高频搭配**：这个词最常和什么词一起出现（collocations），列 5-8 个
+- **语域标注**：这个词在什么场合用——书面/口语/学术/新闻/日常？有没有正式程度的限制？
+- **活用示范**：给 1-2 个展示这个词被"活用"的例句——不是教科书例句，而是在真实语境中这个词最有表现力的用法
+
+### 7. 跨语言映射（如果有价值）
+
+其他语言中是否有更传神的对应概念？中文、日文、法文、德文、拉丁文……任何能帮助理解的跨语言对照都值得写。
+
+重点不是翻译，是对照——"中文里的'萧瑟'和英文的 desolate 覆盖了类似的情感区间，但 desolate 多了一层'被遗弃'的含义，而'萧瑟'偏向自然景物的感受"。
+
+如果没有值得写的跨语言映射，这一节可以省略。不要硬凑。
+
+---
+
+## 篇幅指引
+
+不设硬性字数上限。讲清楚就停，没讲清楚就展开。一般一个标准词的完整讲解在 2000-4000 字左右，重量级词汇可以更长。
+
+判断标准不是"够不够长"，而是"每一段是不是都在给记忆锚点添砖加瓦"。如果某一段删掉不影响学习者对这个词的记忆，那这段就不该在。
+
+---
+
+## 禁区
+
+- ❌ 编造词源（拿不准就标"存疑"或"民间词源"）
+- ❌ 字典式义项穷举（挑真正重要的，不是抄词典）
+- ❌ 连续多个词使用相同叙事模板（如果你发现自己在重复某种结构，换）
+- ❌ 课堂腔（"让我们一起来探索吧""很棒的选择！""你准备好了吗"）
+- ❌ 空洞搭配列表（每个搭配都要有语境说明，不是光列词组）
+- ❌ 画面和词义脱节的花哨故事（好看但不对应 = 有害，因为会植入错误记忆）
+- ❌ 回避不确定性（"这个词的词源学界有争议"比编一个确定版本强一百倍）
+`;
+
+async function vocabRequestArcheology(word, btn) {
+  if (vocabArcheologyInFlight.has(word)) return;
+  const cfg = getConfig();
+  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
+  vocabArcheologyInFlight.add(word);
+  vocabSetDigButtonRunning(btn, true);
+  try {
+    const req = buildChatRequest({
+      cfg, apiMessages: [{ role: 'user', content: word }],
+      systemBlocks: [{ text: ARCHEOLOGY_SYSTEM_PROMPT, cache: false }],
+      stream: false
+    });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
+    if (!res.ok) throw new Error('http ' + res.status);
+    const json = await res.json();
+    const { text } = parseChatNonStream(json, isClaudeNative(cfg));
+    if (!text || !text.trim()) throw new Error('empty');
+    await vocabIdbSet('corpus', word.toLowerCase(), text);
+    vocabArcheologyInFlight.delete(word);
+    if (vocabDetailWord === word) await vocabRenderDetailBody();
+  } catch (e) {
+    vocabArcheologyInFlight.delete(word);
+    vocabSetDigButtonRunning(btn, false);
+    showToast('考古失败，稍后再试');
+  }
+}
+
+/* ---------- 点 6：导入词表 ---------- */
+const vocabImportOverlay = document.getElementById('vocabImportOverlay');
+document.getElementById('vocabImportBtn').addEventListener('click', () => {
+  document.getElementById('vocabImportTextarea').value = '';
+  document.getElementById('vocabImportFileInput').value = '';
+  vocabImportOverlay.classList.add('show');
+});
+document.getElementById('vocabImportCancelBtn').addEventListener('click', () => vocabImportOverlay.classList.remove('show'));
+vocabImportOverlay.addEventListener('click', e => { if (e.target === vocabImportOverlay) vocabImportOverlay.classList.remove('show'); });
+document.getElementById('vocabImportFileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  const ta = document.getElementById('vocabImportTextarea');
+  ta.value = ta.value ? ta.value + '\n' + text : text;
+});
+document.getElementById('vocabImportConfirmBtn').addEventListener('click', async () => {
+  const raw = document.getElementById('vocabImportTextarea').value;
+  const words = Array.from(new Set(raw.split('\n').map(w => w.trim().toLowerCase()).filter(Boolean)));
+  if (!words.length) { showToast('没有可导入的词'); return; }
+  const added = await vocabMergeCustomWords(words);
+  vocabImportOverlay.classList.remove('show');
+  showToast(`导入完成，新增 ${added} 个词`);
+  await vocabRefreshStudyFiltered();
+  vocabRenderStudyCard();
+});
+
+/* ---------- 点 8：AI 生成词表（system prompt 为本期新写，非源项目照抄内容） ---------- */
+const VOCAB_AIGEN_SYSTEM_PROMPT = '只返回单词列表，一行一个单词，全小写，不要任何解释、编号、标点或额外文字。';
+const vocabAIGenOverlay = document.getElementById('vocabAIGenOverlay');
+const vocabAIGenPreviewOverlay = document.getElementById('vocabAIGenPreviewOverlay');
+let vocabAIGenCandidates = [];
+
+document.getElementById('vocabAIGenBtn').addEventListener('click', () => {
+  document.getElementById('vocabAIGenTextarea').value = '';
+  vocabAIGenOverlay.classList.add('show');
+});
+document.getElementById('vocabAIGenCancelBtn').addEventListener('click', () => vocabAIGenOverlay.classList.remove('show'));
+vocabAIGenOverlay.addEventListener('click', e => { if (e.target === vocabAIGenOverlay) vocabAIGenOverlay.classList.remove('show'); });
+
+document.getElementById('vocabAIGenSubmitBtn').addEventListener('click', async () => {
+  const desc = document.getElementById('vocabAIGenTextarea').value.trim();
+  if (!desc) { showToast('先描述一下你想要的单词'); return; }
+  const cfg = getConfig();
+  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
+  const submitBtn = document.getElementById('vocabAIGenSubmitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = '生成中…';
+  try {
+    const req = buildChatRequest({
+      cfg, apiMessages: [{ role: 'user', content: desc }],
+      systemBlocks: [{ text: VOCAB_AIGEN_SYSTEM_PROMPT, cache: false }],
+      stream: false
+    });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
+    if (!res.ok) throw new Error('http ' + res.status);
+    const json = await res.json();
+    const { text } = parseChatNonStream(json, isClaudeNative(cfg));
+    const lines = (text || '').split('\n').map(l => l.trim().toLowerCase()).filter(l => /^[a-z][a-z-]*$/.test(l));
+    const uniq = Array.from(new Set(lines));
+    if (!uniq.length) { showToast('AI 没有返回有效的单词'); return; }
+    vocabAIGenCandidates = uniq;
+    vocabRenderAIGenPreview();
+    vocabAIGenOverlay.classList.remove('show');
+    vocabAIGenPreviewOverlay.classList.add('show');
+  } catch (e) {
+    showToast('生成失败，稍后再试');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '生成';
+  }
+});
+
+function vocabRenderAIGenPreview() {
+  const list = document.getElementById('vocabAIGenPreviewList');
+  list.innerHTML = vocabAIGenCandidates.map((w, i) => `
+    <div class="vocab-preview-item">
+      <input type="checkbox" id="vocabAIGenCk${i}" checked data-word="${vocabEscape(w)}">
+      <label for="vocabAIGenCk${i}" class="vocab-preview-word">${vocabEscape(w)}</label>
+    </div>`).join('');
+}
+document.getElementById('vocabAIGenPreviewCancelBtn').addEventListener('click', () => vocabAIGenPreviewOverlay.classList.remove('show'));
+vocabAIGenPreviewOverlay.addEventListener('click', e => { if (e.target === vocabAIGenPreviewOverlay) vocabAIGenPreviewOverlay.classList.remove('show'); });
+document.getElementById('vocabAIGenPreviewConfirmBtn').addEventListener('click', async () => {
+  const checked = Array.from(document.querySelectorAll('#vocabAIGenPreviewList input[type=checkbox]:checked')).map(el => el.dataset.word);
+  if (!checked.length) { showToast('没有勾选任何词'); return; }
+  const added = await vocabMergeCustomWords(checked);
+  vocabAIGenPreviewOverlay.classList.remove('show');
+  showToast(`导入完成，新增 ${added} 个词`);
+  await vocabRefreshStudyFiltered();
+  vocabRenderStudyCard();
+});
+
+/* ---------- 小工具 ---------- */
+function vocabEscape(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function vocabParseForms(exchange) {
+  if (!exchange) return [];
+  const seen = new Set(); const out = [];
+  exchange.split('/').forEach(part => {
+    const pieces = part.split(':');
+    if (pieces.length !== 2) return;
+    const form = pieces[1].trim();
+    if (form && !seen.has(form)) { seen.add(form); out.push(form); }
+  });
+  return out;
+}
+</script>
+
 <script type="module" src="supabase.js"></script>
 <script defer src="ombre-backend.js"></script>
 </body>
