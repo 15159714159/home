@@ -2914,8 +2914,20 @@ function scheduleChatSync() {
   clearTimeout(chatSyncTimer);
   chatSyncTimer = setTimeout(flushChatSync, 800);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) flushChatSync(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushChatSync(); else refreshChatsOnResume(); });
 window.addEventListener('pagehide', flushChatSync);
+window.addEventListener('pageshow', refreshChatsOnResume);
+// 事故复盘5：长时间挂起的标签页被浏览器唤醒（bfcache恢复）不会重跑 DOMContentLoaded，initChatSync()
+// 也就不会再执行，画面会一直停留在唤醒前内存里的旧数据上，看起来像"没同步"。所以补一个"回到前台就拉一次云端"
+// 的钩子；refreshChatsFromSupabase 内部已经会拿 localTouchedAt 跟云端 updated_at 比较，本地更新时会
+// 改成推送而不是覆盖，所以这里补拉不会丢掉刚做的新改动。加 chatSyncRefreshing 防止连续触发重叠请求。
+let chatSyncRefreshing = false;
+async function refreshChatsOnResume() {
+  if (!chatSyncReady || chatSyncRefreshing) return;
+  chatSyncRefreshing = true;
+  try { await refreshChatsFromSupabase(); onChatSyncDone(); }
+  finally { chatSyncRefreshing = false; }
+}
 function persistMessages() { safeIdbSet(LS_MESSAGES, messages); try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(Date.now())); } catch(e) {} scheduleChatSync(); }
 async function loadMessages() {
   try { const r = await idbGet(LS_MESSAGES); if (r) messages = r; } catch(e) { messages = []; }
