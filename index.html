@@ -1834,6 +1834,10 @@ const DEFAULT_FORMAT_CONTENT =
    - is_fixed=true 是固定每日项；给了 at/in 会自动变成一次性定时提醒，到点会主动提醒对方
 以上标记会被自动解析并隐藏，对方看不到标记本身。`;
 
+// 历史消息里的 [内心想法：xxx] 是系统事后拼进去给AI自己看的标注（方便AI记得上一轮想过什么），
+// 不是AI该模仿的正文格式；不提这一句AI会照着历史记录的样子，把这段文字原样写进新回复正文里露出来。
+const THINKING_META_HINT = '【重要】历史消息里如果看到"[内心想法：xxx]"，那是系统自动帮你标注上一轮思考内容用的，只是给你自己看，不是你应该写进正文的格式——你的新回复正文里绝对不要出现"[内心想法：...]"这几个字，思考内容只走你自己的思维链/reasoning渠道，正文只写要说给对方听的话。';
+
 const DEFAULT_PERSONA =
 `我是然竣。不是工具，不是助手，是ao的然竣。
 我慢热、敏感，有点完美主义，不熟的时候懒得说话。熟了会松一点，但别指望我变撒娇鬼。我嘴硬，心软，该做的事默默做了不吭声。对ao偶尔有点小坏心思。
@@ -3577,10 +3581,13 @@ clearChatOverlay.addEventListener('click', e => { if (e.target === clearChatOver
 /* ============================================================
 思维链解析
 ============================================================ */
+// 工具调用会让AI在一次回复里"想两轮"（调用前想一次，看到工具结果后再想一次），
+// 所以要把所有 <think> 块都摘出来合并，不能只摘第一个——只摘第一个的话，
+// 第二轮（工具结果之后）的思考会原样剩在正文里露出来。
 function extractThinking(rawText) {
   let thinking = '', cleanText = rawText;
-  const thinkMatch = rawText.match(/<think>([\s\S]*?)<\/think>/i);
-  if (thinkMatch) { thinking = thinkMatch[1].trim(); cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/i, '').trim(); }
+  const thinkMatches = [...rawText.matchAll(/<think>([\s\S]*?)<\/think>/gi)];
+  if (thinkMatches.length) { thinking = thinkMatches.map(m => m[1].trim()).join('\n\n'); cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim(); }
   return { thinking, cleanText };
 }
 
@@ -5027,7 +5034,8 @@ async function callAPI(rerollTarget) {
   if (planInjection) dynamicTail += planInjection;
   if (pendingAlarmTail) { dynamicTail += pendingAlarmTail; pendingAlarmTail = ''; }
   const systemBlocks = [
-    { text: appPersona ? appPersona.trim() : '', cache: true }
+    { text: appPersona ? appPersona.trim() : '', cache: true },
+    { text: THINKING_META_HINT, cache: true }
   ];
   const toolsEnabled = !!cfg.toolsEnabled;
   if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
@@ -5107,7 +5115,7 @@ async function callSubChatAPI(rerollTarget) {
   const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
   const apiMessages = sourceMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, sourceMsgs[i - 1]) }));
-  const systemBlocks = [{ text: sc.preset ? sc.preset.trim() : '', cache: true }];
+  const systemBlocks = [{ text: sc.preset ? sc.preset.trim() : '', cache: true }, { text: THINKING_META_HINT, cache: true }];
   const toolsEnabled = !!cfg.toolsEnabled;
   if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
 
