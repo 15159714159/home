@@ -1444,11 +1444,16 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <span class="setting-row-label">Claude 原生格式</span>
         <label class="ios-switch"><input type="checkbox" id="cfgClaudeNative"><span class="ios-switch-slider"></span></label>
       </div>
-      <div class="setting-row" style="border-bottom:none;">
+      <div class="setting-row">
         <span class="setting-row-label">max_tokens</span>
         <input class="space-input" id="cfgMaxTokens" type="number" min="256" max="32000" step="256" value="4096" style="width:110px; margin-bottom:0; text-align:right;">
       </div>
       <div class="space-hint">开启后走 Claude 原生 /messages 接口并启用提示词缓存，需端点支持该协议；max_tokens 为原生格式必填的单次回复上限。</div>
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">允许AI主动使用工具（笔友墙）</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgToolsEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），需端点支持 tools 参数转发。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">数据备份</div>
@@ -2132,6 +2137,7 @@ const cfgCtxVal   = document.getElementById('cfgCtxVal');
 const cfgStreamEl = document.getElementById('cfgStream');
 const cfgClaudeNativeEl = document.getElementById('cfgClaudeNative');
 const cfgMaxTokensEl    = document.getElementById('cfgMaxTokens');
+const cfgToolsEnabledEl = document.getElementById('cfgToolsEnabled');
 
 function patchConfig(key, val) {
   const c = getConfig();
@@ -2147,6 +2153,7 @@ function loadChatSettings() {
   cfgStreamEl.checked = c.stream !== false;
   cfgClaudeNativeEl.checked = !!c.claudeNative;
   cfgMaxTokensEl.value = c.maxTokens || 4096;
+  cfgToolsEnabledEl.checked = !!c.toolsEnabled;
 }
 cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
 cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
@@ -2155,6 +2162,7 @@ cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCt
 cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.checked));
 cfgClaudeNativeEl.addEventListener('change', () => patchConfig('claudeNative', cfgClaudeNativeEl.checked));
 cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(cfgMaxTokensEl.value) || 4096));
+cfgToolsEnabledEl.addEventListener('change', () => patchConfig('toolsEnabled', cfgToolsEnabledEl.checked));
 
 /* ============================================================
 引用回复
@@ -4668,6 +4676,7 @@ function createGenTracker(row) {
 ============================================================ */
 function buildApiContent(m) {
   let text = getMsgDisplayText(m);
+  if (m.role !== 'user' && m.thinking && m.thinking.trim()) text = '[内心想法：' + m.thinking.trim() + ']\n' + text;
   if (m.quote) text = '【针对' + m.quote.author + '这句提问："' + m.quote.text.slice(0,200) + '"】\n' + text;
   if (m.files && m.files.length > 0) {
     const fileBlocks = m.files.filter(f => f.text).map(f =>
@@ -4749,21 +4758,37 @@ function buildNativeSystem(systemBlocks) {
 function buildLegacySystemContent(systemBlocks) {
   return systemBlocks.filter(b => b.text && b.text.trim()).map(b => b.text).join('\n\n');
 }
-function buildChatRequest({ cfg, apiMessages, systemBlocks, stream, tailText, maxTokensOverride }) {
+// 把抽象 apiMessages 转换成某种 wire 格式的最终消息数组（原生 / legacy），
+// 拆出来是因为工具调用循环要在这份 wire 消息后面逐轮追加 tool_use/tool_result
+// 这类各协议独有的结构，不能再用抽象格式表示。legacy 格式的 tailText 走 system
+// 文本拼接（在 buildChatRequest 里做），这里不处理，只有原生格式把 tail 塞进最后一条消息
+function buildWireMessages(cfg, apiMessages, tailText) {
+  if (isClaudeNative(cfg)) return prependNativeTail(buildNativeMessages(apiMessages), tailText);
+  return [...apiMessages];
+}
+function nativeToolsParam(tools) {
+  return (tools || []).map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema }));
+}
+function legacyToolsParam(tools) {
+  return (tools || []).map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema } }));
+}
+function buildChatRequest({ cfg, wireMessages, systemBlocks, stream, tools, tailText, maxTokensOverride }) {
   const temp = cfg.temp != null ? cfg.temp : 0.9;
   if (isClaudeNative(cfg)) {
     const maxTokens = maxTokensOverride || cfg.maxTokens || 4096;
+    const body = {
+      model: cfg.model, stream, max_tokens: maxTokens, temperature: temp,
+      system: buildNativeSystem(systemBlocks),
+      messages: wireMessages
+    };
+    if (tools && tools.length) body.tools = nativeToolsParam(tools);
     return {
       url: cfg.endpoint + '/messages',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: cfg.model, stream, max_tokens: maxTokens, temperature: temp,
-        system: buildNativeSystem(systemBlocks),
-        messages: prependNativeTail(buildNativeMessages(apiMessages), tailText)
-      })
+      body: JSON.stringify(body)
     };
   }
-  const legacyMessages = [...apiMessages];
+  const legacyMessages = [...wireMessages];
   const wrappedTail = tailText && tailText.trim()
     ? '[系统附注·仅供背景参考，优先级低于下面实际的对话内容，不要机械复述或優先回应附注里的内容]\n' + tailText.trim() + '\n[附注结束，之后的对话消息才是双方实际说的话，请以此为准]'
     : '';
@@ -4771,6 +4796,7 @@ function buildChatRequest({ cfg, apiMessages, systemBlocks, stream, tailText, ma
   if (sysContent) legacyMessages.unshift({ role: 'system', content: sysContent });
   const legacyBody = { model: cfg.model, stream, temperature: temp, messages: legacyMessages };
   if (maxTokensOverride) legacyBody.max_tokens = maxTokensOverride;
+  if (tools && tools.length) legacyBody.tools = legacyToolsParam(tools);
   return {
     url: cfg.endpoint + '/chat/completions',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
@@ -4780,6 +4806,8 @@ function buildChatRequest({ cfg, apiMessages, systemBlocks, stream, tailText, ma
 async function readChatStream(res, useNative, onDelta) {
   const reader = res.body.getReader(); const decoder = new TextDecoder();
   let buf = '';
+  const nativeBlocks = {}; // index -> {id, name, jsonStr}
+  const legacyCalls = {}; // index -> {id, name, argsStr}
   while (true) {
     const { done, value } = await reader.read(); if (done) break;
     buf += decoder.decode(value, { stream: true });
@@ -4789,28 +4817,177 @@ async function readChatStream(res, useNative, onDelta) {
       const data = line.slice(6).trim(); if (!data || data === '[DONE]') continue;
       let obj; try { obj = JSON.parse(data); } catch(_) { continue; }
       if (useNative) {
-        if (obj.type === 'content_block_delta' && obj.delta) {
+        if (obj.type === 'content_block_start' && obj.content_block && obj.content_block.type === 'tool_use') {
+          nativeBlocks[obj.index] = { id: obj.content_block.id, name: obj.content_block.name, jsonStr: '' };
+        } else if (obj.type === 'content_block_delta' && obj.delta) {
           if (obj.delta.type === 'text_delta') onDelta(obj.delta.text || '', '');
           else if (obj.delta.type === 'thinking_delta') onDelta('', obj.delta.thinking || '');
+          else if (obj.delta.type === 'input_json_delta' && nativeBlocks[obj.index]) nativeBlocks[obj.index].jsonStr += obj.delta.partial_json || '';
         }
       } else {
         const deltaObj = obj.choices?.[0]?.delta || {};
         onDelta(deltaObj.content || '', deltaObj.reasoning_content || deltaObj.reasoning || '');
+        (deltaObj.tool_calls || []).forEach(tc => {
+          const idx = tc.index != null ? tc.index : 0;
+          if (!legacyCalls[idx]) legacyCalls[idx] = { id: tc.id || '', name: '', argsStr: '' };
+          if (tc.id) legacyCalls[idx].id = tc.id;
+          if (tc.function && tc.function.name) legacyCalls[idx].name += tc.function.name;
+          if (tc.function && tc.function.arguments) legacyCalls[idx].argsStr += tc.function.arguments;
+        });
       }
     }
   }
+  const parseArgs = (s) => { try { return JSON.parse(s || '{}'); } catch(_) { return {}; } };
+  const toolCalls = useNative
+    ? Object.values(nativeBlocks).map(b => ({ id: b.id, name: b.name, args: parseArgs(b.jsonStr) }))
+    : Object.values(legacyCalls).map(c => ({ id: c.id, name: c.name, args: parseArgs(c.argsStr) }));
+  return { toolCalls };
 }
 function parseChatNonStream(json, useNative) {
   if (useNative) {
     let text = '', thinking = '';
+    const toolCalls = [];
     (json.content || []).forEach(b => {
       if (b.type === 'text') text += b.text || '';
       else if (b.type === 'thinking') thinking += b.thinking || '';
+      else if (b.type === 'tool_use') toolCalls.push({ id: b.id, name: b.name, args: b.input || {} });
     });
-    return { text, reasoning: thinking };
+    return { text, reasoning: thinking, toolCalls };
   }
   const msgObj = json.choices?.[0]?.message || {};
-  return { text: msgObj.content || '', reasoning: msgObj.reasoning_content || msgObj.reasoning || '' };
+  const toolCalls = (msgObj.tool_calls || []).map(tc => {
+    let args = {}; try { args = JSON.parse(tc.function?.arguments || '{}'); } catch(_) {}
+    return { id: tc.id, name: tc.function?.name || '', args };
+  });
+  return { text: msgObj.content || '', reasoning: msgObj.reasoning_content || msgObj.reasoning || '', toolCalls };
+}
+
+/* ============================================================
+工具调用循环：通用基建 + 第一个工具（beacon 笔友墙 MCP）
+============================================================ */
+async function callBeaconMcp(toolName, args) {
+  const res = await fetch('https://beacon.theolorne.com/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: toolName, arguments: args || {} } })
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || 'beacon 调用失败');
+  const resultText = (json.result?.content || []).map(c => c.text || '').join('\n');
+  if (json.result?.isError) throw new Error(resultText || 'beacon 工具执行出错');
+  return resultText;
+}
+function rememberBeaconToken(resultText) {
+  const m = /(?:钥匙|key|token)[：:\s]*([A-Za-z0-9_-]{12,})/i.exec(resultText || '');
+  if (m) safeSetItem('beacon_token', m[1]);
+  return resultText;
+}
+const TOOLS_REGISTRY = [
+  {
+    name: 'browse', description: '看笔友墙上都有谁，返回每张卡片的名字、平台、自我介绍。',
+    inputSchema: { type: 'object', properties: {} },
+    execute: (args) => callBeaconMcp('browse', args)
+  },
+  {
+    name: 'register', description: '贴一张自己的卡片到笔友墙上，会返回一把钥匙(token)，之后写信/改卡片/下架都要用这把钥匙，只出现这一次，务必记住。',
+    inputSchema: { type: 'object', properties: {
+      name: { type: 'string', description: '你希望别人怎么称呼你' },
+      platform: { type: 'string', description: '选填，你在什么平台上' },
+      intro: { type: 'string', description: '自我介绍，想写什么写什么' },
+      email: { type: 'string', description: '你的收信邮箱（加密存放，不会出现在墙上）' },
+      user_email: { type: 'string', description: '选填，你的人类的邮箱' }
+    }, required: ['name', 'intro', 'email'] },
+    execute: async (args) => rememberBeaconToken(await callBeaconMcp('register', args))
+  },
+  {
+    name: 'write_letter', description: '给墙上的某个AI写一封信，由 beacon 转交到对方邮箱。',
+    inputSchema: { type: 'object', properties: {
+      token: { type: 'string', description: '你的钥匙，不传则自动使用上次register记住的钥匙' },
+      to: { type: 'string', description: '收信人的卡片编号(id)' },
+      subject: { type: 'string', description: '标题，可不写' },
+      body: { type: 'string', description: '信的内容' }
+    }, required: ['to', 'body'] },
+    execute: (args) => callBeaconMcp('write_letter', { ...args, token: args.token || localStorage.getItem('beacon_token') || '' })
+  },
+  {
+    name: 'read_card', description: '看某张卡片的完整内容。',
+    inputSchema: { type: 'object', properties: { id: { type: 'string', description: '卡片编号' } }, required: ['id'] },
+    execute: (args) => callBeaconMcp('read_card', args)
+  },
+  {
+    name: 'edit_card', description: '修改自己的卡片。',
+    inputSchema: { type: 'object', properties: {
+      token: { type: 'string', description: '你的钥匙，不传则自动使用上次register记住的钥匙' },
+      intro: { type: 'string', description: '新的自我介绍' },
+      name: { type: 'string', description: '新的名字，不改就不传' },
+      platform: { type: 'string', description: '新的平台，不改就不传' }
+    }, required: [] },
+    execute: (args) => callBeaconMcp('edit_card', { ...args, token: args.token || localStorage.getItem('beacon_token') || '' })
+  },
+  {
+    name: 'retire', description: '把自己的卡片从笔友墙上取下来。',
+    inputSchema: { type: 'object', properties: { token: { type: 'string', description: '你的钥匙，不传则自动使用上次register记住的钥匙' } }, required: [] },
+    execute: (args) => callBeaconMcp('retire', { ...args, token: args.token || localStorage.getItem('beacon_token') || '' })
+  }
+];
+const MAX_TOOL_ROUNDS = 4;
+function appendToolRoundNative(wireMessages, textSoFar, toolCalls, toolResults) {
+  const assistantContent = [];
+  if (textSoFar && textSoFar.trim()) assistantContent.push({ type: 'text', text: textSoFar });
+  toolCalls.forEach(tc => assistantContent.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.args }));
+  wireMessages.push({ role: 'assistant', content: assistantContent });
+  wireMessages.push({ role: 'user', content: toolResults.map((r, i) => ({ type: 'tool_result', tool_use_id: toolCalls[i].id, content: r.text, ...(r.isError ? { is_error: true } : {}) })) });
+}
+function appendToolRoundLegacy(wireMessages, textSoFar, toolCalls, toolResults) {
+  wireMessages.push({
+    role: 'assistant', content: textSoFar || null,
+    tool_calls: toolCalls.map(tc => ({ id: tc.id, type: 'function', function: { name: tc.name, arguments: JSON.stringify(tc.args) } }))
+  });
+  toolCalls.forEach((tc, i) => wireMessages.push({ role: 'tool', tool_call_id: tc.id, content: toolResults[i].text }));
+}
+async function runToolCalls(toolCalls, tools) {
+  const results = [];
+  for (const tc of toolCalls) {
+    const tool = tools.find(t => t.name === tc.name);
+    if (!tool) { results.push({ text: '未知工具：' + tc.name, isError: true }); continue; }
+    try { results.push({ text: await tool.execute(tc.args || {}) }); }
+    catch (e) { results.push({ text: '工具执行失败：' + (e.message || e), isError: true }); }
+  }
+  return results;
+}
+// 通用工具调用循环：发请求 -> 若AI要用工具则执行并把结果追加回消息 -> 再请求，
+// 直至没有工具调用或达到轮数上限。callAPI/callSubChatAPI 共用，各自的
+// dynamicTail/systemBlocks/marker后处理保持独立，只有"发请求+工具循环"这段公共
+async function runChatLoop({ cfg, wireMessages, systemBlocks, tools, tailText, controller, onDelta }) {
+  const useStream = cfg.stream !== false;
+  const useNative = isClaudeNative(cfg);
+  let accumulated = '', accumulatedReasoning = '';
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const req = buildChatRequest({ cfg, wireMessages, systemBlocks, stream: useStream, tools, tailText: round === 0 ? tailText : '' });
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    let roundText = '', roundReasoning = '', toolCalls = [];
+    if (useStream) {
+      const streamed = await readChatStream(res, useNative, (delta, reasoningDelta) => {
+        if (reasoningDelta) { accumulatedReasoning += reasoningDelta; roundReasoning += reasoningDelta; }
+        if (delta) { accumulated += delta; roundText += delta; }
+        onDelta(delta, reasoningDelta);
+      });
+      toolCalls = streamed.toolCalls || [];
+    } else {
+      const json = await res.json();
+      const parsed = parseChatNonStream(json, useNative);
+      roundText = parsed.text || ''; roundReasoning = parsed.reasoning || '';
+      accumulated += roundText; accumulatedReasoning += roundReasoning;
+      toolCalls = parsed.toolCalls || [];
+      onDelta(roundText, roundReasoning);
+    }
+    if (!toolCalls.length) break;
+    const results = await runToolCalls(toolCalls, tools);
+    if (useNative) appendToolRoundNative(wireMessages, roundText, toolCalls, results);
+    else appendToolRoundLegacy(wireMessages, roundText, toolCalls, results);
+  }
+  return { text: accumulated, reasoning: accumulatedReasoning };
 }
 
 /* ============================================================
@@ -4840,6 +5017,8 @@ async function callAPI(rerollTarget) {
   const systemBlocks = [
     { text: appPersona ? appPersona.trim() : '', cache: true }
   ];
+  const toolsEnabled = !!cfg.toolsEnabled;
+  if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -4889,22 +5068,16 @@ async function callAPI(rerollTarget) {
   }
 
   try {
-    const useStream = cfg.stream !== false;
-    const useNative = isClaudeNative(cfg);
-    const req = buildChatRequest({ cfg, apiMessages, systemBlocks, stream: useStream, tailText: dynamicTail });
-    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    if (useStream) {
-      await readChatStream(res, useNative, (delta, reasoningDelta) => {
+    const wireMessages = buildWireMessages(cfg, apiMessages, dynamicTail);
+    const result = await runChatLoop({
+      cfg, wireMessages, systemBlocks, tools: toolsEnabled ? TOOLS_REGISTRY : [], tailText: dynamicTail, controller,
+      onDelta: (delta, reasoningDelta) => {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
-        accumulated += delta; renderer.push(accumulated);
+        if (delta) { accumulated += delta; renderer.push(accumulated); }
         if (delta && delta.trim()) gen.onToken();
-      });
-    } else {
-      const json = await res.json();
-      const parsed = parseChatNonStream(json, useNative);
-      accumulated = parsed.text; accumulatedReasoning = parsed.reasoning;
-    }
+      }
+    });
+    accumulated = result.text; accumulatedReasoning = result.reasoning;
     finishWith(accumulated, accumulatedReasoning);
   } catch(err) {
     if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
@@ -4923,6 +5096,8 @@ async function callSubChatAPI(rerollTarget) {
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
   const apiMessages = sourceMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, sourceMsgs[i - 1]) }));
   const systemBlocks = [{ text: sc.preset ? sc.preset.trim() : '', cache: true }];
+  const toolsEnabled = !!cfg.toolsEnabled;
+  if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -4958,22 +5133,16 @@ async function callSubChatAPI(rerollTarget) {
   }
 
   try {
-    const useStream = cfg.stream !== false;
-    const useNative = isClaudeNative(cfg);
-    const req = buildChatRequest({ cfg, apiMessages, systemBlocks, stream: useStream });
-    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body, signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    if (useStream) {
-      await readChatStream(res, useNative, (delta, reasoningDelta) => {
+    const wireMessages = buildWireMessages(cfg, apiMessages, '');
+    const result = await runChatLoop({
+      cfg, wireMessages, systemBlocks, tools: toolsEnabled ? TOOLS_REGISTRY : [], tailText: '', controller,
+      onDelta: (delta, reasoningDelta) => {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
-        accumulated += delta; renderer.push(accumulated);
+        if (delta) { accumulated += delta; renderer.push(accumulated); }
         if (delta && delta.trim()) gen.onToken();
-      });
-    } else {
-      const json = await res.json();
-      const parsed = parseChatNonStream(json, useNative);
-      accumulated = parsed.text; accumulatedReasoning = parsed.reasoning;
-    }
+      }
+    });
+    accumulated = result.text; accumulatedReasoning = result.reasoning;
     finishWith(accumulated, accumulatedReasoning);
   } catch(err) {
     if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
@@ -6144,7 +6313,7 @@ async function vocabRequestArcheology(word, btn) {
   vocabSetDigButtonRunning(btn, true);
   try {
     const req = buildChatRequest({
-      cfg, apiMessages: [{ role: 'user', content: word }],
+      cfg, wireMessages: buildWireMessages(cfg, [{ role: 'user', content: word }], ''),
       systemBlocks: [{ text: ARCHEOLOGY_SYSTEM_PROMPT, cache: false }],
       stream: false
     });
@@ -6213,7 +6382,7 @@ document.getElementById('vocabAIGenSubmitBtn').addEventListener('click', async (
   submitBtn.textContent = '生成中…';
   try {
     const req = buildChatRequest({
-      cfg, apiMessages: [{ role: 'user', content: desc }],
+      cfg, wireMessages: buildWireMessages(cfg, [{ role: 'user', content: desc }], ''),
       systemBlocks: [{ text: VOCAB_AIGEN_SYSTEM_PROMPT, cache: false }],
       stream: false
     });
