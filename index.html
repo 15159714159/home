@@ -2650,7 +2650,9 @@ async function exportSelectedShot() {
     const customBg = localStorage.getItem(LS_BG);
     stage.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--chat-bg').trim() || '#b2c8d6';
     const bgDiv = document.createElement('div');
-    bgDiv.style.cssText = 'position:absolute;inset:0;z-index:-1;background-size:cover;background-position:center;';
+    // 不用 z-index:-1（html-to-image 的 SVG 渲染环境里负 z-index 不可靠），
+    // 背景层 0 / 内容层 1 的正向层序
+    bgDiv.style.cssText = 'position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;';
     if (customBg) { bgDiv.style.backgroundImage = 'url(' + customBg + ')'; stage.classList.add('has-bg'); }
     else if (theme.id !== 'default' && theme.bg) {
       try { bgDiv.style.backgroundImage = 'url(' + await urlToDataURL(theme.bg) + ')'; } catch (e) {}
@@ -2662,12 +2664,15 @@ async function exportSelectedShot() {
     stage.appendChild(styleEl);
 
     // 重渲染选中消息（ctx=null：无勾选框/长按/版本切换），same-sender 按选中子集重算
+    const contentDiv = document.createElement('div');
+    contentDiv.style.cssText = 'position:relative;z-index:1;';
     let prev = null;
     selected.forEach(m => {
-      if (shouldShowTimeDivider(prev, m)) stage.appendChild(buildTimeDividerRow(m.createdAt));
-      stage.appendChild(buildMsgRow(m, null, prev));
+      if (shouldShowTimeDivider(prev, m)) contentDiv.appendChild(buildTimeDividerRow(m.createdAt));
+      contentDiv.appendChild(buildMsgRow(m, null, prev));
       if (m.role !== 'notice') prev = m;
     });
+    stage.appendChild(contentDiv);
 
     // 裁剪壳隐藏 stage：壳只有 height:0+overflow:hidden，stage 本体样式完全正常，
     // html-to-image 只抓 stage，克隆里不含任何离屏定位
