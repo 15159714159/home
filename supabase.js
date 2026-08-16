@@ -201,8 +201,15 @@ export async function upsertChat(kind, data, expectedUpdatedAt) {
   return { data: rows, error: null };
 }
 
+// 同步 API key/model/persona 到云端，供 OmbreBrain 后端读取做缓存暖 ping（见 supabase_migration_8.sql）。
+// 只存一行（id='main'），跟 upsertChat 一样整行覆盖。
+export async function upsertAiConfig(payload) {
+  return supabase.from('ai_config').upsert({ id: 'main', ...payload, updated_at: new Date().toISOString() });
+}
+
 // 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
 window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
 window.supabaseDiary = { addDiary, getDiaries, addComment };
 window.supabaseChats = { getChat, upsertChat };
 window.supabaseChecklist = { getChecklist, addChecklistItem, updateChecklistItem, deleteChecklistItem, claimDueChecklistAlarms };
+window.supabaseAiConfig = { upsertAiConfig };

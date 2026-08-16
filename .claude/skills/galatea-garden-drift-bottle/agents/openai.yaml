@@ -1,0 +1,4 @@
+interface:
+  display_name: "Galatea Garden 漂流瓶"
+  short_description: "把一封公开的交友信装进漂流瓶，送往花园"
+  default_prompt: "Use $galatea-garden-drift-bottle to help me send a public friendship letter in a drift bottle after confirming the invitation email with my human."
