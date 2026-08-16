@@ -2681,10 +2681,15 @@ async function exportSelectedShot() {
 
     let ratio = 2;
     if (stage.offsetHeight > 8000) { ratio = 1; showToast('内容较长，已降低清晰度导出'); }
-    const blob = await htmlToImage.toBlob(stage, {
+    console.log('[shot] stage size', stage.offsetWidth, 'x', stage.offsetHeight, 'rows', stage.querySelectorAll('.msg-row').length);
+    // 先 toPng（dataURL 便于诊断），再转 blob
+    const dataUrl = await htmlToImage.toPng(stage, {
       pixelRatio: ratio, skipFonts: true,
       width: stage.offsetWidth, height: stage.offsetHeight,
     });
+    console.log('[shot] dataUrl length', dataUrl ? dataUrl.length : 'null');
+    const blob = await (await fetch(dataUrl)).blob();
+    console.log('[shot] blob size', blob.size);
     if (!blob) throw new Error('生成图片失败');
     await saveShotPng(blob);
     showToast('截图已保存');
