@@ -139,6 +139,26 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 #selectDeleteBtn:active { transform: scale(0.92); opacity: 0.7; }
 
+#selectShotBtn {
+background: none; border: none; font-size: 14px; color: var(--text-primary);
+cursor: pointer; padding: 4px 8px;
+transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
+}
+#selectShotBtn:active { transform: scale(0.92); opacity: 0.7; }
+#selectShotBtn:disabled { opacity: 0.4; }
+
+/* 长截图导出用的离屏容器 */
+#shotStage {
+position: fixed; left: -10000px; top: 0; z-index: -1;
+padding: 16px 10px; background-size: cover; background-position: center;
+pointer-events: none;
+}
+#shotStage .gen-thinking, #shotStage .think-cloud, #shotStage .think-content,
+#shotStage .code-copy-btn, #shotStage .msg-version-switcher,
+#shotStage .photo-group-toggle-btn { display: none !important; }
+#shotStage.has-bg .msg-row.user .msg-bubble { background: rgba(254,229,0,0.88); }
+#shotStage.has-bg .msg-row.ai .msg-bubble { background: rgba(255,255,255,0.88); }
+
 .msg-select-cb {
 width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong);
 flex-shrink: 0; display: flex; align-items: center;
@@ -1331,7 +1351,10 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div id="selectBar">
     <button id="selectCancelBtn">取消</button>
     <span id="selectCountLabel">已选 0 项</span>
-    <button id="selectDeleteBtn">删除</button>
+    <div style="display:flex;gap:4px;">
+      <button id="selectShotBtn">截图</button>
+      <button id="selectDeleteBtn">删除</button>
+    </div>
   </div>
 </div>
 
@@ -2164,9 +2187,9 @@ cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.
 cfgCtxEl.addEventListener('input', () => { cfgCtxVal.textContent = cfgCtxEl.value + '字'; });
 cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCtxEl.value)); refreshTokenEstimate(); });
 cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.checked));
-cfgClaudeNativeEl.addEventListener('change', () => patchConfig('claudeNative', cfgClaudeNativeEl.checked));
+cfgClaudeNativeEl.addEventListener('change', () => { patchConfig('claudeNative', cfgClaudeNativeEl.checked); scheduleAiConfigSync(); });
 cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(cfgMaxTokensEl.value) || 4096));
-cfgToolsEnabledEl.addEventListener('change', () => patchConfig('toolsEnabled', cfgToolsEnabledEl.checked));
+cfgToolsEnabledEl.addEventListener('change', () => { patchConfig('toolsEnabled', cfgToolsEnabledEl.checked); scheduleAiConfigSync(); });
 
 /* ============================================================
 引用回复
@@ -2572,6 +2595,112 @@ document.getElementById('selectCancelBtn').addEventListener('click', exitSelectM
 document.getElementById('selectDeleteBtn').addEventListener('click', deleteSelected);
 
 /* ============================================================
+多选长截图导出
+============================================================ */
+let htmlToImageReady = null;
+function loadHtmlToImage() {
+  if (window.htmlToImage) return Promise.resolve();
+  if (htmlToImageReady) return htmlToImageReady;
+  htmlToImageReady = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js';
+    s.onload = resolve;
+    s.onerror = () => { htmlToImageReady = null; reject(new Error('截图组件加载失败，请检查网络')); };
+    document.head.appendChild(s);
+  });
+  return htmlToImageReady;
+}
+async function urlToDataURL(url) {
+  if (!url || url.startsWith('data:')) return url;
+  const blob = await (await fetch(url)).blob();
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result); r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+// 生成 #shotStage 作用域的主题气泡 CSS，theme-assets 图片全部内联为 data URL
+async function buildShotThemeCSS(theme) {
+  if (!theme || theme.id === 'default' || !theme.bubbles) return '';
+  let css = buildChatThemeCSS(theme);
+  css = css.split('#page-chat[data-chat-theme="' + theme.id + '"]').join('#shotStage');
+  const urls = new Set();
+  Object.values(theme.bubbles).forEach(spec => { if (spec && spec.file) urls.add(spec.file); });
+  for (const u of urls) {
+    try { css = css.split('url(' + u + ')').join('url(' + await urlToDataURL(u) + ')'); }
+    catch (e) { /* 拉取失败则保留原相对 URL，交给 html-to-image 兜底 */ }
+  }
+  return css;
+}
+async function exportSelectedShot() {
+  if (selectedIds.size === 0) { showToast('没有选中任何消息'); return; }
+  const btn = document.getElementById('selectShotBtn');
+  btn.disabled = true; showToast('正在生成截图…', 5000);
+  const stage = document.createElement('div');
+  stage.id = 'shotStage';
+  try {
+    await loadHtmlToImage();
+    const selected = messages.filter(m => selectedIds.has(m.id));
+    stage.style.width = Math.min(480, Math.max(320, chatScroll.clientWidth || 390)) + 'px';
+
+    // 背景：自定义背景 > 主题背景 > --chat-bg 纯色
+    const theme = findChatTheme(localStorage.getItem(LS_CHAT_THEME) || 'default');
+    const customBg = localStorage.getItem(LS_BG);
+    stage.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--chat-bg').trim() || '#b2c8d6';
+    if (customBg) { stage.style.backgroundImage = 'url(' + customBg + ')'; stage.classList.add('has-bg'); }
+    else if (theme.id !== 'default' && theme.bg) {
+      try { stage.style.backgroundImage = 'url(' + await urlToDataURL(theme.bg) + ')'; } catch (e) {}
+    }
+    const styleEl = document.createElement('style');
+    styleEl.textContent = await buildShotThemeCSS(theme);
+    stage.appendChild(styleEl);
+
+    // 重渲染选中消息（ctx=null：无勾选框/长按/版本切换），same-sender 按选中子集重算
+    let prev = null;
+    selected.forEach(m => {
+      if (shouldShowTimeDivider(prev, m)) stage.appendChild(buildTimeDividerRow(m.createdAt));
+      stage.appendChild(buildMsgRow(m, null, prev));
+      if (m.role !== 'notice') prev = m;
+    });
+
+    document.body.appendChild(stage);
+    const imgs = Array.from(stage.querySelectorAll('img'));
+    imgs.forEach(img => { img.loading = 'eager'; img.removeAttribute('decoding'); });
+    await Promise.all(imgs.map(img => img.decode().catch(() => {})));
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    let ratio = 2;
+    if (stage.offsetHeight > 8000) { ratio = 1; showToast('内容较长，已降低清晰度导出'); }
+    const blob = await htmlToImage.toBlob(stage, {
+      pixelRatio: ratio, skipFonts: true,
+      width: stage.offsetWidth, height: stage.offsetHeight,
+    });
+    if (!blob) throw new Error('生成图片失败');
+    await saveShotPng(blob);
+    showToast('截图已保存');
+  } catch (e) {
+    console.error('exportSelectedShot failed', e);
+    showToast('截图失败：' + (e.message || e));
+  } finally {
+    stage.remove(); btn.disabled = false;
+  }
+}
+async function saveShotPng(blob) {
+  const d = new Date(); const pad = n => String(n).padStart(2, '0');
+  const name = `chat_shot_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.png`;
+  const file = new File([blob], name, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; }
+    catch (e) { if (e.name === 'AbortError') return; /* 其他错误降级为下载 */ }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('selectShotBtn').addEventListener('click', exportSelectedShot);
+
+/* ============================================================
 悬浮菜单
 ============================================================ */
 function closeFloatingMenus() { document.querySelectorAll('.floating-menu-overlay').forEach(el => el.remove()); }
@@ -2611,6 +2740,7 @@ function persistSettings() {
   safeSetItem(LS_USERNAME, appUsername);
   safeSetItem(LS_NAME, appName);
   safeSetItem(LS_PERSONA, appPersona);
+  scheduleAiConfigSync();
 }
 function applyDarkMode(on) {
   document.documentElement.classList.toggle('dark', on);
@@ -2827,10 +2957,26 @@ function saveConfig() {
   cfg.key      = document.getElementById('cfgKey').value.trim();
   cfg.model    = document.getElementById('cfgModel').value.trim();
   safeSetItem(LS_CONFIG, JSON.stringify(cfg));
+  scheduleAiConfigSync();
   showToast('设置已保存');
 }
 function getConfig() { return JSON.parse(localStorage.getItem(LS_CONFIG) || '{}'); }
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
+
+// 把 key/model/persona 同步一份到 Supabase ai_config 表，供 OmbreBrain 后端读取做缓存暖 ping
+// （见 supabase_migration_8.sql）。只在原生 Claude 格式下才有意义，legacy 格式不需要暖缓存。
+let aiConfigSyncTimer = null;
+function scheduleAiConfigSync() {
+  if (!window.supabaseAiConfig) return;
+  clearTimeout(aiConfigSyncTimer);
+  aiConfigSyncTimer = setTimeout(async () => {
+    const cfg = getConfig();
+    if (!cfg.claudeNative) return;
+    try {
+      await window.supabaseAiConfig.upsertAiConfig({ api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled });
+    } catch(e) { console.warn('AI 配置同步云端失败', e); }
+  }, 800);
+}
 
 const eyeBtn = document.getElementById('eyeBtn');
 const cfgKey = document.getElementById('cfgKey');
@@ -4753,7 +4899,7 @@ function buildNativeMessages(apiMessages) {
   const cacheIdx = native.length - 2;
   if (cacheIdx >= 0 && native[cacheIdx].content.length > 0) {
     const blocks = native[cacheIdx].content;
-    blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: { type: 'ephemeral' } };
+    blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: { type: 'ephemeral', ttl: '1h' } };
   }
   return native;
 }
@@ -4770,7 +4916,7 @@ function prependNativeTail(nativeMessages, tailText) {
 function buildNativeSystem(systemBlocks) {
   return systemBlocks.filter(b => b.text && b.text.trim()).map(b => {
     const block = { type: 'text', text: b.text };
-    if (b.cache) block.cache_control = { type: 'ephemeral' };
+    if (b.cache) block.cache_control = { type: 'ephemeral', ttl: '1h' };
     return block;
   });
 }
