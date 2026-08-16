@@ -155,6 +155,7 @@ position: relative;
 isolation: isolate; /* 建立独立堆叠上下文：让 z-index:-1 的背景图层压在自身背景色之上、内容之下 */
 }
 #shotStage .gen-thinking, #shotStage .think-cloud, #shotStage .think-content,
+#shotStage .tool-notice-row,
 #shotStage .code-copy-btn, #shotStage .msg-version-switcher,
 #shotStage .photo-group-toggle-btn { display: none !important; }
 #shotStage.has-bg .msg-row.user .msg-bubble { background: rgba(254,229,0,0.88); }
@@ -353,6 +354,28 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   max-width: 100%; align-self: flex-start;
 }
 html.dark .think-content { border-left-color: rgba(220,228,232,0.74); }
+.tool-notice-row { display: flex; flex-direction: column; align-items: center; margin: 4px 0 10px; user-select: none; -webkit-user-select: none; }
+.tool-notice-pill {
+  display: inline-flex; align-items: center; gap: 5px; justify-content: center;
+  min-height: 22px; padding: 3px 11px; border-radius: 11px;
+  background: rgba(255,255,255,0.55); color: rgba(20,32,40,0.60);
+  font-size: 11px; line-height: 16px; white-space: nowrap; cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.tool-notice-pill svg { width: 12px; height: 12px; flex-shrink: 0; }
+.tool-notice-pill:active { opacity: 0.6; }
+html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(220,228,232,0.72); }
+.tool-notice-detail {
+  font-size: 12px; color: var(--secondary-text); text-align: left;
+  background: rgba(255,255,255,0.55);
+  line-height: 1.6; padding: 8px 12px; margin-top: 6px; border-radius: 10px;
+  white-space: pre-wrap; word-break: break-word; max-width: 86%; user-select: text; -webkit-user-select: text;
+}
+html.dark .tool-notice-detail { background: rgba(160,180,196,0.16); }
+.tool-notice-detail .tool-call-item + .tool-call-item { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(15,25,32,0.15); }
+html.dark .tool-notice-detail .tool-call-item + .tool-call-item { border-top-color: rgba(220,228,232,0.15); }
+.tool-call-name { font-weight: 600; }
+.tool-call-error { color: #d9534f; }
 .photo-single { width: 168px; height: 168px; border-radius: 12px; overflow: hidden; margin-bottom: 6px; background: var(--bg-elevated); box-shadow: 0 1px 3px rgba(20,30,40,0.12), 0 3px 8px rgba(20,30,40,0.06); }
 .photo-single img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -2026,6 +2049,7 @@ const CHAT_THEMES = [
 ============================================================ */
 const ICONS = {
   cloud: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.7-1.8A4 4 0 0 0 6.5 19h11z"/></svg>',
+  wrench: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 1 0-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 0 0 5.4-5.4l-2.8 2.8-2-2z"/></svg>',
   smile: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
   keyboard: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10"/><line x1="10" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="18" y1="10" x2="18" y2="10"/><line x1="6" y1="14" x2="18" y2="14"/></svg>',
   image: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>',
@@ -3795,6 +3819,7 @@ function refreshRow(msg, ctx) {
   let prev = null;
   for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') { prev = arr[i]; break; } }
   const newRow = buildMsgRow(msg, ctx, prev); oldRow.replaceWith(newRow);
+  if (msg.role !== 'user') syncToolNoticeRow(msg, ctx);
 }
 function switchVersion(msg, ctx, delta) {
   const newIdx = msg.versionIndex + delta;
@@ -4073,6 +4098,54 @@ function buildPhotoGroup(msg, role, ctx) {
   render();
   return group;
 }
+function toolCallSummaryText(tc) {
+  const argsText = (tc.args && Object.keys(tc.args).length) ? JSON.stringify(tc.args) : '';
+  const resultText = (tc.result || '').trim();
+  const resultShown = resultText.length > 500 ? resultText.slice(0, 500) + '…' : resultText;
+  return { argsText, resultShown };
+}
+function toolNoticeLabel(toolCalls) {
+  if (toolCalls.length === 1) return `喵喵调用了 ${toolCalls[0].name} 工具！`;
+  const names = [...new Set(toolCalls.map(tc => tc.name))];
+  return `喵喵调用了工具：${names.join('、')}`;
+}
+function buildToolNoticeRow(msg) {
+  const toolCalls = msg.toolCalls;
+  const row = document.createElement('div'); row.className = 'tool-notice-row'; row.dataset.forMsgId = msg.id;
+  const pill = document.createElement('div'); pill.className = 'tool-notice-pill';
+  pill.innerHTML = ICONS.wrench;
+  const labelSpan = document.createElement('span'); labelSpan.textContent = toolNoticeLabel(toolCalls);
+  pill.appendChild(labelSpan);
+  const detail = document.createElement('div'); detail.className = 'tool-notice-detail'; detail.style.display = 'none';
+  toolCalls.forEach(tc => {
+    const { argsText, resultShown } = toolCallSummaryText(tc);
+    const item = document.createElement('div'); item.className = 'tool-call-item';
+    const nameLine = document.createElement('div');
+    const nameSpan = document.createElement('span'); nameSpan.className = 'tool-call-name'; nameSpan.textContent = tc.name;
+    nameLine.appendChild(nameSpan);
+    if (argsText) { const argsSpan = document.createElement('span'); argsSpan.textContent = ' ' + argsText; nameLine.appendChild(argsSpan); }
+    item.appendChild(nameLine);
+    const resultLine = document.createElement('div');
+    if (tc.isError) resultLine.className = 'tool-call-error';
+    resultLine.textContent = resultShown || '（无返回内容）';
+    item.appendChild(resultLine);
+    detail.appendChild(item);
+  });
+  pill.addEventListener('click', (e) => { e.stopPropagation(); const showing = detail.style.display !== 'none'; detail.style.display = showing ? 'none' : 'block'; });
+  row.appendChild(pill); row.appendChild(detail);
+  return row;
+}
+function syncToolNoticeRow(msg, ctx) {
+  const row = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`); if (!row) return;
+  const prev = row.previousElementSibling;
+  const hasNotice = prev && prev.classList.contains('tool-notice-row') && prev.dataset.forMsgId === msg.id;
+  if (msg.toolCalls && msg.toolCalls.length) {
+    const newNotice = buildToolNoticeRow(msg);
+    if (hasNotice) prev.replaceWith(newNotice); else row.parentNode.insertBefore(newNotice, row);
+  } else if (hasNotice) {
+    prev.remove();
+  }
+}
 function buildMsgRow(msg, ctx, prevMsg) {
   if (msg.role === 'notice') {
     const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
@@ -4191,6 +4264,7 @@ function renderMessageWindow(container, page, arr, ctx, fromIdx, sentinelLoader)
     if (msg.role !== 'notice') {
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) container.appendChild(buildTimeDividerRow(msg.createdAt));
+      if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) container.appendChild(buildToolNoticeRow(msg));
       container.appendChild(buildMsgRow(msg, ctx, divider ? null : prev));
       prev = msg;
     } else {
@@ -4209,6 +4283,7 @@ function loadEarlierRange(container, page, arr, ctx, renderStart, sentinelLoader
     if (msg.role !== 'notice') {
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) frag.appendChild(buildTimeDividerRow(msg.createdAt));
+      if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) frag.appendChild(buildToolNoticeRow(msg));
       frag.appendChild(buildMsgRow(msg, ctx, divider ? null : prev));
       prev = msg;
     } else {
@@ -4248,6 +4323,7 @@ function appendMessage(msg) {
   for (let i = messages.length - 2; i >= 0; i--) { if (messages[i].role !== 'notice') { prev = messages[i]; break; } }
   const divider = shouldShowTimeDivider(prev, msg);
   if (divider) chatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+  if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) chatScroll.appendChild(buildToolNoticeRow(msg));
   const row = buildMsgRow(msg, mainCtx, divider ? null : prev); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
 }
 function scrollToBottom(container, pageId) { autoFollowState[pageId] = true; requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
@@ -4292,13 +4368,14 @@ function removeThinkingRow() { if (thinkingRowEl) { thinkingRowEl.remove(); thin
 /* ============================================================
 分条延迟气泡
 ============================================================ */
-function renderSplitBubbles(parts, i) {
+function renderSplitBubbles(parts, i, toolCalls) {
   if (i >= parts.length) return;
   showThinkingRow(chatScroll, 'page-chat');
   setTimeout(() => {
     removeThinkingRow();
     const msg = { id: genId(), role:'ai', text: parts[i], versions:[parts[i]], versionIndex:0, images:[], files:[], time: timeStr(), createdAt: Date.now() };
-    messages.push(msg); persistMessages(); appendMessage(msg); renderSplitBubbles(parts, i + 1);
+    if (i === 0 && toolCalls && toolCalls.length) msg.toolCalls = toolCalls;
+    messages.push(msg); persistMessages(); appendMessage(msg); renderSplitBubbles(parts, i + 1, toolCalls);
   }, 600 + Math.random() * 300);
 }
 function renderSubChatMessages() {
@@ -4316,6 +4393,7 @@ function appendSubChatMessage(msg) {
   const prev = sc && sc.messages.length >= 2 ? sc.messages[sc.messages.length - 2] : null;
   const divider = shouldShowTimeDivider(prev, msg);
   if (divider) subchatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+  if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) subchatScroll.appendChild(buildToolNoticeRow(msg));
   const row = buildMsgRow(msg, subCtx, divider ? null : prev); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
 }
 
@@ -4879,9 +4957,20 @@ function createGenTracker(row) {
 /* ============================================================
 多模态 content 构建（带引用前缀）
 ============================================================ */
+function buildToolCallsInjection(toolCalls) {
+  if (!toolCalls || !toolCalls.length) return '';
+  const lines = toolCalls.map(tc => {
+    const { argsText, resultShown } = toolCallSummaryText(tc);
+    const argsPart = argsText ? '，参数：' + argsText : '';
+    const resultPart = resultShown ? '，结果：' + resultShown : '（无返回内容）';
+    return '- ' + tc.name + argsPart + (tc.isError ? '，执行出错' : '') + resultPart;
+  });
+  return '[你在这条回复里调用过的工具：\n' + lines.join('\n') + ']\n';
+}
 function buildApiContent(m) {
   let text = getMsgDisplayText(m);
   if (m.role !== 'user' && m.thinking && m.thinking.trim()) text = '[内心想法：' + m.thinking.trim() + ']\n' + text;
+  if (m.role !== 'user' && m.toolCalls && m.toolCalls.length > 0) text = buildToolCallsInjection(m.toolCalls) + text;
   if (m.quote) text = '【针对' + m.quote.author + '这句提问："' + m.quote.text.slice(0,200) + '"】\n' + text;
   if (m.files && m.files.length > 0) {
     const fileBlocks = m.files.filter(f => f.text).map(f =>
@@ -5188,7 +5277,7 @@ async function runToolCalls(toolCalls, tools) {
 // 通用工具调用循环：发请求 -> 若AI要用工具则执行并把结果追加回消息 -> 再请求，
 // 直至没有工具调用或达到轮数上限。callAPI/callSubChatAPI 共用，各自的
 // dynamicTail/systemBlocks/marker后处理保持独立，只有"发请求+工具循环"这段公共
-async function runChatLoop({ cfg, wireMessages, systemBlocks, tools, tailText, controller, onDelta }) {
+async function runChatLoop({ cfg, wireMessages, systemBlocks, tools, tailText, controller, onDelta, onToolRound }) {
   const useStream = cfg.stream !== false;
   const useNative = isClaudeNative(cfg);
   let accumulated = '', accumulatedReasoning = '';
@@ -5214,6 +5303,7 @@ async function runChatLoop({ cfg, wireMessages, systemBlocks, tools, tailText, c
     }
     if (!toolCalls.length) break;
     const results = await runToolCalls(toolCalls, tools);
+    if (onToolRound) onToolRound(toolCalls, results);
     if (useNative) appendToolRoundNative(wireMessages, roundText, toolCalls, results);
     else appendToolRoundLegacy(wireMessages, roundText, toolCalls, results);
   }
@@ -5267,22 +5357,22 @@ async function callAPI(rerollTarget) {
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
   const gen = createGenTracker(aiRow);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
-  let accumulated = '', accumulatedReasoning = '';
+  let accumulated = '', accumulatedReasoning = '', toolCallLog = [];
 
   function finishWith(rawText, reasoningText) {
-    if (!rawText || !rawText.trim()) {
+    if ((!rawText || !rawText.trim()) && !toolCallLog.length) {
       if (isReroll) { refreshRow(aiMsg, mainCtx); }
       else { const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages(); }
       return;
     }
-    let thinking = reasoningText || '', bodyText = rawText;
-    if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
+    let thinking = reasoningText || '', bodyText = rawText || '';
+    if (!thinking) { const extracted = extractThinking(bodyText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
     let cleanText = processMemoryMarkers(bodyText); cleanText = processDiaryMarkers(cleanText);
     cleanText = processChecklistMarkers(cleanText);
     cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
     const { cleanText: afterQuote, quote } = extractQuoteMarker(cleanText);
     cleanText = afterQuote;
-    if (!cleanText || !cleanText.trim()) {
+    if ((!cleanText || !cleanText.trim()) && !toolCallLog.length) {
       if (isReroll) { refreshRow(aiMsg, mainCtx); }
       else { const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages(); }
       return;
@@ -5290,10 +5380,10 @@ async function callAPI(rerollTarget) {
     if (!isReroll && cleanText.includes('[splitmsg]')) {
       const parts = cleanText.split('[splitmsg]').map(p => p.trim()).filter(p => p.length > 0);
       const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages();
-      if (parts.length > 0) renderSplitBubbles(parts, 0); refreshTokenEstimate(); return;
+      if (parts.length > 0) renderSplitBubbles(parts, 0, toolCallLog); refreshTokenEstimate(); return;
     }
-    if (isReroll) { const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText; aiMsg.versions.push(joined); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.text = joined; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
-    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    if (isReroll) { const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText; aiMsg.versions.push(joined); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.text = joined; aiMsg.time = timeStr(); aiMsg.thinking = thinking; aiMsg.toolCalls = toolCallLog; if (quote) aiMsg.quote = quote; }
+    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.thinking = thinking; aiMsg.toolCalls = toolCallLog; if (quote) aiMsg.quote = quote; }
     persistMessages(); refreshRow(aiMsg, mainCtx); scrollToBottom(chatScroll, 'page-chat');
     refreshTokenEstimate();
   }
@@ -5306,6 +5396,9 @@ async function callAPI(rerollTarget) {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
         if (delta) { accumulated += delta; renderer.push(accumulated); }
         if (delta && delta.trim()) gen.onToken();
+      },
+      onToolRound: (toolCalls, results) => {
+        toolCallLog.push(...toolCalls.map((tc, i) => ({ name: tc.name, args: tc.args, result: results[i].text, isError: !!results[i].isError })));
       }
     });
     accumulated = result.text; accumulatedReasoning = result.reasoning;
@@ -5346,20 +5439,20 @@ async function callSubChatAPI(rerollTarget) {
   const controller = new AbortController(); subAbortController = controller; subGenerating = true; updateSendBtnState(sendBtnEl, true, false);
   const gen = createGenTracker(aiRow);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(subchatScroll, 'page-subchat'));
-  let accumulated = '', accumulatedReasoning = '';
+  let accumulated = '', accumulatedReasoning = '', toolCallLog = [];
 
   function finishWith(rawText, reasoningText) {
-    if (!rawText || !rawText.trim()) {
+    if ((!rawText || !rawText.trim()) && !toolCallLog.length) {
       if (isReroll) { refreshRow(aiMsg, subCtx); }
       else { const idx = sc.messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) sc.messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistSubChats(); }
       return;
     }
-    let thinking = reasoningText || '', bodyText = rawText;
-    if (!thinking) { const extracted = extractThinking(rawText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
+    let thinking = reasoningText || '', bodyText = rawText || '';
+    if (!thinking) { const extracted = extractThinking(bodyText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
     const { cleanText: afterQuote, quote } = extractQuoteMarker(bodyText);
     bodyText = afterQuote;
-    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
-    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; if (quote) aiMsg.quote = quote; }
+    if (isReroll) { aiMsg.versions.push(bodyText); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.time = timeStr(); aiMsg.thinking = thinking; aiMsg.toolCalls = toolCallLog; if (quote) aiMsg.quote = quote; }
+    else { aiMsg.versions[0] = bodyText; aiMsg.versionIndex = 0; aiMsg.thinking = thinking; aiMsg.toolCalls = toolCallLog; if (quote) aiMsg.quote = quote; }
     aiMsg.text = bodyText; persistSubChats(); refreshRow(aiMsg, subCtx); scrollToBottom(subchatScroll, 'page-subchat');
   }
 
@@ -5371,6 +5464,9 @@ async function callSubChatAPI(rerollTarget) {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
         if (delta) { accumulated += delta; renderer.push(accumulated); }
         if (delta && delta.trim()) gen.onToken();
+      },
+      onToolRound: (toolCalls, results) => {
+        toolCallLog.push(...toolCalls.map((tc, i) => ({ name: tc.name, args: tc.args, result: results[i].text, isError: !!results[i].isError })));
       }
     });
     accumulated = result.text; accumulatedReasoning = result.reasoning;
