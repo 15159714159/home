@@ -147,11 +147,11 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 #selectShotBtn:active { transform: scale(0.92); opacity: 0.7; }
 #selectShotBtn:disabled { opacity: 0.4; }
 
-/* 长截图导出用的离屏容器 */
+/* 长截图导出用的离屏容器（本身无任何隐藏样式，靠外层 height:0 裁剪壳隐藏，
+   避免 fixed/负坐标/z-index 被 html-to-image 克隆进成品导致整图透明） */
 #shotStage {
-position: fixed; left: -10000px; top: 0; z-index: -1;
 padding: 16px 10px; background-size: cover; background-position: center;
-pointer-events: none;
+position: relative;
 }
 #shotStage .gen-thinking, #shotStage .think-cloud, #shotStage .think-content,
 #shotStage .code-copy-btn, #shotStage .msg-version-switcher,
@@ -2668,7 +2668,12 @@ async function exportSelectedShot() {
       if (m.role !== 'notice') prev = m;
     });
 
-    document.body.appendChild(stage);
+    // 裁剪壳隐藏 stage：壳只有 height:0+overflow:hidden，stage 本体样式完全正常，
+    // html-to-image 只抓 stage，克隆里不含任何离屏定位
+    const shell = document.createElement('div');
+    shell.style.cssText = 'height:0;overflow:hidden;';
+    shell.appendChild(stage);
+    document.body.appendChild(shell);
     const imgs = Array.from(stage.querySelectorAll('img'));
     imgs.forEach(img => { img.loading = 'eager'; img.removeAttribute('decoding'); });
     await Promise.all(imgs.map(img => img.decode().catch(() => {})));
@@ -2679,9 +2684,6 @@ async function exportSelectedShot() {
     const blob = await htmlToImage.toBlob(stage, {
       pixelRatio: ratio, skipFonts: true,
       width: stage.offsetWidth, height: stage.offsetHeight,
-      // stage 本体用 fixed+left:-10000px 藏在屏幕外，html-to-image 会把这些样式
-      // 一并克隆导致内容画到画布外（成品全透明），截图时在克隆节点上覆盖回来
-      style: { position: 'relative', left: '0', top: '0', zIndex: 'auto' },
     });
     if (!blob) throw new Error('生成图片失败');
     await saveShotPng(blob);
@@ -2690,7 +2692,9 @@ async function exportSelectedShot() {
     console.error('exportSelectedShot failed', e);
     showToast('截图失败：' + (e.message || e));
   } finally {
-    stage.remove(); btn.disabled = false;
+    const shell = stage.parentNode;
+    if (shell && shell !== document.body) shell.remove(); else stage.remove();
+    btn.disabled = false;
   }
 }
 async function saveShotPng(blob) {
