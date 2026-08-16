@@ -1480,6 +1480,13 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），以及向 Galatea 花园投递漂流瓶，需端点支持 tools 参数转发。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">强制刷新</div>
+      <div class="space-btn-row">
+        <button class="space-danger-btn" id="forceRefreshBtn">强制刷新 App</button>
+      </div>
+      <div class="space-hint">怀疑改完代码没生效、卡在旧版本时点这个。会清掉页面缓存并绕开缓存重新拉取最新版本，不会影响已保存的数据。iOS 上如果是"添加到主屏幕"的图标，点完仍不生效的话需要删除图标重新添加。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">数据备份</div>
       <div class="space-btn-row">
         <button class="space-save-btn" id="exportBackupBtn">导出全部数据</button>
@@ -3160,6 +3167,19 @@ async function loadDiaries() {
 /* ============================================================
 数据备份
 ============================================================ */
+document.getElementById('forceRefreshBtn').addEventListener('click', async () => {
+  try {
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if (navigator.serviceWorker) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch(e) { console.warn('清缓存失败', e); }
+  location.href = location.pathname + '?_r=' + Date.now();
+});
 document.getElementById('exportBackupBtn').addEventListener('click', async () => {
   const backup = {
     nest_messages: JSON.stringify((await idbGet(LS_MESSAGES)) || []),
