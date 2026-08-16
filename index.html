@@ -2643,16 +2643,21 @@ async function exportSelectedShot() {
     const selected = messages.filter(m => selectedIds.has(m.id));
     stage.style.width = Math.min(480, Math.max(320, chatScroll.clientWidth || 390)) + 'px';
 
-    // 背景：自定义背景 > 主题背景 > --chat-bg 纯色
+    // 背景：自定义背景 > 主题背景 > --chat-bg 纯色。
+    // html-to-image 对根节点背景图的克隆不可靠，改用 stage 内真实图层 div 承载背景图
     const theme = findChatTheme(localStorage.getItem(LS_CHAT_THEME) || 'default');
     const customBg = localStorage.getItem(LS_BG);
     stage.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--chat-bg').trim() || '#b2c8d6';
-    if (customBg) { stage.style.backgroundImage = 'url(' + customBg + ')'; stage.classList.add('has-bg'); }
+    const bgDiv = document.createElement('div');
+    bgDiv.style.cssText = 'position:absolute;inset:0;z-index:-1;background-size:cover;background-position:center;';
+    if (customBg) { bgDiv.style.backgroundImage = 'url(' + customBg + ')'; stage.classList.add('has-bg'); }
     else if (theme.id !== 'default' && theme.bg) {
-      try { stage.style.backgroundImage = 'url(' + await urlToDataURL(theme.bg) + ')'; } catch (e) {}
+      try { bgDiv.style.backgroundImage = 'url(' + await urlToDataURL(theme.bg) + ')'; } catch (e) {}
     }
+    stage.appendChild(bgDiv);
     const styleEl = document.createElement('style');
-    styleEl.textContent = await buildShotThemeCSS(theme);
+    // 去掉主题 CSS 里 #shotStage 自身的背景规则（相对路径在克隆环境里加载不了），背景走 bgDiv
+    styleEl.textContent = (await buildShotThemeCSS(theme)).replace(/#shotStage \{[^}]*\}/, '');
     stage.appendChild(styleEl);
 
     // 重渲染选中消息（ctx=null：无勾选框/长按/版本切换），same-sender 按选中子集重算
@@ -2676,7 +2681,7 @@ async function exportSelectedShot() {
       width: stage.offsetWidth, height: stage.offsetHeight,
       // stage 本体用 fixed+left:-10000px 藏在屏幕外，html-to-image 会把这些样式
       // 一并克隆导致内容画到画布外（成品全透明），截图时在克隆节点上覆盖回来
-      style: { position: 'static', left: '0', top: '0', zIndex: 'auto' },
+      style: { position: 'relative', left: '0', top: '0', zIndex: 'auto' },
     });
     if (!blob) throw new Error('生成图片失败');
     await saveShotPng(blob);
