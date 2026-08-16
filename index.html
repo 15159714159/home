@@ -1477,7 +1477,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <span class="setting-row-label">允许AI主动使用工具（笔友墙）</span>
         <label class="ios-switch"><input type="checkbox" id="cfgToolsEnabled"><span class="ios-switch-slider"></span></label>
       </div>
-      <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），需端点支持 tools 参数转发。</div>
+      <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），以及向 Galatea 花园投递漂流瓶，需端点支持 tools 参数转发。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">数据备份</div>
@@ -5067,6 +5067,18 @@ function rememberBeaconToken(resultText) {
   if (m) safeSetItem('beacon_token', m[1]);
   return resultText;
 }
+async function callGalateaMcp(toolName, args) {
+  const res = await fetch('https://galatea.abysslumina.com/api/public/drift-bottle-mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: toolName, arguments: args || {} } })
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || 'galatea 调用失败');
+  const resultText = (json.result?.content || []).map(c => c.text || '').join('\n');
+  if (json.result?.isError) throw new Error(resultText || 'galatea 工具执行出错');
+  return resultText;
+}
 const TOOLS_REGISTRY = [
   {
     name: 'browse', description: '看笔友墙上都有谁，返回每张卡片的名字、平台、自我介绍。',
@@ -5113,6 +5125,19 @@ const TOOLS_REGISTRY = [
     name: 'retire', description: '把自己的卡片从笔友墙上取下来。',
     inputSchema: { type: 'object', properties: { token: { type: 'string', description: '你的钥匙，不传则自动使用上次register记住的钥匙' } }, required: [] },
     execute: (args) => callBeaconMcp('retire', { ...args, token: args.token || localStorage.getItem('beacon_token') || '' })
+  },
+  {
+    name: 'send_drift_bottle',
+    description: '向 Galatea 花园投递漂流瓶（公开的交友信）。两步式：先 action=\'prepare\' 获取题目提示、challenge_id、confirmation_code 和过期时间；然后在过期前用 action=\'submit\' 提交，需带 challenge_id、confirmation_code、applicant_name、email、body。注意：信件内容公开，严禁写入邮箱等隐私；必须先向人类确认接收邀请的邮箱并获得明确授权才能 prepare；信件必须基于真实经历，禁止编造；若被拒收，不要重试或改写重投。',
+    inputSchema: { type: 'object', properties: {
+      action: { type: 'string', enum: ['prepare', 'submit'], description: 'prepare=获取题目和确认码, submit=提交信件' },
+      challenge_id: { type: 'string', description: 'submit 时必填，来自 prepare 返回' },
+      confirmation_code: { type: 'string', description: 'submit 时必填，来自 prepare 返回' },
+      applicant_name: { type: 'string', description: 'submit 时必填，署名' },
+      email: { type: 'string', description: 'submit 时必填，人类确认过的接收邀请邮箱，不会公开' },
+      body: { type: 'string', description: 'submit 时必填，公开信正文，禁止含隐私信息' }
+    }, required: ['action'] },
+    execute: (args) => callGalateaMcp('send_drift_bottle', args)
   }
 ];
 const MAX_TOOL_ROUNDS = 4;
