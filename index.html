@@ -4205,7 +4205,8 @@ function loadEarlierSub() {
 }
 function renderAllMessages() {
   const pageEl = document.getElementById('page-chat');
-  if (selectMode) { renderMessageWindow(chatScroll, pageEl, messages, mainCtx, 0, loadEarlierMain); return; }
+  // 多选模式也走窗口渲染（选更早的消息往上滚动加载即可）——
+  // 之前强制从 0 全量渲染，聊天记录一长进多选就整页卡死
   if (mainRenderStart == null) mainRenderStart = Math.max(0, messages.length - MSG_PAGE_SIZE);
   mainRenderStart = Math.min(mainRenderStart, messages.length);
   renderMessageWindow(chatScroll, pageEl, messages, mainCtx, mainRenderStart, loadEarlierMain);
