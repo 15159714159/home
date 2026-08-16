@@ -2674,6 +2674,9 @@ async function exportSelectedShot() {
     const blob = await htmlToImage.toBlob(stage, {
       pixelRatio: ratio, skipFonts: true,
       width: stage.offsetWidth, height: stage.offsetHeight,
+      // stage 本体用 fixed+left:-10000px 藏在屏幕外，html-to-image 会把这些样式
+      // 一并克隆导致内容画到画布外（成品全透明），截图时在克隆节点上覆盖回来
+      style: { position: 'static', left: '0', top: '0', zIndex: 'auto' },
     });
     if (!blob) throw new Error('生成图片失败');
     await saveShotPng(blob);
