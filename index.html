@@ -1518,8 +1518,9 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-section-title">强制刷新</div>
       <div class="space-btn-row">
         <button class="space-danger-btn" id="forceRefreshBtn">强制刷新 App</button>
+        <button class="space-danger-btn" id="forcePullCloudBtn">以云端为准覆盖本地聊天</button>
       </div>
-      <div class="space-hint">怀疑改完代码没生效、卡在旧版本时点这个。会清掉页面缓存并绕开缓存重新拉取最新版本，不会影响已保存的数据。iOS 上如果是"添加到主屏幕"的图标，点完仍不生效的话需要删除图标重新添加。</div>
+      <div class="space-hint">怀疑改完代码没生效、卡在旧版本时点这个。会清掉页面缓存并绕开缓存重新拉取最新版本，不会影响已保存的数据。iOS 上如果是"添加到主屏幕"的图标，点完仍不生效的话需要删除图标重新添加。「以云端为准」会把云端聊天记录直接拉下来覆盖本设备的本地记录——本机没同步上去的内容会丢，仅在确认云端才是正确版本时使用。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">数据备份</div>
@@ -3250,6 +3251,28 @@ document.getElementById('forceRefreshBtn').addEventListener('click', async () =>
     }
   } catch(e) { console.warn('清缓存失败', e); }
   location.href = location.pathname + '?_r=' + Date.now();
+});
+// "以云端为准"：跳过所有本地/云端谁更新的判断，把云端聊天记录硬拉下来覆盖本地。
+// 关键是把本地 touched-at 时间戳对齐到云端 updated_at——否则重载后 refreshChatsFromSupabase
+// 会认为"本地比云端新"，反手又把这台设备的旧数据推回云端，恢复就白做了。
+document.getElementById('forcePullCloudBtn').addEventListener('click', async () => {
+  if (!window.supabaseChats) { showToast('云同步模块还没加载好，稍等几秒再试'); return; }
+  if (!confirm('将用云端记录覆盖本设备的聊天记录，本机没同步上去的内容会丢失，确定？')) return;
+  try {
+    const { data: mainRow, error: e1 } = await window.supabaseChats.getChat('main');
+    const { data: subRow, error: e2 } = await window.supabaseChats.getChat('subchats');
+    if (e1 || e2) { showToast('拉取云端失败：' + ((e1 || e2).message || '未知错误'), 4000); return; }
+    if (mainRow && Array.isArray(mainRow.data)) {
+      await idbSet(LS_MESSAGES, mainRow.data);
+      try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(new Date(mainRow.updated_at).getTime())); } catch(e) {}
+    }
+    if (subRow && Array.isArray(subRow.data)) {
+      await idbSet(LS_SUBCHATS, subRow.data);
+      try { localStorage.setItem(LS_SUB_TOUCHED_AT, String(new Date(subRow.updated_at).getTime())); } catch(e) {}
+    }
+    alert('已用云端记录覆盖本地（主聊天 ' + ((mainRow && mainRow.data && mainRow.data.length) || 0) + ' 条），即将刷新');
+    location.href = location.pathname + '?_r=' + Date.now();
+  } catch(err) { showToast('操作失败：' + (err && err.message || err), 4000); }
 });
 document.getElementById('exportBackupBtn').addEventListener('click', async () => {
   const backup = {
