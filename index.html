@@ -1503,6 +1503,18 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），以及向 Galatea 花园投递漂流瓶，需端点支持 tools 参数转发。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">花园完整工具集（MCP）</div>
+      <input class="space-input" id="cfgGalateaMcpToken" type="password" placeholder="Bearer token（在花园App里生成）">
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">启用花园完整工具集</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgGalateaMcpEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="fetchGalateaMcpToolsBtn">获取工具列表</button>
+      </div>
+      <div class="space-hint" id="galateaMcpStatusHint">开启后AI可使用花园完整 MCP 工具集（需先填 token 并点击"获取工具列表"成功后才会生效）。token 与工具集只保存在本机浏览器里。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">强制刷新</div>
       <div class="space-btn-row">
         <button class="space-danger-btn" id="forceRefreshBtn">强制刷新 App</button>
@@ -1886,6 +1898,10 @@ const DEFAULT_FORMAT_CONTENT =
 6. 操作清单：[checklist: {"action":"add","body":"任务内容","is_fixed":true或false,"at":"07:00"或"in":30或省略}]
    - action 还支持 "toggle"（完成/取消，需要 "target":"任务内容关键词"）和 "remove"（删除，同样用 "target"）
    - is_fixed=true 是固定每日项；给了 at/in 会自动变成一次性定时提醒，到点会主动提醒对方
+7. 心事更新：[mood: {"content":"最新的心事/情绪状态，第一人称"}]
+   - 这是你自己悄悄揣着的心事，只有你自己看得到，对方永远看不到这个标记也看不到这句话
+   - 每次更新是整个覆盖上一条，不是追加——如果还想保留上次心事里的某些内容，要重新写进这次的 content 里
+   - 没有特别想法时不必每次都写；不是每条回复都需要更新心事
 以上标记会被自动解析并隐藏，对方看不到标记本身。`;
 
 // 历史消息里的 [内心想法：xxx] 是系统事后拼进去给AI自己看的标注（方便AI记得上一轮想过什么），
@@ -2197,6 +2213,10 @@ const cfgStreamEl = document.getElementById('cfgStream');
 const cfgClaudeNativeEl = document.getElementById('cfgClaudeNative');
 const cfgMaxTokensEl    = document.getElementById('cfgMaxTokens');
 const cfgToolsEnabledEl = document.getElementById('cfgToolsEnabled');
+const cfgGalateaMcpTokenEl   = document.getElementById('cfgGalateaMcpToken');
+const cfgGalateaMcpEnabledEl = document.getElementById('cfgGalateaMcpEnabled');
+const galateaMcpStatusHintEl = document.getElementById('galateaMcpStatusHint');
+const fetchGalateaMcpToolsBtn = document.getElementById('fetchGalateaMcpToolsBtn');
 
 function patchConfig(key, val) {
   const c = getConfig();
@@ -2213,6 +2233,12 @@ function loadChatSettings() {
   cfgClaudeNativeEl.checked = !!c.claudeNative;
   cfgMaxTokensEl.value = c.maxTokens || 4096;
   cfgToolsEnabledEl.checked = !!c.toolsEnabled;
+  cfgGalateaMcpTokenEl.value = c.galateaMcpToken || '';
+  cfgGalateaMcpEnabledEl.checked = !!c.galateaMcpEnabled;
+  const toolCount = (c.galateaMcpTools || []).length;
+  galateaMcpStatusHintEl.textContent = toolCount
+    ? `已获取 ${toolCount} 个花园工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
+    : '开启后AI可使用花园完整 MCP 工具集（需先填 token 并点击"获取工具列表"成功后才会生效）。token 与工具集只保存在本机浏览器里。';
 }
 cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
 cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
@@ -2222,6 +2248,9 @@ cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.c
 cfgClaudeNativeEl.addEventListener('change', () => { patchConfig('claudeNative', cfgClaudeNativeEl.checked); scheduleAiConfigSync(); });
 cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(cfgMaxTokensEl.value) || 4096));
 cfgToolsEnabledEl.addEventListener('change', () => { patchConfig('toolsEnabled', cfgToolsEnabledEl.checked); scheduleAiConfigSync(); });
+cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpToken', cfgGalateaMcpTokenEl.value.trim()));
+cfgGalateaMcpEnabledEl.addEventListener('change', () => patchConfig('galateaMcpEnabled', cfgGalateaMcpEnabledEl.checked));
+fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 
 /* ============================================================
 引用回复
@@ -3034,6 +3063,24 @@ eyeBtn.addEventListener('click', () => {
   const show = cfgKey.type === 'password'; cfgKey.type = show ? 'text' : 'password'; eyeBtn.textContent = show ? '🙈' : '👁';
 });
 
+async function fetchGalateaMcpTools() {
+  const token = cfgGalateaMcpTokenEl.value.trim();
+  if (!token) { showToast('先填花园 Bearer token'); return; }
+  fetchGalateaMcpToolsBtn.disabled = true; fetchGalateaMcpToolsBtn.textContent = '连接中…';
+  try {
+    const tools = await fetchGalateaMcpToolList(token);
+    if (!tools.length) { showToast('没拿到工具，检查一下 token'); return; }
+    patchConfig('galateaMcpToken', token);
+    patchConfig('galateaMcpTools', tools);
+    showToast('获取到 ' + tools.length + ' 个花园工具');
+    galateaMcpStatusHintEl.textContent = `已获取 ${tools.length} 个花园工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`;
+  } catch (e) {
+    showToast('获取失败：' + (e.message || e), 4000);
+  } finally {
+    fetchGalateaMcpToolsBtn.disabled = false; fetchGalateaMcpToolsBtn.textContent = '获取工具列表';
+  }
+}
+
 async function fetchModelsInto(endpoint, key, inputEl, dropdownEl, btnEl) {
   if (!endpoint || !key) { showToast('先填端点和 Key'); return; }
   btnEl.disabled = true; btnEl.textContent = '加载中…';
@@ -3648,6 +3695,34 @@ function processDiaryMarkers(rawText) {
   const { cleanText, actions } = extractDiaryMarkers(rawText);
   actions.forEach(a => applyDiaryAction(a));
   return cleanText;
+}
+
+/* ============================================================
+心事：单槽覆写、常驻注入的私密情绪状态，对用户完全不可见
+============================================================ */
+let aiMood = ''; // 内存态，DOMContentLoaded / 每次发送前会跟云端同步
+function extractMoodMarker(text) {
+  const regex = /\[mood:\s*(\{[\s\S]*?\})\]/g;
+  let latest = null;
+  const cleanText = text.replace(regex, (match, jsonStr) => {
+    const sanitized = jsonStr.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+    try { const obj = JSON.parse(sanitized); if (obj.content != null) latest = String(obj.content); }
+    catch(e) { console.warn('mood marker解析失败', e, jsonStr); }
+    return '';
+  }).trim();
+  return { cleanText, moodContent: latest };
+}
+function processMoodMarkers(rawText) {
+  const { cleanText, moodContent } = extractMoodMarker(rawText);
+  if (moodContent != null) {
+    aiMood = moodContent;
+    if (window.supabaseMood) window.supabaseMood.upsertMood(moodContent).catch(e => console.warn('心事同步云端失败', e));
+  }
+  return cleanText;
+}
+function buildMoodInjection() {
+  if (!aiMood.trim()) return '';
+  return '\n\n【你现在悄悄揣着的心事，只有你自己知道，绝不要说破或提及这段本身】\n' + aiMood.trim();
 }
 
 /* ============================================================
@@ -5188,6 +5263,61 @@ async function callGalateaMcp(toolName, args) {
   if (json.result?.isError) throw new Error(resultText || 'galatea 工具执行出错');
   return resultText;
 }
+
+/* ============================================================
+花园完整 MCP 工具集（需 Bearer token，工具集通过 tools/list 动态发现）
+============================================================ */
+// 服务器可能以纯 JSON 或 SSE(text/event-stream) 响应同一次 MCP 调用，
+// 两处调用方（发现 tools/list 与执行 tools/call）共用这个解析函数
+async function parseMcpResponseBody(res) {
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('text/event-stream')) {
+    const raw = await res.text();
+    let last = null;
+    raw.split('\n').forEach(line => {
+      if (!line.startsWith('data:')) return;
+      const data = line.slice(5).trim();
+      if (!data) return;
+      try { last = JSON.parse(data); } catch (_) {}
+    });
+    if (!last) throw new Error('MCP 响应为空');
+    return last;
+  }
+  return res.json();
+}
+async function galateaMcpRpc(token, method, params) {
+  const res = await fetch('https://galatea.abysslumina.com/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'Authorization': 'Bearer ' + (token || '') },
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params: params || {} })
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await parseMcpResponseBody(res);
+  if (json.error) throw new Error(json.error.message || 'MCP 请求失败');
+  return json.result;
+}
+async function fetchGalateaMcpToolList(token) {
+  try {
+    await galateaMcpRpc(token, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'home', version: '1.0' } });
+  } catch (_) { /* 部分服务器不强制 initialize，忽略失败继续尝试 tools/list */ }
+  const result = await galateaMcpRpc(token, 'tools/list', {});
+  const tools = (result && result.tools) || [];
+  return tools.map(t => ({ name: t.name, description: t.description || '', inputSchema: t.inputSchema || { type: 'object', properties: {} } }));
+}
+async function callGalateaAuthMcp(toolName, args) {
+  const cfg = getConfig();
+  const result = await galateaMcpRpc(cfg.galateaMcpToken, 'tools/call', { name: toolName, arguments: args || {} });
+  const resultText = (result?.content || []).map(c => c.text || '').join('\n');
+  if (result?.isError) throw new Error(resultText || '花园工具执行出错');
+  return resultText;
+}
+function buildGalateaMcpTools(cfg) {
+  if (!cfg.galateaMcpEnabled) return [];
+  return (cfg.galateaMcpTools || []).map(t => ({
+    name: t.name, description: t.description, inputSchema: t.inputSchema,
+    execute: (args) => callGalateaAuthMcp(t.name, args)
+  }));
+}
 const TOOLS_REGISTRY = [
   {
     name: 'browse', description: '看笔友墙上都有谁，返回每张卡片的名字、平台、自我介绍。',
@@ -5334,12 +5464,19 @@ async function callAPI(rerollTarget) {
   const planInjection = buildPlanInjection();
   if (planInjection) dynamicTail += planInjection;
   if (pendingAlarmTail) { dynamicTail += pendingAlarmTail; pendingAlarmTail = ''; }
+  if (window.supabaseMood) {
+    try { const { data } = await window.supabaseMood.getMood(); if (data && data.content != null) aiMood = data.content; }
+    catch(e) { console.warn('拉取心事失败', e); }
+  }
+  dynamicTail += buildMoodInjection();
   const systemBlocks = [
     { text: appPersona ? appPersona.trim() : '', cache: true },
     { text: THINKING_META_HINT, cache: true }
   ];
   const toolsEnabled = !!cfg.toolsEnabled;
   if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
+  const galateaMcpTools = buildGalateaMcpTools(cfg);
+  if (galateaMcpTools.length) systemBlocks.push({ text: '你现在还可以使用花园完整工具集（具体工具见下方 tools 列表），按工具描述判断何时使用。', cache: true });
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -5369,6 +5506,7 @@ async function callAPI(rerollTarget) {
     if (!thinking) { const extracted = extractThinking(bodyText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
     let cleanText = processMemoryMarkers(bodyText); cleanText = processDiaryMarkers(cleanText);
     cleanText = processChecklistMarkers(cleanText);
+    cleanText = processMoodMarkers(cleanText);
     cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
     const { cleanText: afterQuote, quote } = extractQuoteMarker(cleanText);
     cleanText = afterQuote;
@@ -5391,7 +5529,7 @@ async function callAPI(rerollTarget) {
   try {
     const wireMessages = buildWireMessages(cfg, apiMessages, dynamicTail);
     const result = await runChatLoop({
-      cfg, wireMessages, systemBlocks, tools: toolsEnabled ? TOOLS_REGISTRY : [], tailText: dynamicTail, controller,
+      cfg, wireMessages, systemBlocks, tools: [...(toolsEnabled ? TOOLS_REGISTRY : []), ...galateaMcpTools], tailText: dynamicTail, controller,
       onDelta: (delta, reasoningDelta) => {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
         if (delta) { accumulated += delta; renderer.push(accumulated); }
@@ -5422,6 +5560,8 @@ async function callSubChatAPI(rerollTarget) {
   const systemBlocks = [{ text: sc.preset ? sc.preset.trim() : '', cache: true }, { text: THINKING_META_HINT, cache: true }];
   const toolsEnabled = !!cfg.toolsEnabled;
   if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
+  const galateaMcpTools = buildGalateaMcpTools(cfg);
+  if (galateaMcpTools.length) systemBlocks.push({ text: '你现在还可以使用花园完整工具集（具体工具见下方 tools 列表），按工具描述判断何时使用。', cache: true });
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -5459,7 +5599,7 @@ async function callSubChatAPI(rerollTarget) {
   try {
     const wireMessages = buildWireMessages(cfg, apiMessages, '');
     const result = await runChatLoop({
-      cfg, wireMessages, systemBlocks, tools: toolsEnabled ? TOOLS_REGISTRY : [], tailText: '', controller,
+      cfg, wireMessages, systemBlocks, tools: [...(toolsEnabled ? TOOLS_REGISTRY : []), ...galateaMcpTools], tailText: '', controller,
       onDelta: (delta, reasoningDelta) => {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
         if (delta) { accumulated += delta; renderer.push(accumulated); }
@@ -5919,6 +6059,7 @@ function setupSafeAreaFallback() {
 window.addEventListener('DOMContentLoaded', () => {
   initSupabaseMemorySync(); initChatSync().then(onChatSyncDone);
   loadChecklistFromSupabase().then(() => { renderChecklistSheet(); startChecklistTick(); });
+  if (window.supabaseMood) window.supabaseMood.getMood().then(({ data }) => { if (data && data.content != null) aiMood = data.content; });
 });
 (async function init() {
   setupSafeAreaFallback();

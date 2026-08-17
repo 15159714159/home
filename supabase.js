@@ -207,9 +207,19 @@ export async function upsertAiConfig(payload) {
   return supabase.from('ai_config').upsert({ id: 'main', ...payload, updated_at: new Date().toISOString() });
 }
 
+// "心事"：AI 自己悄悄揣着、对用户不可见的当下情绪/心事状态（见 supabase_migration_9.sql）。
+// 只存一行（id='main'），新的直接覆盖旧的，不做历史版本、不做乐观锁。
+export async function getMood() {
+  return supabase.from('ai_mood').select('content,updated_at').eq('id', 'main').maybeSingle();
+}
+export async function upsertMood(content) {
+  return supabase.from('ai_mood').upsert({ id: 'main', content, updated_at: new Date().toISOString() });
+}
+
 // 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
 window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
 window.supabaseDiary = { addDiary, getDiaries, addComment };
 window.supabaseChats = { getChat, upsertChat };
 window.supabaseChecklist = { getChecklist, addChecklistItem, updateChecklistItem, deleteChecklistItem, claimDueChecklistAlarms };
 window.supabaseAiConfig = { upsertAiConfig };
+window.supabaseMood = { getMood, upsertMood };
