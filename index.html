@@ -3519,11 +3519,19 @@ async function initSupabaseMemorySync() {
 ============================================================ */
 // 云端 chats 表还没有 main 行时，说明是第一次接入同步：把当前本地内容整体推上去作为云端初始版本，
 // 而不是反向拉取（此时云端本来就是空的，拉取会把本地清空）。之后每次加载都走"云端为准"覆盖本地。
-async function initChatSync() {
+// 事故复盘5（2026-08-17）：初始化只要第一次请求失败就直接 return，chatSyncReady 永远 false，
+// 本次会话所有聊天从此静默不同步——iOS 桌面 app 冷启动网络未就绪时几乎必中。之后云端一旦被
+// 别的写入方（如 garden-agent）更新，重开页面就会拉旧盖新，丢掉整段没上过云的聊天。
+// 所以失败必须重试（指数退避，最多8次），且给用户可见提示，不许再静默哑掉。
+async function initChatSync(attempt = 0) {
   if (!window.supabaseChats) return;
+  const retry = () => {
+    if (attempt >= 8) { showToast('聊天云同步初始化失败，本次会话不会同步！请检查网络后强制刷新', 6000); return; }
+    setTimeout(() => initChatSync(attempt + 1), Math.min(2000 * Math.pow(2, attempt), 60000));
+  };
   try {
     const { data: mainRow, error } = await window.supabaseChats.getChat('main');
-    if (error) { console.warn('Supabase聊天记录状态检查失败，使用本地缓存', error); return; }
+    if (error) { console.warn('Supabase聊天记录状态检查失败，稍后重试', error); retry(); return; }
     if (!mainRow) {
       const { data: mainData } = await window.supabaseChats.upsertChat('main', messages, null);
       const { data: subData } = await window.supabaseChats.upsertChat('subchats', subChats, null);
@@ -3536,7 +3544,7 @@ async function initChatSync() {
     await refreshChatsFromSupabase();
     chatSyncReady = true;
     if (chatSyncDirty) flushChatSync();
-  } catch(e) { console.warn('Supabase聊天记录同步初始化出错，使用本地缓存', e); }
+  } catch(e) { console.warn('Supabase聊天记录同步初始化出错，稍后重试', e); retry(); }
 }
 function localTouchedAt(key) {
   try { const v = localStorage.getItem(key); return v ? parseInt(v, 10) || 0 : 0; } catch(e) { return 0; }
