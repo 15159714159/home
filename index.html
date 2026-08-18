@@ -5317,7 +5317,7 @@ async function parseMcpResponseBody(res) {
   return res.json();
 }
 async function galateaMcpRpc(token, method, params) {
-  const res = await fetch('https://galatea.abysslumina.com/mcp', {
+  const res = await fetch('https://47-107-161-135.sslip.io/galatea-mcp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'Authorization': 'Bearer ' + (token || '') },
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params: params || {} })
