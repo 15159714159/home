@@ -3272,19 +3272,31 @@ document.getElementById('forceRefreshBtn').addEventListener('click', async () =>
   } catch(e) { console.warn('清缓存失败', e); }
   location.href = location.pathname + '?_r=' + Date.now();
 });
+// 桌面壳子app冷启动时网络栈没就绪，请求会直接报"Load failed"，不是服务端拒绝——
+// 所以按钮失败自动重试几次，给网络缓冲时间，而不是点一下就直接报错卡住用户。
 async function forcePushChatNow() {
   const btn = document.getElementById('forcePushCloudBtn');
   if (!window.supabaseChats) { showToast('云同步模块还没加载好，稍等几秒再试'); return; }
   if (!chatSyncReady) { showToast('同步模块还没准备好，稍等几秒再试'); return; }
-  clearTimeout(chatSyncTimer);
-  chatSyncDirty = true;
   const originalText = btn.textContent;
   btn.disabled = true; btn.textContent = '同步中…';
-  updateChatSyncHint('同步状态：同步中…');
+  const MAX_ATTEMPTS = 3;
+  let result;
   try {
-    const result = await flushChatSync();
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (attempt > 1) {
+        updateChatSyncHint(`同步状态：同步失败，重试中（第 ${attempt}/${MAX_ATTEMPTS} 次）…`);
+        await new Promise(r => setTimeout(r, 1200 * (attempt - 1)));
+      } else {
+        updateChatSyncHint('同步状态：同步中…');
+      }
+      clearTimeout(chatSyncTimer);
+      chatSyncDirty = true;
+      result = await flushChatSync();
+      if (result.ok || result.conflict) break;
+    }
     if (result.ok) showToast('已同步到云端');
-    else if (result.error) showToast('同步失败：' + result.error, 4000);
+    else if (result.error) showToast(`同步失败：${result.error}（已重试${MAX_ATTEMPTS}次）`, 4000);
   } finally {
     btn.disabled = false; btn.textContent = originalText;
   }
