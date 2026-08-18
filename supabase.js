@@ -207,6 +207,15 @@ export async function upsertAiConfig(payload) {
   return supabase.from('ai_config').upsert({ id: 'main', ...payload, updated_at: new Date().toISOString() });
 }
 
+// 主聊天迁移到 garden-agent 后端统一写入之后，前端不再自己 upsertChat('main', ...)，
+// 只靠 Postgres Realtime 的 UPDATE 事件把其它写入方（garden-agent）改动的内容同步到本标签页画面上，
+// 是一条纯只读的兜底通道——多标签页/多设备可见性靠它，不靠前端自己写。
+export function subscribeMainChat(onUpdate) {
+  return supabase.channel('chats-main-watch')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chats', filter: 'kind=eq.main' }, payload => onUpdate(payload.new))
+    .subscribe();
+}
+
 // "心事"：AI 自己悄悄揣着、对用户不可见的当下情绪/心事状态（见 supabase_migration_9.sql）。
 // 只存一行（id='main'），新的直接覆盖旧的，不做历史版本、不做乐观锁。
 export async function getMood() {
@@ -219,7 +228,7 @@ export async function upsertMood(content) {
 // 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
 window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
 window.supabaseDiary = { addDiary, getDiaries, addComment };
-window.supabaseChats = { getChat, upsertChat };
+window.supabaseChats = { getChat, upsertChat, subscribeMainChat };
 window.supabaseChecklist = { getChecklist, addChecklistItem, updateChecklistItem, deleteChecklistItem, claimDueChecklistAlarms };
 window.supabaseAiConfig = { upsertAiConfig };
 window.supabaseMood = { getMood, upsertMood };

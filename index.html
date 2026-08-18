@@ -1515,6 +1515,11 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint" id="galateaMcpStatusHint">开启后AI可使用花园完整 MCP 工具集（需先填 token 并点击"获取工具列表"成功后才会生效）。token 与工具集只保存在本机浏览器里。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">聊天服务</div>
+      <input class="space-input" id="cfgChatServiceKey" type="password" placeholder="聊天服务密钥（garden-agent 鉴权用）">
+      <div class="space-hint">主聊天已改为由后端 garden-agent 统一处理，这里的密钥用于向它发起请求的身份验证，只保存在本机浏览器里。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">聊天云同步</div>
       <div class="space-btn-row">
         <button class="space-save-btn" id="forcePushCloudBtn">立即同步聊天记录到云端</button>
@@ -1857,6 +1862,10 @@ let editingPresetId = null;
 let editingPresetOriginal = { note:'', content:'' };
 let mainGenerating = false;
 let mainAbortController = null;
+// 主聊天流式生成过程中，正在生成的AI占位消息id——applyCloudMainUpdate 靠它避免云端Realtime更新
+// 中途把用户正在看的流式气泡整个替换掉（云端行要等这一轮生成完、后端持久化后才会包含这条消息）。
+let activeStreamMsgId = null;
+let mainChatSubscribed = false;
 let subGenerating = false;
 let subAbortController = null;
 let selectMode = false;
@@ -2225,6 +2234,7 @@ const cfgGalateaMcpTokenEl   = document.getElementById('cfgGalateaMcpToken');
 const cfgGalateaMcpEnabledEl = document.getElementById('cfgGalateaMcpEnabled');
 const galateaMcpStatusHintEl = document.getElementById('galateaMcpStatusHint');
 const fetchGalateaMcpToolsBtn = document.getElementById('fetchGalateaMcpToolsBtn');
+const cfgChatServiceKeyEl = document.getElementById('cfgChatServiceKey');
 
 function patchConfig(key, val) {
   const c = getConfig();
@@ -2243,6 +2253,7 @@ function loadChatSettings() {
   cfgToolsEnabledEl.checked = !!c.toolsEnabled;
   cfgGalateaMcpTokenEl.value = c.galateaMcpToken || '';
   cfgGalateaMcpEnabledEl.checked = !!c.galateaMcpEnabled;
+  cfgChatServiceKeyEl.value = c.chatServiceKey || '';
   const toolCount = (c.galateaMcpTools || []).length;
   galateaMcpStatusHintEl.textContent = toolCount
     ? `已获取 ${toolCount} 个花园工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
@@ -2258,6 +2269,7 @@ cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(
 cfgToolsEnabledEl.addEventListener('change', () => { patchConfig('toolsEnabled', cfgToolsEnabledEl.checked); scheduleAiConfigSync(); });
 cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpToken', cfgGalateaMcpTokenEl.value.trim()));
 cfgGalateaMcpEnabledEl.addEventListener('change', () => patchConfig('galateaMcpEnabled', cfgGalateaMcpEnabledEl.checked));
+cfgChatServiceKeyEl.addEventListener('change', () => patchConfig('chatServiceKey', cfgChatServiceKeyEl.value.trim()));
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 
 /* ============================================================
@@ -2656,9 +2668,11 @@ function toggleSelect(msgId) {
 function deleteSelected() {
   if (selectedIds.size === 0) { showToast('没有选中任何消息'); return; }
   if (!confirm(`删除选中的 ${selectedIds.size} 条消息？`)) return;
+  const ids = Array.from(selectedIds);
   messages = messages.filter(m => !selectedIds.has(m.id));
   mainRenderStart = null;
   persistMessages(); exitSelectMode();
+  chatMainDeleteRequest(ids); // 多选删除只在主聊天可用（打开多选入口本身就限定 ctx === mainCtx），所以这里无条件调用
 }
 document.getElementById('selectCancelBtn').addEventListener('click', exitSelectMode);
 document.getElementById('selectDeleteBtn').addEventListener('click', deleteSelected);
@@ -3051,16 +3065,17 @@ function getConfig() { return JSON.parse(localStorage.getItem(LS_CONFIG) || '{}'
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
 
 // 把 key/model/persona 同步一份到 Supabase ai_config 表，供 OmbreBrain 后端读取做缓存暖 ping
-// （见 supabase_migration_8.sql）。只在原生 Claude 格式下才有意义，legacy 格式不需要暖缓存。
+// （见 supabase_migration_8.sql）。之前这里有个 `if (!cfg.claudeNative) return` 的早退——
+// 只在原生 Claude 格式下才同步，非原生格式（如 DeepSeek 等）切换 key/model 后台完全看不到，是个确认的 bug。
+// 用户经常换 key/模型，其中不少不是 Claude 原生格式，所以任何格式都要同步，不再按 claudeNative 判断要不要发。
 let aiConfigSyncTimer = null;
 function scheduleAiConfigSync() {
   if (!window.supabaseAiConfig) return;
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    if (!cfg.claudeNative) return;
     try {
-      await window.supabaseAiConfig.upsertAiConfig({ api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled });
+      await window.supabaseAiConfig.upsertAiConfig({ api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative });
     } catch(e) { console.warn('AI 配置同步云端失败', e); }
   }, 800);
 }
@@ -3127,25 +3142,27 @@ loadModelsBtn.addEventListener('click', () => {
 /* ============================================================
 持久化：其余
 ============================================================ */
-// 聊天记录改动点很多（发消息/流式收尾/删除/清空/开新话题…），不在每个调用点分别同步，
-// 而是在 persistMessages/persistSubChats 内部统一防抖后整体 upsert，800ms 内的多次改动合并成一次网络请求。
+// 副聊天改动点很多（发消息/流式收尾/删除/清空/开新话题…），不在每个调用点分别同步，
+// 而是在 persistSubChats 内部统一防抖后整体 upsert，800ms 内的多次改动合并成一次网络请求。
 // 但如果用户在 800ms 窗口内刷新/切走页面，这次同步就会被打断、云端停留在旧数据——下次加载又是"云端为准"
 // 整体覆盖本地，表现为刚才的改动（包括删除）像是"撤销"了。所以页面隐藏/卸载时要跳过防抖立即同步一次。
 //
 // 事故复盘：光是"切走就同步"还不够——如果有个开了很久没刷新的旧标签页/桌面App，切过去看一眼再切回来，
 // 它也会用内存里过时的聊天记录覆盖掉云端刚同步好的新内容，导致数据被静默回退。所以同步必须带上乐观锁
-// （mainChatUpdatedAt/subChatsUpdatedAt，记录"我上次拉取云端时看到的版本号"），一旦云端已经被别人改过，
+// （subChatsUpdatedAt，记录"我上次拉取云端时看到的版本号"），一旦云端已经被别人改过，
 // 拒绝写入，转而重新拉取云端最新数据并提示用户，而不是盲目覆盖。
 //
-// 事故复盘2：光有乐观锁还不够——mainChatUpdatedAt/subChatsUpdatedAt 在 initChatSync() 确认云端版本前
+// 事故复盘2：光有乐观锁还不够——subChatsUpdatedAt 在 initChatSync() 确认云端版本前
 // 一直是 null，而 upsertChat 把 null 当成"云端还没这行，无条件写入"处理。如果这段确认云端版本的异步请求
 // 还没跑完时就发生锁屏/切后台（手机上很容易发生），触发的 flush 会带着 null 直接抢跑覆盖云端，
 // 乐观锁形同虚设。所以加一道 chatSyncReady 闸门：云端版本没确认完之前，flush 一律不写，
 // 等确认完成后如果期间攒了没同步的改动，立刻补一次 flush，不会丢改动。
+//
+// 主聊天迁移到 garden-agent 后端架构后不再走这条推送通道——chats(kind='main') 只由后端写，
+// 前端只读（初始 getChat 拉取 + subscribeMainChat 的 Realtime UPDATE），所以这里只剩 subchats 一路。
 let chatSyncTimer = null;
 let chatSyncDirty = false;
 let chatSyncReady = false;
-let mainChatUpdatedAt = null;
 let subChatsUpdatedAt = null;
 const chatSyncStatusHintEl = document.getElementById('chatSyncStatusHint');
 function updateChatSyncHint(text) {
@@ -3155,25 +3172,18 @@ function updateChatSyncHint(text) {
 async function flushChatSync() {
   if (!window.supabaseChats || !chatSyncDirty || !chatSyncReady) return { ok: false, skipped: true };
   clearTimeout(chatSyncTimer); chatSyncDirty = false;
-  const [mainRes, subRes] = await Promise.all([
-    window.supabaseChats.upsertChat('main', messages, mainChatUpdatedAt),
-    window.supabaseChats.upsertChat('subchats', subChats, subChatsUpdatedAt)
-  ]);
+  const subRes = await window.supabaseChats.upsertChat('subchats', subChats, subChatsUpdatedAt);
   let conflict = false, errMsg = '';
-  if (mainRes.error) {
-    if (mainRes.error.code === 'CHAT_SYNC_CONFLICT') { conflict = true; showToast('聊天记录云端已被其他设备更新，已放弃覆盖，正在拉取最新内容'); await refreshChatsFromSupabase(); onChatSyncDone(); }
-    else { errMsg = mainRes.error.message || String(mainRes.error); console.warn('聊天云端同步失败', mainRes.error); }
-  } else if (mainRes.data && mainRes.data[0]) { mainChatUpdatedAt = mainRes.data[0].updated_at; }
   if (subRes.error) {
-    if (subRes.error.code === 'CHAT_SYNC_CONFLICT') { conflict = true; showToast('副聊天云端已被其他设备更新，已放弃覆盖，正在拉取最新内容'); await refreshChatsFromSupabase(); onChatSyncDone(); }
-    else { errMsg = errMsg || subRes.error.message || String(subRes.error); console.warn('副聊天云端同步失败', subRes.error); }
+    if (subRes.error.code === 'CHAT_SYNC_CONFLICT') { conflict = true; showToast('副聊天云端已被其他设备更新，已放弃覆盖，正在拉取最新内容'); await refreshSubChatsFromSupabase(); onChatSyncDone(); }
+    else { errMsg = subRes.error.message || String(subRes.error); console.warn('副聊天云端同步失败', subRes.error); }
   } else if (subRes.data && subRes.data[0]) { subChatsUpdatedAt = subRes.data[0].updated_at; }
 
   if (conflict) { updateChatSyncHint('同步状态：云端有更新的内容，已拉取最新版本到本机（未覆盖云端）'); return { ok: false, conflict: true }; }
   if (errMsg) { updateChatSyncHint('同步状态：同步失败 · ' + errMsg); return { ok: false, error: errMsg }; }
   const now = new Date();
   const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-  updateChatSyncHint(`同步状态：已同步 · ${timeStr} · 主聊天 ${messages.length} 条 / 副聊天 ${subChats.length} 条`);
+  updateChatSyncHint(`同步状态：已同步 · ${timeStr} · 主聊天 ${messages.length} 条（只读） / 副聊天 ${subChats.length} 条`);
   return { ok: true };
 }
 function scheduleChatSync() {
@@ -3187,16 +3197,27 @@ window.addEventListener('pagehide', flushChatSync);
 window.addEventListener('pageshow', refreshChatsOnResume);
 // 事故复盘5：长时间挂起的标签页被浏览器唤醒（bfcache恢复）不会重跑 DOMContentLoaded，initChatSync()
 // 也就不会再执行，画面会一直停留在唤醒前内存里的旧数据上，看起来像"没同步"。所以补一个"回到前台就拉一次云端"
-// 的钩子；refreshChatsFromSupabase 内部已经会拿 localTouchedAt 跟云端 updated_at 比较，本地更新时会
+// 的钩子；refreshSubChatsFromSupabase 内部已经会拿 localTouchedAt 跟云端 updated_at 比较，本地更新时会
 // 改成推送而不是覆盖，所以这里补拉不会丢掉刚做的新改动。加 chatSyncRefreshing 防止连续触发重叠请求。
+// 主聊天这里只做只读重拉（不 upsert）——Realtime 订阅在 bfcache 冻结期间可能断开，靠这次补拉纠正画面；
+// 期间如果正好有本地流式占位消息在等待完成，applyCloudMainUpdate 的同一套保护逻辑一样适用。
 let chatSyncRefreshing = false;
 async function refreshChatsOnResume() {
   if (!chatSyncReady || chatSyncRefreshing) return;
   chatSyncRefreshing = true;
-  try { await refreshChatsFromSupabase(); onChatSyncDone(); }
+  try {
+    const { data: mainRow } = await window.supabaseChats.getChat('main');
+    if (mainRow) applyCloudMainUpdate(mainRow);
+    await refreshSubChatsFromSupabase();
+    onChatSyncDone();
+  }
   finally { chatSyncRefreshing = false; }
 }
-function persistMessages() { safeIdbSet(LS_MESSAGES, messages); try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(Date.now())); } catch(e) {} scheduleChatSync(); }
+// persistMessages 现在只做本地缓存（IndexedDB + touched-at），不再触发任何云端写入——
+// 主聊天迁移到 garden-agent 后端架构后，真正的持久化都走 /chat-main/* 系列端点（见 sendChatMain/
+// chatMainEdit/chatMainDelete/chatMainVersion/regenerateChatMain），这里只负责让本机刷新/离线时
+// 不丢刚做的本地改动，跟"回推云端"完全脱钩。
+function persistMessages() { safeIdbSet(LS_MESSAGES, messages); try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(Date.now())); } catch(e) {} }
 async function loadMessages() {
   try { const r = await idbGet(LS_MESSAGES); if (r) messages = r; } catch(e) { messages = []; }
   let migrated = false;
@@ -3303,8 +3324,9 @@ async function forcePushChatNow() {
 }
 document.getElementById('forcePushCloudBtn').addEventListener('click', forcePushChatNow);
 // "以云端为准"：跳过所有本地/云端谁更新的判断，把云端聊天记录硬拉下来覆盖本地。
-// 关键是把本地 touched-at 时间戳对齐到云端 updated_at——否则重载后 refreshChatsFromSupabase
-// 会认为"本地比云端新"，反手又把这台设备的旧数据推回云端，恢复就白做了。
+// 关键是把本地 touched-at 时间戳对齐到云端 updated_at——否则重载后 refreshSubChatsFromSupabase
+// 会认为"本地比云端新"，反手又把这台设备的旧数据推回云端，恢复就白做了（主聊天已不存在这个风险，
+// 前端不再回推 main，这里仍对齐 touched-at 只是为了避免过时的判断逻辑误报）。
 document.getElementById('forcePullCloudBtn').addEventListener('click', async () => {
   if (!window.supabaseChats) { showToast('云同步模块还没加载好，稍等几秒再试'); return; }
   if (!confirm('将用云端记录覆盖本设备的聊天记录，本机没同步上去的内容会丢失，确定？')) return;
@@ -3364,13 +3386,15 @@ backupImportHidden.addEventListener('change', e => {
         if (IDB_KEYS.includes(key)) { try { await idbSet(key, JSON.parse(data[key])); } catch(e) { console.warn('导入到IndexedDB失败', key, e); } }
         else safeSetItem(key, data[key]);
       }
-      // 导入备份代表"以这份文件为准"，必须强制把聊天记录推上云端覆盖旧版本，
-      // 否则刷新时 initChatSync 会认为云端已有数据而反向拉取覆盖掉刚导入的内容
+      // 导入备份代表"以这份文件为准"。副聊天依然由前端直接写 Supabase，所以照旧强制推上云端覆盖旧版本，
+      // 否则刷新时 refreshSubChatsFromSupabase 会认为云端已有数据而反向拉取覆盖掉刚导入的内容。
+      // 主聊天则不再这样处理——garden-agent 后端是 chats(kind='main') 唯一写方，前端已不允许 upsertChat('main', ...)，
+      // 这里导入的主聊天记录只落到本机 IndexedDB，刷新后 initChatSync 会用云端最新内容覆盖它（只读拉取）。
+      // 如果确实需要用备份文件里的主聊天记录覆盖云端，需要通过后端 garden-agent 那一侧的入口来做，不是前端能做的事。
       if (window.supabaseChats) {
         try {
-          if (data[LS_MESSAGES] != null) await window.supabaseChats.upsertChat('main', JSON.parse(data[LS_MESSAGES]));
           if (data[LS_SUBCHATS] != null) await window.supabaseChats.upsertChat('subchats', JSON.parse(data[LS_SUBCHATS]));
-        } catch(e) { console.warn('导入备份强制同步云端失败', e); }
+        } catch(e) { console.warn('导入备份强制同步副聊天云端失败', e); }
       }
       alert('导入成功，即将刷新'); location.reload();
     } catch(err) { showToast('导入失败：文件格式不对', 3000); }
@@ -3596,6 +3620,10 @@ async function initSupabaseMemorySync() {
 // 本次会话所有聊天从此静默不同步——iOS 桌面 app 冷启动网络未就绪时几乎必中。之后云端一旦被
 // 别的写入方（如 garden-agent）更新，重开页面就会拉旧盖新，丢掉整段没上过云的聊天。
 // 所以失败必须重试（指数退避，最多8次），且给用户可见提示，不许再静默哑掉。
+//
+// 主聊天迁移到 garden-agent 后端架构后，chats(kind='main') 只由后端写，前端这里只 getChat 拉一次
+// 初始状态做只读渲染，不再 upsertChat('main', ...)——即使云端还没有这一行也不由前端创建，
+// 由后端第一次写入时自然建出这一行。之后的实时可见性交给 subscribeMainChat 的 Realtime UPDATE。
 async function initChatSync(attempt = 0) {
   if (!window.supabaseChats) return;
   const retry = () => {
@@ -3606,65 +3634,60 @@ async function initChatSync(attempt = 0) {
   try {
     const { data: mainRow, error } = await window.supabaseChats.getChat('main');
     if (error) { console.warn('Supabase聊天记录状态检查失败，稍后重试', error); retry(); return; }
-    if (!mainRow) {
-      const { data: mainData } = await window.supabaseChats.upsertChat('main', messages, null);
-      const { data: subData } = await window.supabaseChats.upsertChat('subchats', subChats, null);
-      if (mainData && mainData[0]) mainChatUpdatedAt = mainData[0].updated_at;
-      if (subData && subData[0]) subChatsUpdatedAt = subData[0].updated_at;
-      chatSyncReady = true;
-      updateChatSyncHint('同步状态：已连接云端（首次上传）');
-      if (chatSyncDirty) flushChatSync();
-      return;
-    }
-    await refreshChatsFromSupabase();
+    if (mainRow && Array.isArray(mainRow.data)) { messages = mainRow.data; safeIdbSet(LS_MESSAGES, messages); }
+    subscribeMainChatOnce();
+    await refreshSubChatsFromSupabase();
     chatSyncReady = true;
     updateChatSyncHint('同步状态：已连接云端');
     if (chatSyncDirty) flushChatSync();
   } catch(e) { console.warn('Supabase聊天记录同步初始化出错，稍后重试', e); retry(); }
+}
+function subscribeMainChatOnce() {
+  if (mainChatSubscribed || !window.supabaseChats || !window.supabaseChats.subscribeMainChat) return;
+  mainChatSubscribed = true;
+  window.supabaseChats.subscribeMainChat(row => applyCloudMainUpdate(row));
+}
+// 只读通道：garden-agent 每次写完 chats(main) 都会触发这个 Realtime UPDATE，用来让同设备的其它
+// 标签页/窗口、以及别的设备看到最新聊天内容——纯展示层的重render，绝不在这里触发任何回写。
+function applyCloudMainUpdate(row) {
+  if (!row || !Array.isArray(row.data)) return;
+  let nextMessages = row.data;
+  if (activeStreamMsgId) {
+    const stillThere = nextMessages.some(m => m.id === activeStreamMsgId);
+    if (!stillThere) {
+      const localPlaceholder = messages.find(m => m.id === activeStreamMsgId);
+      if (localPlaceholder) nextMessages = [...nextMessages, localPlaceholder];
+    }
+  }
+  messages = nextMessages;
+  safeIdbSet(LS_MESSAGES, messages);
+  mainRenderStart = null;
+  renderAllMessages();
 }
 function localTouchedAt(key) {
   try { const v = localStorage.getItem(key); return v ? parseInt(v, 10) || 0 : 0; } catch(e) { return 0; }
 }
 // 事故复盘3：锁屏/切后台可能让"存本地"成功了但"传云端"的请求被系统掐断，云端那一行停留在旧版本。
 // 如果这时无条件"云端为准"，反而会用这份滞后的云端数据覆盖掉本地已经真实存在的新改动（包括删除）——
-// 本地明明没丢，是这里自己覆盖丢的。所以拉取前先比一下：本地最后一次改动的时间(persistMessages/
-// persistSubChats 每次调用都会记一笔)，是不是比云端这一行的写入时间(updated_at)还新。注意不能拿消息内容
+// 本地明明没丢，是这里自己覆盖丢的。所以拉取前先比一下：本地最后一次改动的时间(persistSubChats
+// 每次调用都会记一笔)，是不是比云端这一行的写入时间(updated_at)还新。注意不能拿消息内容
 // 自己的 createdAt 来比——删除消息不会产生新的 createdAt，那样比较会漏掉"最后一次操作是删除"的情况，
 // 用独立的本地时间戳才能覆盖增/删/改所有场景。更新，说明本地有云端还没收到的内容（多半是刚才被打断的
 // 那次同步），改成把本地内容带着乐观锁推回云端，而不是拿旧云端盖掉本地；不更新，才说明云端确实是最新的，
 // 正常拉取覆盖本地。
 //
-// 事故复盘4：上面这个"本地更新"判断用的 LS_MAIN_TOUCHED_AT/LS_SUB_TOUCHED_AT 是 localStorage，
-// 同设备所有标签页共享；但真正拿来回推的 messages/subChats 是各自标签页自己内存里的一份。
+// 事故复盘4：上面这个"本地更新"判断用的 LS_SUB_TOUCHED_AT 是 localStorage，
+// 同设备所有标签页共享；但真正拿来回推的 subChats 是各自标签页自己内存里的一份。
 // 一个开了很久的后台旧标签页，会因为另一个标签页刚写的新时间戳而误判"我本地更新"，
 // 结果把自己内存里那份旧聊天数组当"更新内容"推上云端，把别的标签页刚同步好的新内容覆盖掉——
 // 这正是"同一段旧聊天反复覆盖新内容"的嫌疑路径之一。IndexedDB 才是同设备各标签页共享、
 // 永远落盘到最新的版本，所以回推前必须先重读一次 IDB，用它代替内存里可能过时的数据；
 // 读失败或读到空值才退回内存数据，不让同步因为这一步读取失败而整个瘫掉。
-async function refreshChatsFromSupabase() {
+//
+// 主聊天不再走这条推送/拉取通道，只剩 subchats——见 refreshChatsOnResume/flushChatSync 里对应调用点。
+async function refreshSubChatsFromSupabase() {
   if (!window.supabaseChats) return;
   try {
-    const { data: mainRow } = await window.supabaseChats.getChat('main');
-    if (mainRow && Array.isArray(mainRow.data)) {
-      console.warn('云端主聊天记录版本', { written_by: mainRow.written_by, updated_at: mainRow.updated_at });
-      if (localTouchedAt(LS_MAIN_TOUCHED_AT) > new Date(mainRow.updated_at).getTime()) {
-        console.warn('本地主聊天记录比云端最后写入时间新，怀疑上次同步被中断，放弃用云端覆盖本地，改为把本地内容推回云端');
-        let pushData = messages;
-        try { const r = await idbGet(LS_MESSAGES); if (Array.isArray(r)) { pushData = r; messages = r; } }
-        catch(e) { console.warn('回推前重读IndexedDB主聊天记录失败，退回内存数据', e); }
-        const { data, error } = await window.supabaseChats.upsertChat('main', pushData, mainRow.updated_at);
-        if (error) {
-          console.warn('回推本地主聊天记录失败', error);
-          // 极小概率：推回时云端又被别的设备抢先改了一次。不重试硬冲突，只把 mainChatUpdatedAt 对齐到云端最新版本，
-          // 避免它继续停留在 null——否则乐观锁又会退化成"无条件写入"，回到事故复盘2的老问题
-          const { data: latest } = await window.supabaseChats.getChat('main');
-          if (latest) mainChatUpdatedAt = latest.updated_at;
-        }
-        else if (data && data[0]) mainChatUpdatedAt = data[0].updated_at;
-      } else {
-        messages = mainRow.data; safeIdbSet(LS_MESSAGES, messages); mainChatUpdatedAt = mainRow.updated_at;
-      }
-    }
     const { data: subRow } = await window.supabaseChats.getChat('subchats');
     if (subRow && Array.isArray(subRow.data)) {
       console.warn('云端副聊天记录版本', { written_by: subRow.written_by, updated_at: subRow.updated_at });
@@ -3984,6 +4007,7 @@ function switchVersion(msg, ctx, delta) {
   const newIdx = msg.versionIndex + delta;
   if (newIdx < 0 || newIdx >= msg.versions.length) return;
   msg.versionIndex = newIdx; msg.text = msg.versions[newIdx]; ctx.persist(); refreshRow(msg, ctx);
+  if (ctx === mainCtx) chatMainVersionRequest(msg, delta);
 }
 function buildVersionSwitcher(msg, ctx) {
   const box = document.createElement('div'); box.className = 'msg-version-switcher';
@@ -4048,6 +4072,7 @@ function triggerEditMessage(msg, ctx) {
     if (msg.role === 'user') { msg.text = val; }
     else { if (!msg.versions) { msg.versions = [val]; msg.versionIndex = 0; } else { msg.versions[msg.versionIndex] = val; } msg.text = val; }
     ctx.persist(); ctx.renderAll();
+    if (ctx === mainCtx) chatMainEditRequest(msg);
   });
 }
 function deleteMessage(msg, ctx) {
@@ -4057,6 +4082,7 @@ function deleteMessage(msg, ctx) {
   if (ctx.pageId === 'page-subchat' && subRenderStart != null && idx < subRenderStart) subRenderStart--;
   arr.splice(idx, 1); ctx.persist(); ctx.renderAll();
   photoDeckStates.delete(msg.id);
+  if (ctx === mainCtx) chatMainDeleteRequest([msg.id]);
   requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = Math.min(savedScroll, page.scrollHeight - page.clientHeight); }); });
 }
 function regenerateMessage(msg, ctx) {
@@ -5525,110 +5551,185 @@ async function runChatLoop({ cfg, wireMessages, systemBlocks, tools, tailText, c
 }
 
 /* ============================================================
-API 调用：主聊天
+主聊天后端（garden-agent /chat-main/*）调用
 ============================================================ */
-async function callAPI(rerollTarget) {
+// 主聊天已迁移为由 garden-agent 后端统一写 chats(kind='main')，浏览器不再直接调 LLM/写 Supabase，
+// 只对这个后端发 HTTP 请求。Base URL 跟花园 MCP 代理 (galateaMcpRpc 里的 https://47-107-161-135.sslip.io/galatea-mcp)
+// 共用同一台反代主机，换成 /chat-main 路径。
+const CHAT_MAIN_BASE = 'https://47-107-161-135.sslip.io/chat-main';
+function chatMainUrl(path) { return CHAT_MAIN_BASE + path; }
+function chatMainHeaders(cfg) { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (cfg.chatServiceKey || '') }; }
+// text/event-stream 手动解析：契约用 `event: xxx` + `data: {...}` 两行一组、空行分隔，跟 readChatStream()
+// 解析的"纯 data: 行、OpenAI/Claude 原生增量协议"是两套不同格式，所以另写一个而不是复用 readChatStream。
+async function readChatMainSSE(res, onDelta) {
+  const reader = res.body.getReader(); const decoder = new TextDecoder();
+  let buf = '';
+  let result = { type: null, payload: null };
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const chunks = buf.split('\n\n'); buf = chunks.pop();
+    for (const chunk of chunks) {
+      let eventType = 'message', dataStr = '';
+      chunk.split('\n').forEach(line => {
+        if (line.startsWith('event:')) eventType = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+      });
+      if (!dataStr) continue;
+      let data; try { data = JSON.parse(dataStr); } catch(_) { continue; }
+      if (eventType === 'delta') { if (data.text) onDelta(data.text); }
+      else if (eventType === 'done') result = { type: 'done', payload: data };
+      else if (eventType === 'error') result = { type: 'error', payload: data };
+    }
+  }
+  return result;
+}
+function buildGalateaMcpRequestFields(cfg) {
+  const enabled = !!cfg.galateaMcpEnabled;
+  return { galateaMcpToken: enabled ? (cfg.galateaMcpToken || '') : '', galateaMcpTools: enabled ? (cfg.galateaMcpTools || []) : [] };
+}
+// 发送主聊天用户消息：本地已经乐观渲染过 userMsg（sendMessage 里），这里把同一个 id/createdAt
+// 带给后端，让云端最终落地的用户消息跟本地气泡是同一条，quote/删除/切版本等操作不会因为id不一致而失灵。
+async function sendChatMain(userMsg) {
   const cfg = getConfig();
-  if (!cfg.endpoint || !cfg.key || !cfg.model) { showToast('请先在 Space 页填写 API 配置'); return; }
-  const rerollIdx = rerollTarget ? messages.findIndex(m => m.id === rerollTarget.id) : -1;
-  const allReal = messages.filter(m => m.role !== 'notice');
-  let sourceMsgs = rerollIdx >= 0 ? messages.slice(0, rerollIdx).filter(m => m.role !== 'notice') : allReal;
-  sourceMsgs = filterByTopicStart(sourceMsgs);
-  const { windowMsgs } = splitWindow(sourceMsgs);
-  const apiMessages = windowMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, windowMsgs[i - 1]) }));
-  const userText = getLatestUserText();
-  // 记忆/时间/日记经常变化，不进入 system 缓存块，作为 tailText 每次实时拼接，
-  // 避免打断 persona 和历史消息上的 cache_control 断点
-  let dynamicTail = buildMemoryInjection() + '\n\n【当前时间】' + currentTimeLabel();
-  if (window.memoryEmbedding) {
-    dynamicTail += await window.memoryEmbedding.getRelevantMemories(userText);
-  }
-  const diaryInjection = buildDiaryInjection(userText);
-  if (diaryInjection) dynamicTail += diaryInjection;
-  const planInjection = buildPlanInjection();
-  if (planInjection) dynamicTail += planInjection;
-  if (pendingAlarmTail) { dynamicTail += pendingAlarmTail; pendingAlarmTail = ''; }
-  if (window.supabaseMood) {
-    try { const { data } = await window.supabaseMood.getMood(); if (data && data.content != null) aiMood = data.content; }
-    catch(e) { console.warn('拉取心事失败', e); }
-  }
-  dynamicTail += buildMoodInjection();
-  const systemBlocks = [
-    { text: appPersona ? appPersona.trim() : '', cache: true },
-    { text: THINKING_META_HINT, cache: true }
-  ];
-  const toolsEnabled = !!cfg.toolsEnabled;
-  if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
-  const galateaMcpTools = buildGalateaMcpTools(cfg);
-  if (galateaMcpTools.length) systemBlocks.push({ text: '你现在还可以使用花园完整工具集（具体工具见下方 tools 列表），按工具描述判断何时使用。', cache: true });
-
-  const isReroll = !!rerollTarget;
-  let aiMsg, aiRow, aiBubble;
-  if (isReroll) {
-    aiMsg = rerollTarget; aiRow = chatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
-    if (!aiRow) { aiRow = appendMessage(aiMsg); }
-    aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '';
-  } else {
-    aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
-    messages.push(aiMsg); persistMessages(); aiRow = appendMessage(aiMsg); aiBubble = aiRow.querySelector('.msg-bubble');
-    aiBubble.innerHTML = '';
-  }
+  if (!cfg.chatServiceKey) { showToast('请先在 Space 页填写聊天服务密钥'); return; }
+  const aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
+  messages.push(aiMsg); persistMessages(); const aiRow = appendMessage(aiMsg); const aiBubble = aiRow.querySelector('.msg-bubble');
+  aiBubble.innerHTML = '';
 
   const sendBtnEl = document.getElementById('sendBtn');
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
   const gen = createGenTracker(aiRow);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
-  let accumulated = '', accumulatedReasoning = '', toolCallLog = [];
+  activeStreamMsgId = aiMsg.id;
+  let accumulated = '';
 
-  function finishWith(rawText, reasoningText) {
-    if ((!rawText || !rawText.trim()) && !toolCallLog.length) {
-      if (isReroll) { refreshRow(aiMsg, mainCtx); }
-      else { const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages(); }
-      return;
-    }
-    let thinking = reasoningText || '', bodyText = rawText || '';
-    if (!thinking) { const extracted = extractThinking(bodyText); thinking = extracted.thinking; bodyText = extracted.cleanText; }
-    let cleanText = processMemoryMarkers(bodyText); cleanText = processDiaryMarkers(cleanText);
-    cleanText = processChecklistMarkers(cleanText);
-    cleanText = processMoodMarkers(cleanText);
-    cleanText = cleanText.replace(/[\[【]\s*split[\s_]*msg\s*[\]】]/gi, '[splitmsg]');
-    const { cleanText: afterQuote, quote } = extractQuoteMarker(cleanText);
-    cleanText = afterQuote;
-    if ((!cleanText || !cleanText.trim()) && !toolCallLog.length) {
-      if (isReroll) { refreshRow(aiMsg, mainCtx); }
-      else { const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages(); }
-      return;
-    }
-    if (!isReroll && cleanText.includes('[splitmsg]')) {
-      const parts = cleanText.split('[splitmsg]').map(p => p.trim()).filter(p => p.length > 0);
-      const idx = messages.findIndex(m => m.id === aiMsg.id); if (idx !== -1) messages.splice(idx, 1); if (aiRow && aiRow.parentNode) aiRow.remove(); persistMessages();
-      if (parts.length > 0) renderSplitBubbles(parts, 0, toolCallLog); refreshTokenEstimate(); return;
-    }
-    if (isReroll) { const joined = cleanText.split('[splitmsg]').map(p => p.trim()).filter(Boolean).join('\n\n') || cleanText; aiMsg.versions.push(joined); aiMsg.versionIndex = aiMsg.versions.length - 1; aiMsg.text = joined; aiMsg.time = timeStr(); aiMsg.thinking = thinking; aiMsg.toolCalls = toolCallLog; if (quote) aiMsg.quote = quote; }
-    else { aiMsg.versions[0] = cleanText; aiMsg.versionIndex = 0; aiMsg.text = cleanText; aiMsg.thinking = thinking; aiMsg.toolCalls = toolCallLog; if (quote) aiMsg.quote = quote; }
-    persistMessages(); refreshRow(aiMsg, mainCtx); scrollToBottom(chatScroll, 'page-chat');
-    refreshTokenEstimate();
+  function dropPlaceholderIfEmpty() {
+    if (accumulated.trim()) { aiMsg.text = accumulated; aiMsg.versions[0] = accumulated; persistMessages(); refreshRow(aiMsg, mainCtx); return; }
+    const idx = messages.findIndex(m => m.id === aiMsg.id);
+    if (idx !== -1) messages.splice(idx, 1);
+    if (aiRow && aiRow.parentNode) aiRow.remove();
+    persistMessages();
   }
 
   try {
-    const wireMessages = buildWireMessages(cfg, apiMessages, dynamicTail);
-    const result = await runChatLoop({
-      cfg, wireMessages, systemBlocks, tools: [...(toolsEnabled ? TOOLS_REGISTRY : []), ...galateaMcpTools], tailText: dynamicTail, controller,
-      onDelta: (delta, reasoningDelta) => {
-        if (reasoningDelta) accumulatedReasoning += reasoningDelta;
-        if (delta) { accumulated += delta; renderer.push(accumulated); }
-        if (delta && delta.trim()) gen.onToken();
-      },
-      onToolRound: (toolCalls, results) => {
-        toolCallLog.push(...toolCalls.map((tc, i) => ({ name: tc.name, args: tc.args, result: results[i].text, isError: !!results[i].isError })));
-      }
+    const body = {
+      id: userMsg.id, createdAt: userMsg.createdAt, text: userMsg.text, images: userMsg.images, files: userMsg.files,
+      quote: userMsg.quote, username: appUsername, ...buildGalateaMcpRequestFields(cfg)
+    };
+    const res = await fetch(chatMainUrl('/send'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    const result = await readChatMainSSE(res, (deltaText) => {
+      accumulated += deltaText; renderer.push(accumulated);
+      if (deltaText.trim()) gen.onToken();
     });
-    accumulated = result.text; accumulatedReasoning = result.reasoning;
-    finishWith(accumulated, accumulatedReasoning);
+    if (result.type === 'error') {
+      dropPlaceholderIfEmpty();
+      showToast('回复失败：' + ((result.payload && result.payload.message) || '未知错误'), 3500);
+      return;
+    }
+    if (result.type === 'done' && result.payload) {
+      const { userMessage, aiMessages } = result.payload;
+      if (userMessage) {
+        const uidx = messages.findIndex(m => m.id === userMsg.id);
+        if (uidx !== -1) messages[uidx] = userMessage;
+      }
+      const aidx = messages.findIndex(m => m.id === aiMsg.id);
+      if (aidx !== -1) messages.splice(aidx, 1);
+      (aiMessages || []).forEach(m => messages.push(m));
+      persistMessages();
+      mainRenderStart = null;
+      renderAllMessages();
+      refreshTokenEstimate();
+    }
   } catch(err) {
-    if (err.name === 'AbortError') { finishWith(accumulated, accumulatedReasoning); }
-    else { console.error(err); finishWith(accumulated, accumulatedReasoning); showToast('连接失败，请检查网络或API配置', 3500); }
-  } finally { mainGenerating = false; mainAbortController = null; gen.stop(); updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0); }
+    if (err.name === 'AbortError') { dropPlaceholderIfEmpty(); }
+    else { console.error(err); dropPlaceholderIfEmpty(); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
+  } finally {
+    activeStreamMsgId = null; mainGenerating = false; mainAbortController = null; gen.stop();
+    updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
+  }
+}
+async function chatMainEditRequest(msg) {
+  const cfg = getConfig();
+  if (!cfg.chatServiceKey) { console.warn('聊天服务密钥未配置，跳过 /chat-main/edit'); return; }
+  try {
+    const res = await fetch(chatMainUrl('/edit'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify({ id: msg.id, text: getMsgDisplayText(msg) }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.message) {
+      const idx = messages.findIndex(m => m.id === msg.id);
+      if (idx !== -1) { messages[idx] = data.message; persistMessages(); refreshRow(messages[idx], mainCtx); }
+    }
+  } catch(e) { console.warn('/chat-main/edit 失败', e); }
+}
+async function chatMainDeleteRequest(ids) {
+  const cfg = getConfig();
+  if (!cfg.chatServiceKey) { console.warn('聊天服务密钥未配置，跳过 /chat-main/delete'); return; }
+  try {
+    const res = await fetch(chatMainUrl('/delete'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify({ ids }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } catch(e) { console.warn('/chat-main/delete 失败', e); }
+}
+async function chatMainVersionRequest(msg, delta) {
+  const cfg = getConfig();
+  if (!cfg.chatServiceKey) { console.warn('聊天服务密钥未配置，跳过 /chat-main/version'); return; }
+  try {
+    const res = await fetch(chatMainUrl('/version'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify({ id: msg.id, delta }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.message) {
+      const idx = messages.findIndex(m => m.id === msg.id);
+      if (idx !== -1) { messages[idx] = data.message; persistMessages(); refreshRow(messages[idx], mainCtx); }
+    }
+  } catch(e) { console.warn('/chat-main/version 失败', e); }
+}
+
+/* ============================================================
+API 调用：主聊天（现在只用于"重新生成" —— 发送新消息走 sendChatMain）
+============================================================ */
+async function callAPI(rerollTarget) {
+  if (!rerollTarget) return; // 主聊天发送新消息已经改走 sendChatMain()，这里只处理 regenerateMessage 传入的重投目标
+  const cfg = getConfig();
+  if (!cfg.chatServiceKey) { showToast('请先在 Space 页填写聊天服务密钥'); return; }
+  const aiMsg = rerollTarget;
+  let aiRow = chatScroll.querySelector(`[data-msg-id="${aiMsg.id}"]`);
+  if (!aiRow) aiRow = appendMessage(aiMsg);
+  const aiBubble = aiRow.querySelector('.msg-bubble'); aiBubble.innerHTML = '';
+
+  const sendBtnEl = document.getElementById('sendBtn');
+  const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
+  const gen = createGenTracker(aiRow);
+  const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
+  activeStreamMsgId = aiMsg.id;
+  let accumulated = '';
+
+  try {
+    const body = { id: aiMsg.id, username: appUsername, ...buildGalateaMcpRequestFields(cfg) };
+    const res = await fetch(chatMainUrl('/regenerate'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    const result = await readChatMainSSE(res, (deltaText) => {
+      accumulated += deltaText; renderer.push(accumulated);
+      if (deltaText.trim()) gen.onToken();
+    });
+    if (result.type === 'error') {
+      showToast('重新生成失败：' + ((result.payload && result.payload.message) || '未知错误'), 3500);
+      refreshRow(aiMsg, mainCtx);
+      return;
+    }
+    if (result.type === 'done' && result.payload && result.payload.aiMessage) {
+      const idx = messages.findIndex(m => m.id === aiMsg.id);
+      if (idx !== -1) { messages[idx] = result.payload.aiMessage; persistMessages(); refreshRow(messages[idx], mainCtx); }
+      scrollToBottom(chatScroll, 'page-chat');
+      refreshTokenEstimate();
+    }
+  } catch(err) {
+    if (err.name !== 'AbortError') { console.error(err); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
+    refreshRow(aiMsg, mainCtx);
+  } finally {
+    activeStreamMsgId = null; mainGenerating = false; mainAbortController = null; gen.stop();
+    updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
+  }
 }
 
 /* ============================================================
@@ -5740,7 +5841,7 @@ async function sendMessage() {
   textInput.value = ''; textInput.style.height = 'auto';
   pendingAttachments = []; renderAttachPreview();
   updateSendBtnState(sendBtn, false, false);
-  await callAPI();
+  await sendChatMain(userMsg);
 }
 sendBtn.addEventListener('click', () => { if (mainGenerating) { if (mainAbortController) mainAbortController.abort(); } else { sendMessage(); } });
 textInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); sendMessage(); } });
@@ -5923,8 +6024,13 @@ async function checklistDailyResetIfNeeded() {
   renderChecklistSheet();
 }
 
-// 闹钟：不新建发送逻辑，复用 callAPI() 的既有管线——把提醒文案塞进 pendingAlarmTail，
-// callAPI() 里会像记忆/日记注入一样把它拼进 dynamicTail 再清空，让AI用一次正常生成把提醒说出来。
+// 闹钟：迁移到 garden-agent 后端架构之前，这里靠复用 callAPI() 的既有管线——把提醒文案塞进
+// pendingAlarmTail，callAPI() 里会像记忆/日记注入一样把它拼进 dynamicTail 再清空，让AI用一次
+// "无用户消息"的正常生成把提醒说出来。
+// 迁移后主聊天不再由浏览器直接调用LLM，新的 /chat-main 契约里 /send 必须带一条真实用户消息、
+// /regenerate 必须指定一条已存在的AI消息重投——都没有对应"无用户输入、后端主动开口"的端点。
+// 判断：这里没有对应契约可用，暂时只做本地清单认领/状态更新，不再触发AI主动播报；
+// 等后端补上对应端点（比如 /chat-main/nudge）再把这段接回去。
 async function checklistTick() {
   await checklistDailyResetIfNeeded();
   if (!window.supabaseChecklist) return;
@@ -5935,10 +6041,6 @@ async function checklistTick() {
     if (due.length === 0) return;
     due.forEach(row => { const local = checklist.find(c => c.id === row.id); if (local) { local.notified = 1; local.updated_at = row.updated_at; } });
     renderChecklistSheet();
-    const cfg = getConfig();
-    if (mainGenerating || !cfg.endpoint || !cfg.key || !cfg.model) return; // 忙碌/未配置：本次跳过，notified已置1不会重复弹，但仍会按overdue规则继续显示
-    pendingAlarmTail = '\n\n【以下清单提醒到点了，用你自己的语气现在就主动跟' + appUsername + '说，不要生硬转述】\n' + due.map(it => '- ' + it.body).join('\n');
-    await callAPI();
   } catch(e) { console.warn('清单闹钟tick出错', e); }
 }
 function startChecklistTick() { checklistTick(); setInterval(checklistTick, 30000); }
