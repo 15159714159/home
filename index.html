@@ -1515,6 +1515,13 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint" id="galateaMcpStatusHint">开启后AI可使用花园完整 MCP 工具集（需先填 token 并点击"获取工具列表"成功后才会生效）。token 与工具集只保存在本机浏览器里。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">聊天云同步</div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="forcePushCloudBtn">立即同步聊天记录到云端</button>
+      </div>
+      <div class="space-hint" id="chatSyncStatusHint">同步状态：等待初始化…</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">强制刷新</div>
       <div class="space-btn-row">
         <button class="space-danger-btn" id="forceRefreshBtn">强制刷新 App</button>
@@ -3140,21 +3147,34 @@ let chatSyncDirty = false;
 let chatSyncReady = false;
 let mainChatUpdatedAt = null;
 let subChatsUpdatedAt = null;
+const chatSyncStatusHintEl = document.getElementById('chatSyncStatusHint');
+function updateChatSyncHint(text) {
+  if (chatSyncStatusHintEl) chatSyncStatusHintEl.textContent = text;
+}
+// 返回值供"立即同步"按钮读取结果展示；自动防抖路径（scheduleChatSync 触发）忽略返回值，行为不变。
 async function flushChatSync() {
-  if (!window.supabaseChats || !chatSyncDirty || !chatSyncReady) return;
+  if (!window.supabaseChats || !chatSyncDirty || !chatSyncReady) return { ok: false, skipped: true };
   clearTimeout(chatSyncTimer); chatSyncDirty = false;
   const [mainRes, subRes] = await Promise.all([
     window.supabaseChats.upsertChat('main', messages, mainChatUpdatedAt),
     window.supabaseChats.upsertChat('subchats', subChats, subChatsUpdatedAt)
   ]);
+  let conflict = false, errMsg = '';
   if (mainRes.error) {
-    if (mainRes.error.code === 'CHAT_SYNC_CONFLICT') { showToast('聊天记录云端已被其他设备更新，已放弃覆盖，正在拉取最新内容'); await refreshChatsFromSupabase(); onChatSyncDone(); }
-    else console.warn('聊天云端同步失败', mainRes.error);
+    if (mainRes.error.code === 'CHAT_SYNC_CONFLICT') { conflict = true; showToast('聊天记录云端已被其他设备更新，已放弃覆盖，正在拉取最新内容'); await refreshChatsFromSupabase(); onChatSyncDone(); }
+    else { errMsg = mainRes.error.message || String(mainRes.error); console.warn('聊天云端同步失败', mainRes.error); }
   } else if (mainRes.data && mainRes.data[0]) { mainChatUpdatedAt = mainRes.data[0].updated_at; }
   if (subRes.error) {
-    if (subRes.error.code === 'CHAT_SYNC_CONFLICT') { showToast('副聊天云端已被其他设备更新，已放弃覆盖，正在拉取最新内容'); await refreshChatsFromSupabase(); onChatSyncDone(); }
-    else console.warn('副聊天云端同步失败', subRes.error);
+    if (subRes.error.code === 'CHAT_SYNC_CONFLICT') { conflict = true; showToast('副聊天云端已被其他设备更新，已放弃覆盖，正在拉取最新内容'); await refreshChatsFromSupabase(); onChatSyncDone(); }
+    else { errMsg = errMsg || subRes.error.message || String(subRes.error); console.warn('副聊天云端同步失败', subRes.error); }
   } else if (subRes.data && subRes.data[0]) { subChatsUpdatedAt = subRes.data[0].updated_at; }
+
+  if (conflict) { updateChatSyncHint('同步状态：云端有更新的内容，已拉取最新版本到本机（未覆盖云端）'); return { ok: false, conflict: true }; }
+  if (errMsg) { updateChatSyncHint('同步状态：同步失败 · ' + errMsg); return { ok: false, error: errMsg }; }
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  updateChatSyncHint(`同步状态：已同步 · ${timeStr} · 主聊天 ${messages.length} 条 / 副聊天 ${subChats.length} 条`);
+  return { ok: true };
 }
 function scheduleChatSync() {
   if (!window.supabaseChats) return;
@@ -3252,6 +3272,24 @@ document.getElementById('forceRefreshBtn').addEventListener('click', async () =>
   } catch(e) { console.warn('清缓存失败', e); }
   location.href = location.pathname + '?_r=' + Date.now();
 });
+async function forcePushChatNow() {
+  const btn = document.getElementById('forcePushCloudBtn');
+  if (!window.supabaseChats) { showToast('云同步模块还没加载好，稍等几秒再试'); return; }
+  if (!chatSyncReady) { showToast('同步模块还没准备好，稍等几秒再试'); return; }
+  clearTimeout(chatSyncTimer);
+  chatSyncDirty = true;
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = '同步中…';
+  updateChatSyncHint('同步状态：同步中…');
+  try {
+    const result = await flushChatSync();
+    if (result.ok) showToast('已同步到云端');
+    else if (result.error) showToast('同步失败：' + result.error, 4000);
+  } finally {
+    btn.disabled = false; btn.textContent = originalText;
+  }
+}
+document.getElementById('forcePushCloudBtn').addEventListener('click', forcePushChatNow);
 // "以云端为准"：跳过所有本地/云端谁更新的判断，把云端聊天记录硬拉下来覆盖本地。
 // 关键是把本地 touched-at 时间戳对齐到云端 updated_at——否则重载后 refreshChatsFromSupabase
 // 会认为"本地比云端新"，反手又把这台设备的旧数据推回云端，恢复就白做了。
@@ -3549,7 +3587,8 @@ async function initSupabaseMemorySync() {
 async function initChatSync(attempt = 0) {
   if (!window.supabaseChats) return;
   const retry = () => {
-    if (attempt >= 8) { showToast('聊天云同步初始化失败，本次会话不会同步！请检查网络后强制刷新', 6000); return; }
+    if (attempt >= 8) { showToast('聊天云同步初始化失败，本次会话不会同步！请检查网络后强制刷新', 6000); updateChatSyncHint('同步状态：初始化失败，本次会话不会自动同步'); return; }
+    updateChatSyncHint('同步状态：初始化中，重试第 ' + (attempt + 1) + ' 次…');
     setTimeout(() => initChatSync(attempt + 1), Math.min(2000 * Math.pow(2, attempt), 60000));
   };
   try {
@@ -3561,11 +3600,13 @@ async function initChatSync(attempt = 0) {
       if (mainData && mainData[0]) mainChatUpdatedAt = mainData[0].updated_at;
       if (subData && subData[0]) subChatsUpdatedAt = subData[0].updated_at;
       chatSyncReady = true;
+      updateChatSyncHint('同步状态：已连接云端（首次上传）');
       if (chatSyncDirty) flushChatSync();
       return;
     }
     await refreshChatsFromSupabase();
     chatSyncReady = true;
+    updateChatSyncHint('同步状态：已连接云端');
     if (chatSyncDirty) flushChatSync();
   } catch(e) { console.warn('Supabase聊天记录同步初始化出错，稍后重试', e); retry(); }
 }
