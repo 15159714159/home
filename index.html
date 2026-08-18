@@ -3648,7 +3648,7 @@ async function initChatSync(attempt = 0) {
   try {
     const { data: mainRow, error } = await window.supabaseChats.getChat('main');
     if (error) { console.warn('Supabase聊天记录状态检查失败，稍后重试', error); retry(); return; }
-    if (mainRow && Array.isArray(mainRow.data)) { messages = mainRow.data; safeIdbSet(LS_MESSAGES, messages); }
+    if (mainRow && Array.isArray(mainRow.data)) { messages = mergeCloudTailIntoLocal(messages, mainRow.data); safeIdbSet(LS_MESSAGES, messages); }
     subscribeMainChatOnce();
     await refreshSubChatsFromSupabase();
     chatSyncReady = true;
@@ -3663,9 +3663,26 @@ function subscribeMainChatOnce() {
 }
 // 只读通道：garden-agent 每次写完 chats(main) 都会触发这个 Realtime UPDATE，用来让同设备的其它
 // 标签页/窗口、以及别的设备看到最新聊天内容——纯展示层的重render，绝不在这里触发任何回写。
+//
+// chats(main) 云端现在只保留最近 200 条（见 galatea-garden-agent::CHAT_MAIN_WINDOW_SIZE，
+// 云端整行 jsonb 攒到 15MB 后每次读写要好几秒到二十几秒，这是主聊天卡顿的真正主因），
+// 本地 IndexedDB 仍然保留完整历史，所以云端数据不能再直接整体覆盖本地——用云端窗口
+// 第一条消息的 id 当锚点，只替换本地数组里从锚点往后的这一段，锚点之前的本地历史原样保留。
+// 找不到锚点（比如本地历史比云端窗口还短，或者本地暂时是空的）时：本地为空就直接用云端数据；
+// 本地不为空但对不齐，宁可跳过这次合并保持本地不动，也不要用云端这个"尾部窗口"覆盖掉
+// 可能更完整的本地历史——避免重演之前"用旧/不完整数据覆盖本地"的同步事故。
+function mergeCloudTailIntoLocal(localMessages, cloudMessages) {
+  if (!cloudMessages.length) return localMessages;
+  const anchorId = cloudMessages[0].id;
+  const idx = localMessages.findIndex(m => m.id === anchorId);
+  if (idx !== -1) return [...localMessages.slice(0, idx), ...cloudMessages];
+  if (localMessages.length === 0) return cloudMessages;
+  console.warn('云端主聊天窗口与本地历史无法对齐，暂不合并（本地未改动）');
+  return localMessages;
+}
 function applyCloudMainUpdate(row) {
   if (!row || !Array.isArray(row.data)) return;
-  let nextMessages = row.data;
+  let nextMessages = mergeCloudTailIntoLocal(messages, row.data);
   if (activeStreamMsgId) {
     const stillThere = nextMessages.some(m => m.id === activeStreamMsgId);
     if (!stillThere) {
