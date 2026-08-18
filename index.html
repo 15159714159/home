@@ -3068,15 +3068,29 @@ document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
 // （见 supabase_migration_8.sql）。之前这里有个 `if (!cfg.claudeNative) return` 的早退——
 // 只在原生 Claude 格式下才同步，非原生格式（如 DeepSeek 等）切换 key/model 后台完全看不到，是个确认的 bug。
 // 用户经常换 key/模型，其中不少不是 Claude 原生格式，所以任何格式都要同步，不再按 claudeNative 判断要不要发。
+// 桌面壳子app冷启动时网络栈没就绪，请求会直接报"Load failed"，不是服务端拒绝——
+// 跟 forcePushChatNow 同一套失败自动重试，避免改了密钥/模型却因为这一次请求悄悄失败、
+// 后端读到的还是旧配置；不管成功失败都要弹 toast，用户能明确知道这次到底有没有同步上，
+// 不用靠"猜"或者回头翻控制台。
 let aiConfigSyncTimer = null;
 function scheduleAiConfigSync() {
   if (!window.supabaseAiConfig) return;
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    try {
-      await window.supabaseAiConfig.upsertAiConfig({ api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative });
-    } catch(e) { console.warn('AI 配置同步云端失败', e); }
+    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative };
+    const MAX_ATTEMPTS = 3;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (attempt > 1) await new Promise(r => setTimeout(r, 1200 * (attempt - 1)));
+      try {
+        const { error } = await window.supabaseAiConfig.upsertAiConfig(payload);
+        if (!error) { showToast('配置已同步到后端'); return; }
+        lastErr = error;
+      } catch (e) { lastErr = e; }
+    }
+    console.warn('AI 配置同步云端失败', lastErr);
+    showToast(`配置同步失败：${(lastErr && lastErr.message) || lastErr}（已重试${MAX_ATTEMPTS}次）`, 4000);
   }, 800);
 }
 
