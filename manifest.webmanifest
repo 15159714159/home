@@ -1,0 +1,10 @@
+{
+  "name": "然竣和ao的家",
+  "short_name": "然竣",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#b2c8d6",
+  "theme_color": "#b2c8d6",
+  "icons": []
+}

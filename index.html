@@ -6281,15 +6281,42 @@ function setupAppHeightFix() {
   if (navigator.standalone !== true) return;
   let lastH = null;
   const apply = () => {
-    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    // visualViewport 和 innerHeight 在此 bug 下可能报同一个偏小值，取两者最大；
+    // 首帧数值不可信（同 setupSafeAreaFallback 的经验），下方延迟复测校正。
+    const h = Math.max(window.visualViewport ? window.visualViewport.height : 0, window.innerHeight);
     if (lastH != null && lastH - h > 150) return; // 键盘弹出导致的骤减，跳过以免布局跳动
     lastH = h;
     document.documentElement.style.setProperty('--app-h', h + 'px');
   };
   apply();
+  setTimeout(apply, 300);
+  setTimeout(apply, 1000);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', apply);
   window.addEventListener('resize', apply);
   window.addEventListener('orientationchange', () => setTimeout(apply, 300));
+}
+// 【临时诊断，空条问题解决后整段删除】屏幕左上角显示各视口实测值 + 底部红线标出
+// fixed 定位所认为的"屏幕底边"。若红线上方仍露出空条，说明布局视口 < 真实屏幕。
+function setupViewportDebug() {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:60px;left:8px;z-index:999999;background:rgba(0,0,0,0.75);color:#0f0;'
+    + 'font:10px/1.5 monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre;';
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:4px;background:red;z-index:999999;pointer-events:none;';
+  document.body.appendChild(el); document.body.appendChild(bar);
+  const upd = () => {
+    const vv = window.visualViewport;
+    const app = document.getElementById('app');
+    el.textContent =
+      'standalone: ' + (navigator.standalone === true) + '\n'
+      + 'screen.h:   ' + screen.height + '\n'
+      + 'inner.h:    ' + window.innerHeight + '\n'
+      + 'vv.h:       ' + (vv ? Math.round(vv.height) : '-') + '\n'
+      + 'app-h var:  ' + (document.documentElement.style.getPropertyValue('--app-h') || '(未设)') + '\n'
+      + '#app 实高:  ' + (app ? app.offsetHeight : '-') + '\n'
+      + 'safe-bottom:' + getComputedStyle(bar).getPropertyValue('bottom');
+  };
+  upd(); setInterval(upd, 1000);
 }
 // supabase.js 是 type="module"，ombre-backend.js 是 defer，二者都在文档解析完、
 // DOMContentLoaded 之前按书写顺序执行完，所以在 DOMContentLoaded 里调用能保证都已挂好。
@@ -6303,6 +6330,7 @@ window.addEventListener('DOMContentLoaded', () => {
 (async function init() {
   setupSafeAreaFallback();
   setupAppHeightFix();
+  setupViewportDebug();
   loadDarkMode();
   loadSettings();
   loadPresets();
