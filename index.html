@@ -52,7 +52,7 @@ overscroll-behavior: none;
 transition: background-color 0.25s ease, color 0.25s ease;
 }
 #app {
-  position: relative; width: 100%; height: 100dvh; min-height: 0;
+  position: relative; width: 100%; height: var(--app-h, 100dvh); min-height: 0;
   display: flex; flex-direction: column; overflow: hidden; background: var(--chat-bg);
 }
 @media (min-width: 431px) {
@@ -1963,53 +1963,33 @@ const LS_CHAT_THEME = 'nest_chat_theme';
 /* ============================================================
 聊天主题（图片气泡皮肤）—— 素材来自 KakaoTalk 官方主题包，
 气泡用 CSS border-image 九宫格拉伸实现自适应宽高。
-cap-inset 数值取自主题包自带的 KakaoTalkTheme.css（形如
-"-ios-background-image: 'xxx.png' 34px 51px;"，对应 iOS 老 API
-stretchableImageWithLeftCapWidth:topCapHeight: 的语义——
-左上角 (leftCapWidth, topCapHeight) 区域固定不变形，右/下两边
-= 图片宽高 - 该值，中间留极窄的可拉伸带。素材是 @3x 图，
-DSL 数值是 @1x 单位，套用时先 ×3 换算成像素。
+cap 切片数值与文字内边距(insets)均取自主题包自带的 KakaoTalkTheme.css：
+- -ios-background-image: 'xxx.png' <leftCap>px <topCap>px;  → 九宫格切片
+- -ios-title-edgeinsets: <top>px <left>px <bottom>px <right>px; → 文字内边距
+  （注意顺序是 上左下右，与 CSS padding 的 上右下左 不同）
+这是两组独立数据：cap 尺寸由装饰图案几何决定，insets 是文字安全区，
+不应互相替代。素材是 @3x 图，DSL 数值是 @1x 单位，套用时先 ×3 换算成像素。
 ============================================================ */
 const CHAT_THEME_ASSET_BASE = 'theme-assets/kakao-bb0ding02/';
-// slice: [top, right, bottom, left] 像素（对应源图自身分辨率，border-image-slice 用）
-// border: [top, right, bottom, left] CSS 逻辑像素（slice 数值 ÷3，换算回 1x，图案不缩放）
-// CSS border-image 只有一段连续的中间可拉伸区，没法做到"两侧固定、中间只拉伸1px"；
-// 中间区必须留够至少一行文字的原始尺寸（CONTENT_W/CONTENT_H），1 行消息才能 0 拉伸（缩放比=1）。
-// 压缩到 1 个原生像素试过了：会导致连 1 个字符都要把 1px 硬拉成十几px，比不压缩更糟，故撤回。
-const CONTENT_W = 2, CONTENT_H = 8; // 默认值：中间可拉伸区宽/高（1x），已按反馈下调
-const ZONE_SHIFT_Y = -1, ZONE_SHIFT_X = 0; // 默认值：拉伸区选区位置微调（原生像素，不改变选区大小，只挪窗口）
-const BUBBLE_SCALE = 1; // 气泡整体缩放系数（所有皮肤生效）：只缩小骨架尺寸和四角图案显示尺寸，
-// 不改 font-size/line-height（文字大小不变），四角图案等比缩小（不是拉伸变形）。
-function bubbleSpec(file, w, h, leftCap1x, topCap1x, shiftX, shiftY, stretchW, stretchH, textX, textY, zoneShiftX, zoneShiftY) {
-  // 左上角用官方 DSL 真实 cap 值（原图内容，不猜、不缩放），
-  // shiftX/shiftY 用来手动微调分割线位置（往右/下偏移），修正图案本身偏移导致的分割点错位。
-  // stretchW/stretchH：中间可拉伸区的宽/高（1x 单位，可留空用默认 CONTENT_W/CONTENT_H），
-  // 单独可调 —— 数值越大，中间带越宽，视觉上"拉伸感"越明显；越小则更贴近原图但要留够单行文字空间。
-  // zoneShiftX/zoneShiftY：拉伸区选区在原图上的位置微调（原生像素，可留空用默认 ZONE_SHIFT_X/Y），
-  // 只挪动选区窗口本身、不改变选区大小（stretchW/stretchH 不变）；窗口往上/左挪，
-  // 上/左固定角会跟着变矮/变窄这么多原生像素，下/右固定角相应变高/变宽，总尺寸不变。
-  // textX/textY：文字在气泡内的额外偏移（1x 单位，正值=右/下移，可留空=0），通过 padding 实现，
-  // 与 shiftX/shiftY（分割线位置）、stretchW/stretchH（拉伸区尺寸）相互独立，互不影响。
-  // 右/下角 = 骨架尺寸 - cap - 中间带宽/高，图片原始尺寸下（min-width/min-height = natW/natH）
-  // 若中间带 ≥ 单行文字所需尺寸，则 1 行消息缩放比=1，不产生任何拉伸；
-  // 消息变长/变多行时，中间这条带才会被拉伸——它仍会带到部分装饰（尾巴/丝带），
-  // 这是 border-image 单一中间拉伸区的结构性限制，无法在不拆分素材的前提下完全消除。
-  const natW = w / 3, natH = h / 3;
-  const sw = stretchW != null ? stretchW : CONTENT_W;
-  const sh = stretchH != null ? stretchH : CONTENT_H;
-  const zsx = zoneShiftX != null ? zoneShiftX : ZONE_SHIFT_X;
-  const zsy = zoneShiftY != null ? zoneShiftY : ZONE_SHIFT_Y;
-  const lc = leftCap1x + (shiftX || 0), tc = topCap1x + (shiftY || 0);
-  const left = Math.max(0, lc * 3 + zsx);
-  const top = Math.max(0, tc * 3 + zsy);
-  const right = Math.max(0, w - left - sw * 3);
-  const bottom = Math.max(0, h - top - sh * 3);
+function hexToRgba(hex, alpha) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+// insets: [top, left, bottom, right]，即官方 -ios-title-edgeinsets 原文顺序。
+function bubbleSpec(file, w, h, leftCap, topCap, insets) {
+  const STRETCH = 3; // 可拉伸带宽/高（原生像素）。iOS 老 API 的拉伸带是 1pt，@3x 即 3px。
+  const left = leftCap * 3, top = topCap * 3;
+  const right = Math.max(0, w - left - STRETCH);
+  const bottom = Math.max(0, h - top - STRETCH);
   return {
-    file, natW: natW * BUBBLE_SCALE, natH: natH * BUBBLE_SCALE,
-    minW: natW * BUBBLE_SCALE, minH: natH * BUBBLE_SCALE,
-    slice: [top, right, bottom, left],
-    border: [top / 3 * BUBBLE_SCALE, right / 3 * BUBBLE_SCALE, bottom / 3 * BUBBLE_SCALE, left / 3 * BUBBLE_SCALE],
-    textX: textX || 0, textY: textY || 0,
+    file,
+    slice: [top, right, bottom, left],            // border-image-slice（原图像素）
+    border: [top / 3, right / 3, bottom / 3, left / 3], // ::before 的 border-width（CSS px）
+    // padding 顺序转换：官方 上左下右 → CSS 上右下左
+    padding: [insets[0], insets[3], insets[2], insets[1]],
+    // 防止短消息把四角切片挤变形：最小尺寸 = 两侧固定角之和 + 拉伸带
+    minW: (left + right + STRETCH) / 3,
+    minH: (top + bottom + STRETCH) / 3,
   };
 }
 const CHAT_THEMES = [
@@ -2020,11 +2000,13 @@ const CHAT_THEMES = [
     desc: 'KakaoTalk 官方主题 · 天使恶魔布丁',
     thumb: CHAT_THEME_ASSET_BASE + 'profileImg01@3x.png',
     bg: CHAT_THEME_ASSET_BASE + 'chatroomBgImage@3x.png',
+    textColor: '#636363',
+    inputBar: { bg: '#FFFFFF', sendBg: '#EDEDED', sendFg: '#636363', iconColor: '#636363', textColor: '#636363' },
     bubbles: {
-      sendFirst:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend01@3x.png',    264, 204, 34, 51, -2, -5, null, 9, 3, -4, null, -5),
-      sendGroup:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend02@3x.png',    264, 144, 34, 31, -2, -5, null, 9, 3, -4, null, -5),
-      receiveFirst: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive01@3x.png', 267, 189, 54, 46, -2, -5, null, 9, 3, -4, null, -5),
-      receiveGroup: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive02@3x.png', 258, 144, 54, 31, -2, -5, null, 9, 3, -4, null, -5),
+      sendFirst:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend01@3x.png',    264, 204, 34, 51, [35, 29, 16, 47]),
+      sendGroup:    bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleSend02@3x.png',    264, 144, 34, 31, [15, 29, 15, 47]),
+      receiveFirst: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive01@3x.png', 267, 189, 54, 46, [30, 48, 16, 29]),
+      receiveGroup: bubbleSpec(CHAT_THEME_ASSET_BASE + 'chatroomBubbleReceive02@3x.png', 258, 144, 54, 31, [16, 48, 14, 26]),
     },
   },
   (() => {
@@ -2035,11 +2017,13 @@ const CHAT_THEMES = [
       desc: 'KakaoTalk 官方主题 · 粉色小天使',
       thumb: BASE + 'profileImg01@3x.png',
       bg: BASE + 'chatroomBgImage@3x.png',
+      textColor: '#90767A',
+      inputBar: { bg: '#FFFFFF', sendBg: '#FFADC7', sendFg: '#FFFFFF', iconColor: '#FFADC7', textColor: '#90767A' },
       bubbles: {
-        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    240, 210, 25, 47, 0, 0, null, 8, -1, -4, null, 4),
-        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    240, 132, 25, 21, 0, 0, null, 8, -1, -4, null, 4),
-        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 180, 201, 35, 44, 0, 0, null, 8, -1, -4, null, 4),
-        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 180, 132, 35, 21, 0, 0, null, 8, -1, -4, null, 4),
+        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    240, 210, 25, 47, [39, 18, 15, 49]),
+        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    240, 132, 25, 21, [13, 18, 15, 49]),
+        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 180, 201, 35, 44, [36, 29, 15, 18]),
+        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 180, 132, 35, 21, [13, 29, 15, 18]),
       },
     };
   })(),
@@ -2051,11 +2035,13 @@ const CHAT_THEMES = [
       desc: 'KakaoTalk 官方主题 · 兔子与暴力熊',
       thumb: BASE + 'profileImg01@3x.png',
       bg: BASE + 'chatroomBgImage@3x.png',
+      textColor: '#88594E',
+      inputBar: { bg: '#FFDFEB', sendBg: '#88594E', sendFg: '#FFFFFF', iconColor: '#88594E', textColor: '#88594E' },
       bubbles: {
-        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    189, 236, 12, 60, 0, 0, 2, 13, 5, -5),
-        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    189, 134, 20, 19, 0, 0, 2, 13, 5, -5),
-        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 168, 215, 40, 52, 0, 0, 2, 13, -3, -5),
-        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 168, 134, 40, 19, 0, 0, 2, 13, -3, -5),
+        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    189, 236, 12, 60, [50, 9, 9, 34]),
+        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    189, 134, 20, 19, [9, 9, 16, 34]),
+        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 168, 215, 40, 52, [42, 27, 9, 9]),
+        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 168, 134, 40, 19, [9, 27, 16, 9]),
       },
     };
   })(),
@@ -2067,11 +2053,13 @@ const CHAT_THEMES = [
       desc: 'KakaoTalk 官方主题 · 兔子与暴力熊（宝宝粉版）',
       thumb: BASE + 'profileImg01@3x.png',
       bg: BASE + 'chatroomBgImage@3x.png',
+      textColor: '#88594E',
+      inputBar: { bg: '#FFFFFF', sendBg: '#88594E', sendFg: '#FFFFFF', iconColor: '#88594E', textColor: '#88594E' },
       bubbles: {
-        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    236, 209, 17, 50, 0, 0, 2, 11, 2, -5),
-        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    236, 118, 20, 20, 0, 0, 2, 11, 4, -5),
-        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 175, 179, 50, 45, 0, 0, 2, 11, -9, -7),
-        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 175, 115, 40, 19, 0, 0, 2, 11, -4, -5),
+        sendFirst:    bubbleSpec(BASE + 'chatroomBubbleSend01@3x.png',    236, 209, 17, 50, [40, 9, 10, 50]),
+        sendGroup:    bubbleSpec(BASE + 'chatroomBubbleSend02@3x.png',    236, 118, 20, 20, [9, 9, 10, 50]),
+        receiveFirst: bubbleSpec(BASE + 'chatroomBubbleReceive01@3x.png', 175, 179, 50, 45, [31, 30, 9, 9]),
+        receiveGroup: bubbleSpec(BASE + 'chatroomBubbleReceive02@3x.png', 175, 115, 40, 19, [9, 30, 9, 9]),
       },
     };
   })(),
@@ -2262,7 +2250,7 @@ function loadChatSettings() {
 cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
 cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
 cfgCtxEl.addEventListener('input', () => { cfgCtxVal.textContent = cfgCtxEl.value + '字'; });
-cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCtxEl.value)); refreshTokenEstimate(); });
+cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCtxEl.value)); refreshTokenEstimate(); scheduleAiConfigSync(); });
 cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.checked));
 cfgClaudeNativeEl.addEventListener('change', () => { patchConfig('claudeNative', cfgClaudeNativeEl.checked); scheduleAiConfigSync(); });
 cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(cfgMaxTokensEl.value) || 4096));
@@ -2338,17 +2326,15 @@ function findChatTheme(id) { return CHAT_THEMES.find(t => t.id === id) || CHAT_T
 function buildChatThemeCSS(theme) {
   if (!theme || theme.id === 'default' || !theme.bubbles) return '';
   const sel = '#page-chat[data-chat-theme="' + theme.id + '"]';
-  // 九宫格切图：border-image 可拉伸区压缩到源图 1px 宽/高，四角装饰不被拉伸；
-  // min-width/min-height = 原图骨架尺寸，不预留固定字符槽位——浏览器按实际文字内容自然撑开，
-  // 那条 1px 拉伸线只按真实需要的量被拉伸，1 个字符时几乎不产生拉伸；
-  // border-width 必须等于 slice 换算回 1x 的原始尺寸，否则浏览器会按比例缩放四角装饰本身。
-  // 文字位置(textX/textY)与背景图分离：背景图放在 ::before 伪元素上，.msg-bubble 本体只放文字，
-  // 用 transform 让文字整体偏移，::before 用相反方向的 transform 抵消，背景图纹丝不动，
-  // 这样 textX/textY 支持任意方向（含负值），不受 padding 只能为正的限制。
+  // 背景图放在 ::before 伪元素上承载 border-image 九宫格拉伸，.msg-bubble 本体只放文字；
+  // padding 用官方 -ios-title-edgeinsets（文字安全区），与 border-width（cap 装饰尺寸）分离；
+  // min-width/min-height = 两侧固定角之和 + 拉伸带，避免短消息把四角切片挤变形。
   const rule = (bubbleSel, spec) => {
     const [st, sr, sb, sl] = spec.slice;
     const [bt, br, bb, bl] = spec.border;
-    const tx = spec.textX || 0, ty = spec.textY || 0;
+    const [pt, pr, pb, pl] = spec.padding;
+    const TEXT_SHIFT_X = 1; // 整体文字向右微调 1px（不影响背景图/气泡尺寸，只挪文字内容盒）
+    const pl2 = pl + TEXT_SHIFT_X, pr2 = Math.max(0, pr - TEXT_SHIFT_X);
     return sel + ' ' + bubbleSel + ' .msg-bubble {\n'
       + '  position: relative;\n'
       + '  background: none;\n'
@@ -2356,8 +2342,8 @@ function buildChatThemeCSS(theme) {
       + '  border: none;\n'
       + '  min-width: ' + spec.minW + 'px;\n'
       + '  min-height: ' + spec.minH + 'px;\n'
-      + '  padding: ' + bt + 'px ' + br + 'px ' + bb + 'px ' + bl + 'px;\n'
-      + '  transform: translate(' + tx + 'px, ' + ty + 'px);\n'
+      + '  padding: ' + pt + 'px ' + pr2 + 'px ' + pb + 'px ' + pl2 + 'px;\n'
+      + (theme.textColor ? '  color: ' + theme.textColor + ';\n' : '')
       + '  font-size: 15px;\n'
       + '  line-height: 21px;\n'
       + '}\n'
@@ -2373,7 +2359,6 @@ function buildChatThemeCSS(theme) {
       + '  border-image-source: url(' + spec.file + ');\n'
       + '  border-image-slice: ' + st + ' ' + sr + ' ' + sb + ' ' + sl + ' fill;\n'
       + '  border-image-repeat: stretch;\n'
-      + '  transform: translate(' + (-tx) + 'px, ' + (-ty) + 'px);\n'
       + '}\n';
   };
   let css = sel + ' {\n'
@@ -2385,6 +2370,24 @@ function buildChatThemeCSS(theme) {
   css += rule('.msg-row.user.same-sender', theme.bubbles.sendGroup);
   css += rule('.msg-row.ai:not(.same-sender)', theme.bubbles.receiveFirst);
   css += rule('.msg-row.ai.same-sender', theme.bubbles.receiveGroup);
+  if (theme.inputBar) {
+    const ib = theme.inputBar;
+    const bodySel = 'body[data-chat-theme="' + theme.id + '"]';
+    // 保留原有磨砂模糊，只是把中性玻璃色换成主题色（同等透明度），不做成不透明色块。
+    css += bodySel + ' #inputBar {\n'
+      + '  background: ' + hexToRgba(ib.bg, 0.7) + ';\n'
+      + '}\n'
+      + bodySel + ' #textInput {\n'
+      + '  color: ' + ib.textColor + ';\n'
+      + '}\n'
+      + bodySel + ' #plusBtn, ' + bodySel + ' .emoji-toggle-btn {\n'
+      + '  color: ' + ib.iconColor + ';\n'
+      + '}\n'
+      + bodySel + ' #sendBtn.can-send, ' + bodySel + ' #sendBtn.generating {\n'
+      + '  background: ' + ib.sendBg + ';\n'
+      + '  color: ' + ib.sendFg + ';\n'
+      + '}\n';
+  }
   return css;
 }
 function setThemeColorMeta(content) {
@@ -2418,10 +2421,12 @@ function applyChatTheme(id) {
   const styleTag = document.getElementById('chatThemeStyle');
   if (theme.id === 'default') {
     p.removeAttribute('data-chat-theme');
+    document.body.removeAttribute('data-chat-theme');
     styleTag.textContent = '';
     updateThemeColorFromBg(localStorage.getItem(LS_BG) || null);
   } else {
     p.setAttribute('data-chat-theme', theme.id);
+    document.body.setAttribute('data-chat-theme', theme.id);
     styleTag.textContent = buildChatThemeCSS(theme);
     updateThemeColorFromBg(localStorage.getItem(LS_BG) || theme.bg);
   }
@@ -3078,7 +3083,7 @@ function scheduleAiConfigSync() {
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative };
+    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000 };
     const MAX_ATTEMPTS = 3;
     let lastErr = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -6269,6 +6274,22 @@ function setupSafeAreaFallback() {
     probe.remove();
   }
 }
+function setupAppHeightFix() {
+  // 仅 iOS PWA standalone 模式生效：该模式下 100dvh 少报，导致 #app 撑不满真实屏幕，
+  // 底部露出 body 画布色的空条。浏览器内 100dvh 本身准确，不需要这个兜底。
+  if (navigator.standalone !== true) return;
+  let lastH = null;
+  const apply = () => {
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    if (lastH != null && lastH - h > 150) return; // 键盘弹出导致的骤减，跳过以免布局跳动
+    lastH = h;
+    document.documentElement.style.setProperty('--app-h', h + 'px');
+  };
+  apply();
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', apply);
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', () => setTimeout(apply, 300));
+}
 // supabase.js 是 type="module"，ombre-backend.js 是 defer，二者都在文档解析完、
 // DOMContentLoaded 之前按书写顺序执行完，所以在 DOMContentLoaded 里调用能保证都已挂好。
 // 这个监听必须在下面的 async init 里任何 await 之前、同步注册——
@@ -6280,6 +6301,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 (async function init() {
   setupSafeAreaFallback();
+  setupAppHeightFix();
   loadDarkMode();
   loadSettings();
   loadPresets();
