@@ -27,7 +27,7 @@ html {
 --chat-bg: #b2c8d6;
 --primary-text: #111111; --secondary-text: rgba(20,32,40,0.48);
 --glass-bg: rgba(242,249,252,0.58); --glass-border: rgba(255,255,255,0.76);
---composer-glass-bg: rgba(246,251,253,0.68); --composer-glass-border: rgba(255,255,255,0.82);
+--composer-glass-bg: rgba(246,251,253,0.68); --composer-glass-border: rgba(255,255,255,0.55);
 color-scheme: light;
 }
 html.dark {
@@ -101,7 +101,7 @@ flex-shrink: 0; position: absolute; top: 0; font-size: 18px; color: var(--primar
 overflow: hidden;
 }
 #sidebarToggleBtn { left: 16px; }
-#topRightSlot { position: absolute; top: 0; right: 16px; width: 44px; height: 44px; overflow: hidden; }
+#topRightSlot { position: absolute; top: 0; right: 16px; width: 44px; height: 44px; }
 #topRightSlot .round-btn { position: static; }
 .round-btn img, .round-btn .avatar-emoji { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 #pageTitle {
@@ -259,16 +259,6 @@ color: var(--text-faint); font-size: 14px;
 #chatScroll, .subchat-scroll {
   padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
   min-width: 0;
-}
-/* 顶部导航栏下的过渡遮罩层：主题色柔和渐隐，自动适配任意背景图/纯色 */
-.chat-top-frost {
-  position: absolute; left: 0; right: 0; top: 0;
-  height: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 60px);
-  z-index: 5; pointer-events: none; overflow: hidden;
-}
-.chat-top-frost > div { position: absolute; inset: 0; }
-.ctf-scrim {
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-app) 55%, transparent) 0%, transparent 100%);
 }
 .msg-row { display: flex; margin-bottom: 10px; align-items: flex-end; min-width: 0; }
 .msg-row.user { justify-content: flex-end; }
@@ -609,11 +599,11 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
   margin: 6px 10px 0 10px;
   min-height: 48px; max-height: 124px; border-radius: 24px;
   padding: 5px 6px 5px 8px;
-  background: var(--composer-glass-bg); border: 1px solid var(--composer-glass-border);
+  background: var(--composer-glass-bg); border: 0.5px solid var(--composer-glass-border);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   backdrop-filter: blur(24px) saturate(180%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.92),
+    inset 0 1px 0 rgba(255,255,255,0.5),
     inset 0 -1px 0 rgba(80,104,118,0.10),
     0 8px 24px rgba(38,63,78,0.14);
 }
@@ -1407,9 +1397,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 <div id="content">
   <div class="page active" id="page-chat">
     <div id="chatScroll"></div>
-  </div>
-  <div class="chat-top-frost" id="chatTopFrost">
-    <div class="ctf-scrim"></div>
   </div>
 
   <div class="page" id="page-diary">
@@ -2402,6 +2389,10 @@ function updateThemeColorFromBg(imgUrl) {
   };
   img.src = imgUrl;
 }
+function refreshStatusBarColor() {
+  const theme = findChatTheme(localStorage.getItem(LS_CHAT_THEME) || 'default');
+  updateThemeColorFromBg(localStorage.getItem(LS_BG) || (theme.id === 'default' ? null : theme.bg));
+}
 function applyChatTheme(id) {
   const theme = findChatTheme(id);
   const p = document.getElementById('page-chat');
@@ -2838,6 +2829,7 @@ function persistSettings() {
 function applyDarkMode(on) {
   document.documentElement.classList.toggle('dark', on);
   if (window.OB_THEME) window.OB_THEME.applyCurrent(window.OB_THEME.loadTheme());
+  refreshStatusBarColor();
 }
 function loadDarkMode() {
   const on = localStorage.getItem(LS_DARK_MODE) === '1';
@@ -4833,7 +4825,6 @@ function switchPage(pageName) {
   document.getElementById('subAttachPreview').style.display = isSubchat ? '' : 'none';
   document.getElementById('subQuoteBar').style.display     = isSubchat ? '' : 'none';
   document.getElementById('topbar').style.display          = (pageName === 'log') ? 'none' : 'block';
-  document.getElementById('chatTopFrost').style.display     = (isChat || isSubchat) ? 'block' : 'none';
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
