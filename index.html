@@ -259,20 +259,6 @@ color: var(--text-faint); font-size: 14px;
 #chatScroll, .subchat-scroll {
   padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
   min-width: 0;
-  -webkit-mask-image: linear-gradient(to bottom,
-    transparent 0,
-    rgba(0,0,0,0.12) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 10px),
-    rgba(0,0,0,0.45) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 28px),
-    rgba(0,0,0,0.8) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 46px),
-    black calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 60px)
-  );
-  mask-image: linear-gradient(to bottom,
-    transparent 0,
-    rgba(0,0,0,0.12) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 10px),
-    rgba(0,0,0,0.45) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 28px),
-    rgba(0,0,0,0.8) calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 46px),
-    black calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 60px)
-  );
 }
 /* 顶部导航栏下的过渡遮罩层：主题色柔和渐隐，自动适配任意背景图/纯色 */
 .chat-top-frost {
