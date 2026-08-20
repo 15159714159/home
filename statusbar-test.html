@@ -9,6 +9,10 @@
   html, body {
     margin: 0; padding: 0; height: 100dvh; overflow: hidden;
   }
+  /* 关键实验：iOS 26 不读 theme-color，疑似从页面根元素采样状态栏颜色。
+     把 html 底色设成与渐变顶端相同的粉红——若状态栏跟着变粉、与页面无缝，
+     即证明参照站的"沉浸"其实是采样染色，可复刻。 */
+  html { background: #ff3b6b; }
   body {
     position: fixed; inset: 0;
     background: linear-gradient(180deg, #ff3b6b 0%, #7b2ff7 40%, #1e3c72 100%);
