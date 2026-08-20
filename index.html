@@ -6,7 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="然竣">
 <title>然竣和ao的家</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -6255,25 +6255,10 @@ function renderChecklistChrome() {
 初始化
 ============================================================ */
 function setupSafeAreaFallback() {
-  // 仅 iOS PWA standalone 模式需要冷启动兜底，浏览器内完全不介入
-  if (navigator.standalone !== true) return;
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;pointer-events:none;visibility:hidden;padding-top:env(safe-area-inset-top,0px);';
-  document.body.appendChild(probe);
-  const read = () => parseFloat(getComputedStyle(probe).paddingTop) || 0;
-  const apply = v => document.documentElement.style.setProperty('--safe-top', v + 'px');
-  const first = read();
-  if (first < 20) {
-    apply(44);                      // 首帧不可信，按灵动岛前机型兜底
-    setTimeout(() => {
-      const again = read();
-      if (again >= 20) apply(again); // 真值就位，校正
-      probe.remove();
-    }, 300);
-  } else {
-    apply(first);                   // 首帧就是真值，直接用
-    probe.remove();
-  }
+  // 状态栏改为 default 模式后视图不再延伸到状态栏下，safe-area-inset-top 恒为 0，
+  // 冷启动兜底不再需要（若将来 Apple 修好 black-translucent 可回退此函数）。
+  document.documentElement.style.setProperty('--safe-top', '0px');
+  return;
 }
 function setupAppHeightFix() {
   // 仅 iOS PWA standalone 模式生效：该模式下 100dvh 少报，导致 #app 撑不满真实屏幕，
