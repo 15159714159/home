@@ -1379,6 +1379,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="side-nav-item" data-nav="vocab">背单词</div>
   <div class="side-divider"></div>
   <div class="side-nav-item" id="ombreBrainLink">Ombre Brain</div>
+  <div class="side-nav-item" id="studyLink">书房</div>
   <div class="side-divider"></div>
   <div class="side-nav-item" style="color:var(--text-tertiary); cursor:default;">副聊天</div>
   <div id="subChatList"></div>
@@ -1492,6 +1493,15 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-section-title">聊天服务</div>
       <input class="space-input" id="cfgChatServiceKey" type="password" placeholder="聊天服务密钥（garden-agent 鉴权用）">
       <div class="space-hint">主聊天已改为由后端 garden-agent 统一处理，这里的密钥用于向它发起请求的身份验证，只保存在本机浏览器里。</div>
+
+      <div class="space-divider"></div>
+      <div class="space-section-title">书房</div>
+      <input class="space-input" id="cfgStudyWorkerUrl" type="text" placeholder="书房 Worker 网址（用于连接检测）">
+      <input class="space-input" id="cfgStudyPagesUrl" type="text" placeholder="书房入口网址（点击前往会打开这个）">
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="testStudyConnBtn">测试连接</button>
+      </div>
+      <div class="space-hint" id="studyStatusHint">尚未连接。入口网址填好、连接测试通过后，可在左侧汉堡菜单点"书房"前往。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">聊天云同步</div>
@@ -2050,6 +2060,7 @@ const ICONS = {
   image: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>',
   camera: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>',
   fileText: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
+  bookOpen: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>',
   layers: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
   chevronsHorizontal: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 7-5 5 5 5"/><path d="m15 7 5 5-5 5"/></svg>',
   x: '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
@@ -2197,6 +2208,10 @@ const cfgGalateaMcpEnabledEl = document.getElementById('cfgGalateaMcpEnabled');
 const galateaMcpStatusHintEl = document.getElementById('galateaMcpStatusHint');
 const fetchGalateaMcpToolsBtn = document.getElementById('fetchGalateaMcpToolsBtn');
 const cfgChatServiceKeyEl = document.getElementById('cfgChatServiceKey');
+const cfgStudyWorkerUrlEl = document.getElementById('cfgStudyWorkerUrl');
+const cfgStudyPagesUrlEl = document.getElementById('cfgStudyPagesUrl');
+const studyStatusHintEl = document.getElementById('studyStatusHint');
+const testStudyConnBtn = document.getElementById('testStudyConnBtn');
 
 function patchConfig(key, val) {
   const c = getConfig();
@@ -2216,6 +2231,8 @@ function loadChatSettings() {
   cfgGalateaMcpTokenEl.value = c.galateaMcpToken || '';
   cfgGalateaMcpEnabledEl.checked = !!c.galateaMcpEnabled;
   cfgChatServiceKeyEl.value = c.chatServiceKey || '';
+  cfgStudyWorkerUrlEl.value = c.studyWorkerUrl || '';
+  cfgStudyPagesUrlEl.value = c.studyPagesUrl || '';
   const toolCount = (c.galateaMcpTools || []).length;
   galateaMcpStatusHintEl.textContent = toolCount
     ? `已获取 ${toolCount} 个花园工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
@@ -2232,6 +2249,9 @@ cfgToolsEnabledEl.addEventListener('change', () => { patchConfig('toolsEnabled',
 cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpToken', cfgGalateaMcpTokenEl.value.trim()));
 cfgGalateaMcpEnabledEl.addEventListener('change', () => patchConfig('galateaMcpEnabled', cfgGalateaMcpEnabledEl.checked));
 cfgChatServiceKeyEl.addEventListener('change', () => patchConfig('chatServiceKey', cfgChatServiceKeyEl.value.trim()));
+cfgStudyWorkerUrlEl.addEventListener('change', () => patchConfig('studyWorkerUrl', cfgStudyWorkerUrlEl.value.trim()));
+cfgStudyPagesUrlEl.addEventListener('change', () => patchConfig('studyPagesUrl', cfgStudyPagesUrlEl.value.trim()));
+testStudyConnBtn.addEventListener('click', () => testStudyConnection());
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 
 /* ============================================================
@@ -3045,7 +3065,16 @@ function saveConfig() {
   scheduleAiConfigSync();
   showToast('设置已保存');
 }
-function getConfig() { return JSON.parse(localStorage.getItem(LS_CONFIG) || '{}'); }
+// 书房网址写死在代码里当默认值，用户没有在 Space 设置页里自己填过/改过时直接生效，
+// 不需要每次都手动填一遍——真填过之后（localStorage 里有值）以用户填的为准。
+const STUDY_WORKER_URL_DEFAULT = 'https://tavern-study.a-ove.workers.dev';
+const STUDY_PAGES_URL_DEFAULT = 'https://tavern-study-frontend.a-ove.workers.dev/study';
+function getConfig() {
+  const c = JSON.parse(localStorage.getItem(LS_CONFIG) || '{}');
+  if (!c.studyWorkerUrl) c.studyWorkerUrl = STUDY_WORKER_URL_DEFAULT;
+  if (!c.studyPagesUrl) c.studyPagesUrl = STUDY_PAGES_URL_DEFAULT;
+  return c;
+}
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
 
 // 把 key/model/persona 同步一份到 Supabase ai_config 表，供 OmbreBrain 后端读取做缓存暖 ping
@@ -3083,6 +3112,25 @@ const cfgKey = document.getElementById('cfgKey');
 eyeBtn.addEventListener('click', () => {
   const show = cfgKey.type === 'password'; cfgKey.type = show ? 'text' : 'password'; eyeBtn.textContent = show ? '🙈' : '👁';
 });
+
+async function testStudyConnection() {
+  const url = cfgStudyWorkerUrlEl.value.trim();
+  if (!url) { showToast('先填书房 Worker 网址'); return; }
+  testStudyConnBtn.disabled = true; testStudyConnBtn.textContent = '检测中…';
+  try {
+    const res = await fetch(url.replace(/\/+$/, '') + '/health');
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error('HTTP ' + res.status);
+    patchConfig('studyWorkerUrl', url);
+    studyStatusHintEl.textContent = '已同步后端';
+    showToast('已同步后端');
+  } catch (e) {
+    studyStatusHintEl.textContent = '连接失败：' + (e.message || e);
+    showToast('连接失败：' + (e.message || e), 4000);
+  } finally {
+    testStudyConnBtn.disabled = false; testStudyConnBtn.textContent = '测试连接';
+  }
+}
 
 async function fetchGalateaMcpTools() {
   const token = cfgGalateaMcpTokenEl.value.trim();
@@ -4800,6 +4848,12 @@ document.getElementById('ombreBrainLink').addEventListener('click', () => {
   window.open('https://47-107-161-135.sslip.io/v2/', '_blank');
   closeSidebar();
 });
+document.getElementById('studyLink').addEventListener('click', () => {
+  const url = getConfig().studyPagesUrl;
+  if (!url) { showToast('先在 Space 设置里填书房入口网址'); return; }
+  window.open(url, '_blank');
+  closeSidebar();
+});
 
 let currentPage = 'chat';
 function switchPage(pageName) {
@@ -5026,7 +5080,8 @@ function buildAttachPanelGrid(panelEl, fileInputEl) {
   const attachmentActions = [
     { id: 'photos', label: '照片', icon: ICONS.image, accept: 'image/*', capture: null, multiple: true },
     { id: 'camera', label: '相机', icon: ICONS.camera, accept: 'image/*', capture: 'environment', multiple: false },
-    { id: 'files',  label: '文件', icon: ICONS.fileText, accept: '', capture: null, multiple: true }
+    { id: 'files',  label: '文件', icon: ICONS.fileText, accept: '', capture: null, multiple: true },
+    { id: 'bookroom', label: '书房', icon: ICONS.bookOpen, custom: true }
   ];
   attachmentActions.forEach(action => {
     const item = document.createElement('div'); item.className = 'attach-panel-item';
@@ -5034,6 +5089,11 @@ function buildAttachPanelGrid(panelEl, fileInputEl) {
     const label = document.createElement('div'); label.className = 'attach-panel-label'; label.textContent = action.label;
     item.appendChild(iconBg); item.appendChild(label);
     item.addEventListener('click', () => {
+      if (action.custom) {
+        closeComposerPanels(panelEl.id === 'subAttachPanel' ? 'sub' : 'main');
+        triggerBookclubCheck();
+        return;
+      }
       fileInputEl.accept = action.accept;
       if (action.capture) fileInputEl.setAttribute('capture', action.capture); else fileInputEl.removeAttribute('capture');
       fileInputEl.multiple = action.multiple;
@@ -5573,6 +5633,14 @@ async function runChatLoop({ cfg, wireMessages, systemBlocks, tools, tailText, c
 const CHAT_MAIN_BASE = 'https://47-107-161-135.sslip.io/chat-main';
 function chatMainUrl(path) { return CHAT_MAIN_BASE + path; }
 function chatMainHeaders(cfg) { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (cfg.chatServiceKey || '') }; }
+
+// 书房联动的"暗中触发"：点一下就发出去，没有任何本地反馈（toast/文案），点击本身就是全部
+// 交互——几秒后 AI 的话会像平时一样自然地出现在主聊天里，走 subscribeMainChat 现成的
+// Realtime 推送，这里不用管返回结果。
+function triggerBookclubCheck() {
+  const cfg = getConfig();
+  fetch(chatMainUrl('/bookclub-check'), { method: 'POST', headers: chatMainHeaders(cfg), body: '{}' }).catch(() => {});
+}
 // text/event-stream 手动解析：契约用 `event: xxx` + `data: {...}` 两行一组、空行分隔，跟 readChatStream()
 // 解析的"纯 data: 行、OpenAI/Claude 原生增量协议"是两套不同格式，所以另写一个而不是复用 readChatStream。
 async function readChatMainSSE(res, onDelta) {
