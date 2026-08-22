@@ -264,6 +264,10 @@ color: var(--text-faint); font-size: 14px;
 .msg-row.user { justify-content: flex-end; }
 .msg-row.ai { justify-content: flex-start; gap: 6px; }
 .msg-row + .msg-row.same-sender { margin-top: -5px; }
+/* 被 thinking 气泡隔开的上下气泡（不含"第一条转移头像"那种特殊情况）：三者之间的间距缩到 0 */
+.msg-row:has(+ .msg-row.thinking-row) { margin-bottom: 0; }
+.msg-row.thinking-row { margin-bottom: 0; }
+.msg-row + .msg-row.after-thinking-row { margin-top: 0; }
 .msg-ai-avatar { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; overflow: hidden; align-self: flex-start; display: flex; align-items: center; justify-content: center; font-size: 16px; }
 .msg-ai-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .msg-ai-avatar.spacer { visibility: hidden; height: 0; }
@@ -4475,6 +4479,10 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   const inheritsHeaderFromPrev = !!prevMsg && prevMsg.role === msg.role && isThinkingOnlyMsg(prevMsg) && !!prevWasFirstInRun;
   const isSameSender = defersHeaderToNext || (!!prevMsg && prevMsg.role === msg.role && !inheritsHeaderFromPrev);
   if (isSameSender) row.classList.add('same-sender');
+  // 中间被 thinking 气泡隔开的这一上一下（不含"第一条转移头像"那种特殊情况），
+  // 间距单独用 CSS 缩到 0
+  if (isThinkingOnlyMsg(msg) && !defersHeaderToNext) row.classList.add('thinking-row');
+  if (!!prevMsg && prevMsg.role === msg.role && isThinkingOnlyMsg(prevMsg) && !inheritsHeaderFromPrev) row.classList.add('after-thinking-row');
   const isMultiSelectable = ctx === mainCtx && selectMode;
   if (isMultiSelectable && msg.role === 'ai') row.appendChild(buildSelectCb(msg));
 
