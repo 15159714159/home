@@ -4145,6 +4145,12 @@ function isThinkingOnlyMsg(m) {
   const t = getMsgDisplayText(m);
   return !(t && t.trim()) && !!(m.thinking && m.thinking.trim());
 }
+// 后端按 ```html``` 代码块整条拆出来的独立消息——服务端 chatTurn.js 已经保证这种消息
+// 正文就是且只是一个完整 html 代码块，前端不用再猜/再拆，只需要按 htmlBlock 标记
+// 走无气泡的 sandbox iframe 渲染路径
+function isHtmlOnlyMsg(m) {
+  return !!(m && m.role !== 'user' && m.htmlBlock);
+}
 function refreshRow(msg, ctx) {
   const oldRow = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`); if (!oldRow) return;
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id);
@@ -4575,8 +4581,15 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   // 不再额外画一个空的 msg-bubble 方块
   const isThinkingOnlyBubble = isThinkingOnlyMsg(msg);
   if (!isThinkingOnlyBubble) {
-    // 正文里如果混了 ```html 代码块，视觉上按段落拆成多个独立气泡（文字/html交替），
-    // 但整条 msg 数据不变——时间戳/编辑/删除等操作仍按这一整条 msg 处理
+    if (isHtmlOnlyMsg(msg)) {
+      // 后端已经把这条消息整体切成"就是一个 html 代码块"——不再走 msg-bubble，
+      // 直接裸渲染成 sandbox iframe，没有背景/圆角/padding
+      const bubble = document.createElement('div'); bubble.className = 'msg-html-block';
+      try { bubble.innerHTML = marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
+      wrap.appendChild(bubble);
+    } else {
+    // 兼容历史消息：正文里如果混了 ```html 代码块（旧数据、后端拆分上线前生成的），
+    // 视觉上按段落拆成多个独立气泡（文字/html交替），但整条 msg 数据不变
     const segments = (msg.role !== 'user' && displayText) ? splitHtmlFences(displayText) : [];
     if (segments.length > 1) {
       const stack = document.createElement('div'); stack.className = 'msg-bubble-stack';
@@ -4602,6 +4615,7 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
       }
       wrap.appendChild(bubble);
     }
+  }
   }
   if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
   // 时间只在"这个人连续发的最后一条"上显示——和 next 同一发送方、且中间没有时间分隔线的话，
