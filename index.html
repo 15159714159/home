@@ -5548,9 +5548,10 @@ function buildGalateaMcpTools(cfg) {
 4399小游戏 MCP 工具集（CEDAR TOY，token 选填，工具集通过 tools/list 动态发现）
 ============================================================ */
 async function cedarToyMcpRpc(token, method, params) {
-  const res = await fetch('https://toy.cedarstar.org/mcp', {
+  const url = 'https://toy.cedarstar.org/' + (token ? encodeURIComponent(token) : 'mcp');
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' },
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params: params || {} })
   });
   if (!res.ok) throw new Error('HTTP ' + res.status);
