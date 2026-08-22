@@ -311,6 +311,11 @@ position: relative;
 .msg-bubble img { max-width: 100%; height: auto; }
 .msg-bubble table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
 .msg-bubble th, .msg-bubble td { padding: 4px 8px; border: 1px solid rgba(0,0,0,0.12); white-space: nowrap; }
+.msg-bubble h1, .msg-bubble h2, .msg-bubble h3,
+.msg-bubble h4, .msg-bubble h5, .msg-bubble h6 {
+  font-size: 1em; font-weight: 600; margin: 0.5em 0; line-height: 21px;
+}
+.msg-bubble hr { border: none; border-top: 1px solid rgba(0,0,0,0.12); margin: 0.5em 0; }
 .code-copy-btn {
 position: absolute; top: 6px; right: 6px;
 background: rgba(255,255,255,0.15); color: #eee; border: none;
@@ -1846,9 +1851,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 <script src="theme-system.js"></script>
 <script>
 marked.setOptions({ breaks: true });
-const safeRenderer = new marked.Renderer();
-safeRenderer.html = (html) => html.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-marked.setOptions({ renderer: safeRenderer });
 
 let messages = [];
 let pendingAttachments = [];
