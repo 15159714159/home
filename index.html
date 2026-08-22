@@ -1464,6 +1464,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <button class="space-save-btn" id="cfgSaveBtn">保存</button>
       </div>
       <div class="space-hint" id="tokenEstimateLabel">当前上下文约 ~0k tokens</div>
+      <div class="space-hint" id="cacheUsageLabel">缓存命中率：暂无数据</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">对话设置</div>
@@ -4088,6 +4089,23 @@ function refreshTokenEstimate() {
   el.textContent = `当前上下文约 ~${(tokens/1000).toFixed(1)}k tokens`;
 }
 
+// 主聊天最后一条消息的 prompt caching 命中情况（只有 Claude 原生格式才有 usage 数据）。
+// legacy 格式没有 usage，recordCacheUsage 会直接跳过，不覆盖上一次原生格式留下的读数。
+function recordCacheUsage(usage) {
+  if (!usage) return;
+  safeSetItem('lastCacheUsage', JSON.stringify(usage));
+  renderCacheUsage();
+}
+function renderCacheUsage() {
+  const el = document.getElementById('cacheUsageLabel'); if (!el) return;
+  let u; try { u = JSON.parse(localStorage.getItem('lastCacheUsage') || 'null'); } catch(_) { u = null; }
+  if (!u) { el.textContent = '缓存命中率：暂无数据'; return; }
+  const read = u.cache_read_input_tokens || 0, creation = u.cache_creation_input_tokens || 0, input = u.input_tokens || 0, output = u.output_tokens || 0;
+  const total = read + creation + input;
+  const rate = total > 0 ? Math.round(read / total * 100) : 0;
+  el.textContent = `命中 ${read} / 未命中 ${creation + input} / 输出 ${output}（命中率 ${rate}%）`;
+}
+
 /* ============================================================
 清空主聊天记录
 ============================================================ */
@@ -5069,7 +5087,7 @@ function switchPage(pageName) {
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
-  if (pageName === 'space') { refreshTokenEstimate(); loadChatSettings(); }
+  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); }
   if (pageName === 'vocab') { vocabOnEnterPage(); }
 }
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
@@ -5940,7 +5958,7 @@ async function sendChatMain(userMsg) {
       return;
     }
     if (result.type === 'done' && result.payload) {
-      const { userMessage, aiMessages } = result.payload;
+      const { userMessage, aiMessages, usage } = result.payload;
       if (userMessage) {
         const uidx = messages.findIndex(m => m.id === userMsg.id);
         if (uidx !== -1) messages[uidx] = userMessage;
@@ -5952,6 +5970,7 @@ async function sendChatMain(userMsg) {
       mainRenderStart = null;
       renderAllMessages();
       refreshTokenEstimate();
+      recordCacheUsage(usage);
     }
   } catch(err) {
     if (err.name === 'AbortError') { dropPlaceholderIfEmpty(); }
@@ -6033,6 +6052,7 @@ async function callAPI(rerollTarget) {
       if (idx !== -1) { messages[idx] = result.payload.aiMessage; persistMessages(); refreshRow(messages[idx], mainCtx); }
       scrollToBottom(chatScroll, 'page-chat');
       refreshTokenEstimate();
+      recordCacheUsage(result.payload.usage);
     }
   } catch(err) {
     if (err.name !== 'AbortError') { console.error(err); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
@@ -6053,13 +6073,17 @@ async function callSubChatAPI(rerollTarget) {
   const rerollIdx = rerollTarget ? sc.messages.findIndex(m => m.id === rerollTarget.id) : -1;
   const sourceMsgs = rerollIdx >= 0 ? sc.messages.slice(0, rerollIdx) : sc.messages;
   const apiMessages = sourceMsgs.map((m, i) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: buildApiContentWithGap(m, sourceMsgs[i - 1]) }));
-  const systemBlocks = [{ text: sc.preset ? sc.preset.trim() : '', cache: true }, { text: THINKING_META_HINT, cache: true }];
+  // persona + 思考格式提示合并成一个缓存断点：两者都是几乎不变的静态文本，分开打点没有
+  // 收益（跟后端 buildChatContextForRequest 的处理保持一致）。
+  const systemBlocks = [{ text: [sc.preset ? sc.preset.trim() : '', THINKING_META_HINT].filter(Boolean).join('\n\n'), cache: true }];
   const toolsEnabled = !!cfg.toolsEnabled;
-  if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
+  // 工具说明故意不打 cache_control：副聊天角色经常切换工具组合，且这几段说明本身也会
+  // 分散角色扮演注意力，跟后端保持一致地不缓存。
+  if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。' });
   const galateaMcpTools = buildGalateaMcpTools(cfg);
-  if (galateaMcpTools.length) systemBlocks.push({ text: '你现在还可以使用花园完整工具集（具体工具见下方 tools 列表），按工具描述判断何时使用。', cache: true });
+  if (galateaMcpTools.length) systemBlocks.push({ text: '你现在还可以使用花园完整工具集（具体工具见下方 tools 列表），按工具描述判断何时使用。' });
   const cedarToyTools = buildCedarToyTools(cfg);
-  if (cedarToyTools.length) systemBlocks.push({ text: '你现在还可以使用4399工具集去玩 CEDAR TOY 上的小游戏（具体工具见下方 tools 列表），先用 list_games/get_guide 了解玩法再用 play 执行。', cache: true });
+  if (cedarToyTools.length) systemBlocks.push({ text: '你现在还可以使用4399工具集去玩 CEDAR TOY 上的小游戏（具体工具见下方 tools 列表），先用 list_games/get_guide 了解玩法再用 play 执行。' });
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -6410,6 +6434,9 @@ function openChecklistSheet() {
   checklistSetHeight(CK_DEFAULT_SNAP, false);
   rcSheet.classList.add('open'); rcScrim.classList.add('open');
   renderChecklistSheet();
+  // 主聊天现在由后端异步落库清单标记（finishChatTurn 的动作在 SSE done 之后才执行），
+  // 前端这份内存 checklist 数组不会自动同步，每次打开抽屉都重新拉一次最新数据
+  loadChecklistFromSupabase().then(renderChecklistSheet);
 }
 function closeChecklistSheet() { rcSheet.classList.remove('open'); rcScrim.classList.remove('open'); }
 rcScrim.addEventListener('click', closeChecklistSheet);
@@ -6582,6 +6609,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadWindowStart();
   appPersona = buildPersonaFromPresets() || appPersona;
   loadChatSettings();
+  renderCacheUsage();
   applyAvatar();
   applyUserAvatar();
   applyBg();
