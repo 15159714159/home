@@ -290,6 +290,7 @@ html.dark .msg-ai-name { color: rgba(220,228,232,0.74); }
 .gen-thinking svg { width: 14px; height: 14px; flex-shrink: 0; animation: thinkingBreath 1.3s ease-in-out infinite; }
 .msg-bubble-wrap { display: flex; align-items: flex-end; gap: 5px; min-width: 0; }
 .msg-row.user .msg-bubble-wrap { flex-direction: row-reverse; }
+.msg-bubble-stack { display: flex; flex-direction: column; gap: 5px; min-width: 0; max-width: 100%; }
 .msg-bubble {
 max-width: 100%; min-width: 0; padding: 9px 13px; border-radius: 13px; font-size: 15px; line-height: 21px;
 letter-spacing: 0; overflow-wrap: anywhere; word-wrap: break-word;
@@ -4167,6 +4168,19 @@ function buildVersionSwitcher(msg, ctx) {
   box.appendChild(leftBtn); box.appendChild(label); box.appendChild(rightBtn);
   return box;
 }
+// 把正文按 ```html 代码块切成 [文字, html, 文字, ...] 段——每一段各自渲染成独立的
+// .msg-bubble，视觉上像被拆成了单独一条消息，但底层还是同一条 msg（不影响时间戳/编辑/删除）
+const HTML_FENCE_RE = /```[ \t]*html\b[^\n]*\n[\s\S]*?\n?```/gi;
+function splitHtmlFences(text) {
+  const segments = []; let lastIndex = 0;
+  for (const m of text.matchAll(HTML_FENCE_RE)) {
+    if (m.index > lastIndex) segments.push({ type: 'text', content: text.slice(lastIndex, m.index) });
+    segments.push({ type: 'html', content: m[0] });
+    lastIndex = m.index + m[0].length;
+  }
+  if (lastIndex < text.length) segments.push({ type: 'text', content: text.slice(lastIndex) });
+  return segments.filter(s => s.content.trim());
+}
 function addCopyButtons(bubble) {
   bubble.querySelectorAll('pre').forEach(pre => {
     if (pre.querySelector('.code-copy-btn')) return;
@@ -4559,18 +4573,32 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   // 不再额外画一个空的 msg-bubble 方块
   const isThinkingOnlyBubble = isThinkingOnlyMsg(msg);
   if (!isThinkingOnlyBubble) {
-    const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
+    // 正文里如果混了 ```html 代码块，视觉上按段落拆成多个独立气泡（文字/html交替），
+    // 但整条 msg 数据不变——时间戳/编辑/删除等操作仍按这一整条 msg 处理
+    const segments = (msg.role !== 'user' && displayText) ? splitHtmlFences(displayText) : [];
+    if (segments.length > 1) {
+      const stack = document.createElement('div'); stack.className = 'msg-bubble-stack';
+      segments.forEach(seg => {
+        const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
+        try { bubble.innerHTML = marked.parse(seg.content).trim(); } catch(e) { bubble.textContent = seg.content; }
+        addCopyButtons(bubble);
+        stack.appendChild(bubble);
+      });
+      wrap.appendChild(stack);
+    } else {
+      const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
 
-    if (msg.quote) {
-      const qb = document.createElement('div'); qb.className = 'msg-quote-block';
-      qb.textContent = msg.quote.author + '：' + msg.quote.text; bubble.appendChild(qb);
-    }
+      if (msg.quote) {
+        const qb = document.createElement('div'); qb.className = 'msg-quote-block';
+        qb.textContent = msg.quote.author + '：' + msg.quote.text; bubble.appendChild(qb);
+      }
 
-    if (displayText && displayText.trim()) {
-      try { bubble.innerHTML = (msg.quote ? bubble.innerHTML : '') + marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
-      addCopyButtons(bubble);
+      if (displayText && displayText.trim()) {
+        try { bubble.innerHTML = (msg.quote ? bubble.innerHTML : '') + marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
+        addCopyButtons(bubble);
+      }
+      wrap.appendChild(bubble);
     }
-    wrap.appendChild(bubble);
   }
   if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
   // 时间只在"这个人连续发的最后一条"上显示——和 next 同一发送方、且中间没有时间分隔线的话，
