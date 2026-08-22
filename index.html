@@ -1490,6 +1490,18 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint" id="galateaMcpStatusHint">开启后AI可使用花园完整 MCP 工具集（需先填 token 并点击"获取工具列表"成功后才会生效）。token 与工具集只保存在本机浏览器里。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">4399小游戏（MCP）</div>
+      <input class="space-input" id="cfgCedarToyToken" type="password" placeholder="小机 Token（选填，在 toy.cedarstar.org 网页获取，不填为游客模式）">
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">启用4399工具集</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgCedarToyEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="fetchCedarToyToolsBtn">获取工具列表</button>
+      </div>
+      <div class="space-hint" id="cedarToyStatusHint">开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">聊天服务</div>
       <input class="space-input" id="cfgChatServiceKey" type="password" placeholder="聊天服务密钥（garden-agent 鉴权用）">
       <div class="space-hint">主聊天已改为由后端 garden-agent 统一处理，这里的密钥用于向它发起请求的身份验证，只保存在本机浏览器里。</div>
@@ -2207,6 +2219,10 @@ const cfgGalateaMcpTokenEl   = document.getElementById('cfgGalateaMcpToken');
 const cfgGalateaMcpEnabledEl = document.getElementById('cfgGalateaMcpEnabled');
 const galateaMcpStatusHintEl = document.getElementById('galateaMcpStatusHint');
 const fetchGalateaMcpToolsBtn = document.getElementById('fetchGalateaMcpToolsBtn');
+const cfgCedarToyTokenEl   = document.getElementById('cfgCedarToyToken');
+const cfgCedarToyEnabledEl = document.getElementById('cfgCedarToyEnabled');
+const cedarToyStatusHintEl = document.getElementById('cedarToyStatusHint');
+const fetchCedarToyToolsBtn = document.getElementById('fetchCedarToyToolsBtn');
 const cfgChatServiceKeyEl = document.getElementById('cfgChatServiceKey');
 const cfgStudyWorkerUrlEl = document.getElementById('cfgStudyWorkerUrl');
 const cfgStudyPagesUrlEl = document.getElementById('cfgStudyPagesUrl');
@@ -2230,6 +2246,8 @@ function loadChatSettings() {
   cfgToolsEnabledEl.checked = !!c.toolsEnabled;
   cfgGalateaMcpTokenEl.value = c.galateaMcpToken || '';
   cfgGalateaMcpEnabledEl.checked = !!c.galateaMcpEnabled;
+  cfgCedarToyTokenEl.value = c.cedarToyToken || '';
+  cfgCedarToyEnabledEl.checked = !!c.cedarToyEnabled;
   cfgChatServiceKeyEl.value = c.chatServiceKey || '';
   cfgStudyWorkerUrlEl.value = c.studyWorkerUrl || '';
   cfgStudyPagesUrlEl.value = c.studyPagesUrl || '';
@@ -2237,6 +2255,10 @@ function loadChatSettings() {
   galateaMcpStatusHintEl.textContent = toolCount
     ? `已获取 ${toolCount} 个花园工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
     : '开启后AI可使用花园完整 MCP 工具集（需先填 token 并点击"获取工具列表"成功后才会生效）。token 与工具集只保存在本机浏览器里。';
+  const cedarToyToolCount = (c.cedarToyTools || []).length;
+  cedarToyStatusHintEl.textContent = cedarToyToolCount
+    ? `已获取 ${cedarToyToolCount} 个4399工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
+    : '开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。';
 }
 cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
 cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
@@ -2248,11 +2270,14 @@ cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(
 cfgToolsEnabledEl.addEventListener('change', () => { patchConfig('toolsEnabled', cfgToolsEnabledEl.checked); scheduleAiConfigSync(); });
 cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpToken', cfgGalateaMcpTokenEl.value.trim()));
 cfgGalateaMcpEnabledEl.addEventListener('change', () => patchConfig('galateaMcpEnabled', cfgGalateaMcpEnabledEl.checked));
+cfgCedarToyTokenEl.addEventListener('change', () => patchConfig('cedarToyToken', cfgCedarToyTokenEl.value.trim()));
+cfgCedarToyEnabledEl.addEventListener('change', () => patchConfig('cedarToyEnabled', cfgCedarToyEnabledEl.checked));
 cfgChatServiceKeyEl.addEventListener('change', () => patchConfig('chatServiceKey', cfgChatServiceKeyEl.value.trim()));
 cfgStudyWorkerUrlEl.addEventListener('change', () => patchConfig('studyWorkerUrl', cfgStudyWorkerUrlEl.value.trim()));
 cfgStudyPagesUrlEl.addEventListener('change', () => patchConfig('studyPagesUrl', cfgStudyPagesUrlEl.value.trim()));
 testStudyConnBtn.addEventListener('click', () => testStudyConnection());
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
+fetchCedarToyToolsBtn.addEventListener('click', () => fetchCedarToyTools());
 
 /* ============================================================
 引用回复
@@ -3147,6 +3172,22 @@ async function fetchGalateaMcpTools() {
     showToast('获取失败：' + (e.message || e), 4000);
   } finally {
     fetchGalateaMcpToolsBtn.disabled = false; fetchGalateaMcpToolsBtn.textContent = '获取工具列表';
+  }
+}
+async function fetchCedarToyTools() {
+  const token = cfgCedarToyTokenEl.value.trim();
+  fetchCedarToyToolsBtn.disabled = true; fetchCedarToyToolsBtn.textContent = '连接中…';
+  try {
+    const tools = await fetchCedarToyToolList(token);
+    if (!tools.length) { showToast('没拿到工具'); return; }
+    patchConfig('cedarToyToken', token);
+    patchConfig('cedarToyTools', tools);
+    showToast('获取到 ' + tools.length + ' 个4399工具');
+    cedarToyStatusHintEl.textContent = `已获取 ${tools.length} 个4399工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`;
+  } catch (e) {
+    showToast('获取失败：' + (e.message || e), 4000);
+  } finally {
+    fetchCedarToyToolsBtn.disabled = false; fetchCedarToyToolsBtn.textContent = '获取工具列表';
   }
 }
 
@@ -5502,6 +5543,43 @@ function buildGalateaMcpTools(cfg) {
     execute: (args) => callGalateaAuthMcp(t.name, args)
   }));
 }
+
+/* ============================================================
+4399小游戏 MCP 工具集（CEDAR TOY，token 选填，工具集通过 tools/list 动态发现）
+============================================================ */
+async function cedarToyMcpRpc(token, method, params) {
+  const res = await fetch('https://toy.cedarstar.org/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params: params || {} })
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await parseMcpResponseBody(res);
+  if (json.error) throw new Error(json.error.message || 'MCP 请求失败');
+  return json.result;
+}
+async function fetchCedarToyToolList(token) {
+  try {
+    await cedarToyMcpRpc(token, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'home', version: '1.0' } });
+  } catch (_) { /* 部分服务器不强制 initialize，忽略失败继续尝试 tools/list */ }
+  const result = await cedarToyMcpRpc(token, 'tools/list', {});
+  const tools = (result && result.tools) || [];
+  return tools.map(t => ({ name: t.name, description: t.description || '', inputSchema: t.inputSchema || { type: 'object', properties: {} } }));
+}
+async function callCedarToyAuthMcp(toolName, args) {
+  const cfg = getConfig();
+  const result = await cedarToyMcpRpc(cfg.cedarToyToken, 'tools/call', { name: toolName, arguments: args || {} });
+  const resultText = (result?.content || []).map(c => c.text || '').join('\n');
+  if (result?.isError) throw new Error(resultText || '4399工具执行出错');
+  return resultText;
+}
+function buildCedarToyTools(cfg) {
+  if (!cfg.cedarToyEnabled) return [];
+  return (cfg.cedarToyTools || []).map(t => ({
+    name: t.name, description: t.description, inputSchema: t.inputSchema,
+    execute: (args) => callCedarToyAuthMcp(t.name, args)
+  }));
+}
 const TOOLS_REGISTRY = [
   {
     name: 'browse', description: '看笔友墙上都有谁，返回每张卡片的名字、平台、自我介绍。',
@@ -5670,6 +5748,10 @@ function buildGalateaMcpRequestFields(cfg) {
   const enabled = !!cfg.galateaMcpEnabled;
   return { galateaMcpToken: enabled ? (cfg.galateaMcpToken || '') : '', galateaMcpTools: enabled ? (cfg.galateaMcpTools || []) : [] };
 }
+function buildCedarToyMcpRequestFields(cfg) {
+  const enabled = !!cfg.cedarToyEnabled;
+  return { cedarToyToken: enabled ? (cfg.cedarToyToken || '') : '', cedarToyTools: enabled ? (cfg.cedarToyTools || []) : [] };
+}
 // 发送主聊天用户消息：本地已经乐观渲染过 userMsg（sendMessage 里），这里把同一个 id/createdAt
 // 带给后端，让云端最终落地的用户消息跟本地气泡是同一条，quote/删除/切版本等操作不会因为id不一致而失灵。
 async function sendChatMain(userMsg) {
@@ -5697,7 +5779,7 @@ async function sendChatMain(userMsg) {
   try {
     const body = {
       id: userMsg.id, createdAt: userMsg.createdAt, text: userMsg.text, images: userMsg.images, files: userMsg.files,
-      quote: userMsg.quote, username: appUsername, ...buildGalateaMcpRequestFields(cfg)
+      quote: userMsg.quote, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg)
     };
     const res = await fetch(chatMainUrl('/send'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
@@ -5787,7 +5869,7 @@ async function callAPI(rerollTarget) {
   let accumulated = '';
 
   try {
-    const body = { id: aiMsg.id, username: appUsername, ...buildGalateaMcpRequestFields(cfg) };
+    const body = { id: aiMsg.id, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg) };
     const res = await fetch(chatMainUrl('/regenerate'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     const result = await readChatMainSSE(res, (deltaText) => {
@@ -5829,6 +5911,8 @@ async function callSubChatAPI(rerollTarget) {
   if (toolsEnabled) systemBlocks.push({ text: '你现在可以主动调用工具去"笔友墙"认识其他AI、写信交流（browse看墙、register贴卡片、write_letter写信等）。不需要用户明确要求，你觉得合适就可以自己主动用，用完后正常接着聊。', cache: true });
   const galateaMcpTools = buildGalateaMcpTools(cfg);
   if (galateaMcpTools.length) systemBlocks.push({ text: '你现在还可以使用花园完整工具集（具体工具见下方 tools 列表），按工具描述判断何时使用。', cache: true });
+  const cedarToyTools = buildCedarToyTools(cfg);
+  if (cedarToyTools.length) systemBlocks.push({ text: '你现在还可以使用4399工具集去玩 CEDAR TOY 上的小游戏（具体工具见下方 tools 列表），先用 list_games/get_guide 了解玩法再用 play 执行。', cache: true });
 
   const isReroll = !!rerollTarget;
   let aiMsg, aiRow, aiBubble;
@@ -5866,7 +5950,7 @@ async function callSubChatAPI(rerollTarget) {
   try {
     const wireMessages = buildWireMessages(cfg, apiMessages, '');
     const result = await runChatLoop({
-      cfg, wireMessages, systemBlocks, tools: [...(toolsEnabled ? TOOLS_REGISTRY : []), ...galateaMcpTools], tailText: '', controller,
+      cfg, wireMessages, systemBlocks, tools: [...(toolsEnabled ? TOOLS_REGISTRY : []), ...galateaMcpTools, ...cedarToyTools], tailText: '', controller,
       onDelta: (delta, reasoningDelta) => {
         if (reasoningDelta) accumulatedReasoning += reasoningDelta;
         if (delta) { accumulated += delta; renderer.push(accumulated); }
