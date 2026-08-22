@@ -310,6 +310,8 @@ position: relative;
 .msg-bubble pre code { background: none; padding: 0; }
 .msg-bubble .html-embed { margin: 6px 0; border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,0,0,0.12); }
 .html-embed-frame { display: block; width: 100%; border: none; background: #fff; min-height: 60px; max-height: 600px; }
+.msg-html-block { max-width: 100%; min-width: 0; }
+.msg-html-block .html-embed { margin: 0; border-radius: 10px; }
 .msg-bubble a { overflow-wrap: anywhere; word-break: break-word; }
 .msg-bubble img { max-width: 100%; height: auto; }
 .msg-bubble table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
@@ -4579,7 +4581,8 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
     if (segments.length > 1) {
       const stack = document.createElement('div'); stack.className = 'msg-bubble-stack';
       segments.forEach(seg => {
-        const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
+        const bubble = document.createElement('div');
+        bubble.className = seg.type === 'html' ? 'msg-html-block' : 'msg-bubble';
         try { bubble.innerHTML = marked.parse(seg.content).trim(); } catch(e) { bubble.textContent = seg.content; }
         addCopyButtons(bubble);
         stack.appendChild(bubble);
