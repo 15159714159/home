@@ -4497,19 +4497,24 @@ function buildMsgRow(msg, ctx, prevMsg) {
     const fw = document.createElement('div'); fw.className = 'msg-files';
     msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); }); col.appendChild(fw);
   }
-  const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
-
-  if (msg.quote) {
-    const qb = document.createElement('div'); qb.className = 'msg-quote-block';
-    qb.textContent = msg.quote.author + '：' + msg.quote.text; bubble.appendChild(qb);
-  }
-
   const displayText = getMsgDisplayText(msg);
-  if (displayText && displayText.trim()) {
-    try { bubble.innerHTML = (msg.quote ? bubble.innerHTML : '') + marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
-    addCopyButtons(bubble);
+  // 内心想法被强制拆成独立气泡时正文是空的——只有上面的 think-cloud/think-content，
+  // 不再额外画一个空的 msg-bubble 方块
+  const isThinkingOnlyBubble = msg.role !== 'user' && !msg.quote && (!displayText || !displayText.trim()) && msg.thinking && msg.thinking.trim();
+  if (!isThinkingOnlyBubble) {
+    const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
+
+    if (msg.quote) {
+      const qb = document.createElement('div'); qb.className = 'msg-quote-block';
+      qb.textContent = msg.quote.author + '：' + msg.quote.text; bubble.appendChild(qb);
+    }
+
+    if (displayText && displayText.trim()) {
+      try { bubble.innerHTML = (msg.quote ? bubble.innerHTML : '') + marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
+      addCopyButtons(bubble);
+    }
+    wrap.appendChild(bubble);
   }
-  wrap.appendChild(bubble);
   if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
   const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = msg.time; wrap.appendChild(timeEl);
   col.appendChild(wrap);
