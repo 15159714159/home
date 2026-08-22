@@ -307,6 +307,8 @@ position: relative;
 }
 .msg-bubble code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 .msg-bubble pre code { background: none; padding: 0; }
+.msg-bubble .html-embed { margin: 6px 0; border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,0,0,0.12); }
+.html-embed-frame { display: block; width: 100%; border: none; background: #fff; min-height: 60px; max-height: 600px; }
 .msg-bubble a { overflow-wrap: anywhere; word-break: break-word; }
 .msg-bubble img { max-width: 100%; height: auto; }
 .msg-bubble table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
@@ -1850,7 +1852,31 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
 <script src="theme-system.js"></script>
 <script>
-marked.setOptions({ breaks: true });
+// AI 回复里的 ```html 代码块单独走 sandbox iframe 渲染成真实网页，
+// 而不是像普通代码块那样转义成文字——sandbox="allow-scripts" 且不带
+// allow-same-origin，iframe 内脚本拿不到主页面的 localStorage/cookie/DOM，
+// 就算 AI 输出里混进恶意脚本也伤不到聊天记录本身
+let htmlEmbedSeq = 0;
+function escapeCodeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+const chatRenderer = new marked.Renderer();
+chatRenderer.code = ({ text, lang }) => {
+  const language = (lang || '').trim().split(/\s+/)[0].toLowerCase();
+  if (language === 'html') {
+    const id = 'he_' + (htmlEmbedSeq++);
+    const reportScript = '<script>new ResizeObserver(function(){parent.postMessage({__htmlEmbedId:"' + id + '",__htmlEmbedHeight:document.documentElement.scrollHeight},"*");}).observe(document.documentElement);<\/script>';
+    const srcdoc = (text.replace(/\n$/, '') + reportScript).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    return '<div class="html-embed"><iframe class="html-embed-frame" data-embed-id="' + id + '" sandbox="allow-scripts" srcdoc="' + srcdoc + '"></iframe></div>\n';
+  }
+  const code = escapeCodeHtml(text.replace(/\n$/, '')) + '\n';
+  const cls = language ? ' class="language-' + escapeCodeHtml(language) + '"' : '';
+  return '<pre><code' + cls + '>' + code + '</code></pre>\n';
+};
+window.addEventListener('message', (e) => {
+  if (!e.data || !e.data.__htmlEmbedId) return;
+  const frame = document.querySelector('iframe.html-embed-frame[data-embed-id="' + e.data.__htmlEmbedId + '"]');
+  if (frame) frame.style.height = Math.min(Math.max(e.data.__htmlEmbedHeight + 4, 60), 600) + 'px';
+});
+marked.setOptions({ breaks: true, renderer: chatRenderer });
 
 let messages = [];
 let pendingAttachments = [];
