@@ -4444,6 +4444,19 @@ function syncToolNoticeRow(msg, ctx) {
     prev.remove();
   }
 }
+function appendThinkCloud(nameLine, col, thinking, inline) {
+  const cloud = document.createElement('div'); cloud.className = 'think-cloud';
+  const thinkBody = document.createElement('div'); thinkBody.className = 'think-content'; thinkBody.textContent = thinking; thinkBody.style.display = 'none';
+  cloud.addEventListener('click', (e) => { e.stopPropagation(); const showing = thinkBody.style.display !== 'none'; thinkBody.style.display = showing ? 'none' : 'block'; });
+  if (inline) {
+    cloud.classList.add('inline'); cloud.innerHTML = ICONS.cloud + '<span>-thinking-</span>';
+    nameLine.appendChild(cloud);
+  } else {
+    cloud.innerHTML = ICONS.cloud + '<span>-thinking-</span>';
+    col.appendChild(cloud);
+  }
+  col.appendChild(thinkBody);
+}
 function buildMsgRow(msg, ctx, prevMsg, nextMsg) {
   if (msg.role === 'notice') {
     const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
@@ -4475,23 +4488,16 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg) {
       nameLine.appendChild(nameEl); nameLine.appendChild(thinkEl);
       col.appendChild(nameLine);
     }
+    // 上一条纯 thinking 气泡把头像/名字让给了这一条——它的 thinking 云也跟着挪过来，
+    // 挂在这条（真正露脸的）名字边上，别留在没头像的上一条里孤零零飘着
+    if (inheritsHeaderFromPrev) appendThinkCloud(nameLine, col, prevMsg.thinking, !!nameLine);
   }
   row.appendChild(col);
 
   const wrap = document.createElement('div'); wrap.className = 'msg-bubble-wrap';
 
-  if (msg.role !== 'user' && msg.thinking && msg.thinking.trim()) {
-    const cloud = document.createElement('div'); cloud.className = 'think-cloud';
-    const thinkBody = document.createElement('div'); thinkBody.className = 'think-content'; thinkBody.textContent = msg.thinking; thinkBody.style.display = 'none';
-    cloud.addEventListener('click', (e) => { e.stopPropagation(); const showing = thinkBody.style.display !== 'none'; thinkBody.style.display = showing ? 'none' : 'block'; });
-    if (nameLine) {
-      cloud.classList.add('inline'); cloud.innerHTML = ICONS.cloud + '<span>-thinking-</span>';
-      nameLine.appendChild(cloud);
-    } else {
-      cloud.innerHTML = ICONS.cloud + '<span>-thinking-</span>';
-      col.appendChild(cloud);
-    }
-    col.appendChild(thinkBody);
+  if (msg.role !== 'user' && !defersHeaderToNext && msg.thinking && msg.thinking.trim()) {
+    appendThinkCloud(nameLine, col, msg.thinking, !!nameLine);
   }
   if (msg.images && msg.images.length > 0) {
     if (msg.images.length === 1) {
