@@ -2783,7 +2783,8 @@ async function exportSelectedShot() {
     let prev = null;
     selected.forEach((m, i) => {
       if (shouldShowTimeDivider(prev, m)) contentDiv.appendChild(buildTimeDividerRow(m.createdAt));
-      contentDiv.appendChild(buildMsgRow(m, null, prev, findNextMsg(selected, i)));
+      const prevIdx = findPrevIdx(selected, i);
+      contentDiv.appendChild(buildMsgRow(m, null, prev, findNextMsg(selected, i), isFirstInRunAt(selected, prevIdx)));
       if (m.role !== 'notice') prev = m;
     });
     stage.appendChild(contentDiv);
@@ -4113,7 +4114,8 @@ function refreshRow(msg, ctx) {
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id);
   let prev = null;
   for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') { prev = arr[i]; break; } }
-  const newRow = buildMsgRow(msg, ctx, prev, findNextMsg(arr, idx)); oldRow.replaceWith(newRow);
+  const prevIdx = findPrevIdx(arr, idx);
+  const newRow = buildMsgRow(msg, ctx, prev, findNextMsg(arr, idx), isFirstInRunAt(arr, prevIdx)); oldRow.replaceWith(newRow);
   if (msg.role !== 'user') syncToolNoticeRow(msg, ctx);
 }
 function switchVersion(msg, ctx, delta) {
@@ -4457,18 +4459,20 @@ function appendThinkCloud(nameLine, col, thinking, inline) {
   }
   col.appendChild(thinkBody);
 }
-function buildMsgRow(msg, ctx, prevMsg, nextMsg) {
+function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   if (msg.role === 'notice') {
     const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
     if (ctx) attachLongPress(row, msg, ctx); return row;
   }
   const row = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai'); row.dataset.msgId = msg.id;
-  // 纯 thinking 气泡只有在后面紧跟着同发送方的气泡时才让出头像/名字——把头部交给
-  // 后面真正有正文的气泡去顶；如果它是这一串里唯一的气泡（后面没有同发送方接着），
-  // 它还是要自己顶头部，不然整段就没头像了
-  const defersHeaderToNext = isThinkingOnlyMsg(msg) && !!nextMsg && nextMsg.role === msg.role && !shouldShowTimeDivider(msg, nextMsg);
-  const inheritsHeaderFromPrev = !!prevMsg && prevMsg.role === msg.role && isThinkingOnlyMsg(prevMsg);
+  // 纯 thinking 气泡只有在"它自己是这一串连续消息里第一条"、且后面紧跟着同发送方的
+  // 正文气泡时，才让出头像/名字——把头部交给后面那条真正的第一条正文去顶。
+  // 如果 thinking 气泡本身就是接在前面消息后面的（不是第一条），就按普通续接气泡处理，
+  // 不做任何头像转移
+  const isFirstInRun = !prevMsg || prevMsg.role !== msg.role;
+  const defersHeaderToNext = isFirstInRun && isThinkingOnlyMsg(msg) && !!nextMsg && nextMsg.role === msg.role && !shouldShowTimeDivider(msg, nextMsg);
+  const inheritsHeaderFromPrev = !!prevMsg && prevMsg.role === msg.role && isThinkingOnlyMsg(prevMsg) && !!prevWasFirstInRun;
   const isSameSender = defersHeaderToNext || (!!prevMsg && prevMsg.role === msg.role && !inheritsHeaderFromPrev);
   if (isSameSender) row.classList.add('same-sender');
   const isMultiSelectable = ctx === mainCtx && selectMode;
@@ -4564,9 +4568,20 @@ function findPrevMsg(arr, idx) {
   for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') return arr[i]; }
   return null;
 }
+function findPrevIdx(arr, idx) {
+  for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') return i; }
+  return -1;
+}
 function findNextMsg(arr, idx) {
   for (let i = idx + 1; i < arr.length; i++) { if (arr[i].role !== 'notice') return arr[i]; }
   return null;
+}
+// 判断 arr[idx] 是不是自己这一串连续同发送方消息里的第一条（前面没有同发送方接着，
+// 或者中间隔了时间分隔线）
+function isFirstInRunAt(arr, idx) {
+  if (idx < 0) return false;
+  const p = findPrevMsg(arr, idx);
+  return !p || p.role !== arr[idx].role || shouldShowTimeDivider(p, arr[idx]);
 }
 function buildLoadEarlierSentinel(pageEl, onReach) {
   const el = document.createElement('div');
@@ -4588,7 +4603,8 @@ function renderMessageWindow(container, page, arr, ctx, fromIdx, sentinelLoader)
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) container.appendChild(buildTimeDividerRow(msg.createdAt));
       if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) container.appendChild(buildToolNoticeRow(msg));
-      container.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i)));
+      const prevIdx = findPrevIdx(arr, i);
+      container.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i), isFirstInRunAt(arr, prevIdx)));
       prev = msg;
     } else {
       container.appendChild(buildMsgRow(msg, ctx));
@@ -4607,7 +4623,8 @@ function loadEarlierRange(container, page, arr, ctx, renderStart, sentinelLoader
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) frag.appendChild(buildTimeDividerRow(msg.createdAt));
       if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) frag.appendChild(buildToolNoticeRow(msg));
-      frag.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i)));
+      const prevIdx = findPrevIdx(arr, i);
+      frag.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i), isFirstInRunAt(arr, prevIdx)));
       prev = msg;
     } else {
       frag.appendChild(buildMsgRow(msg, ctx));
@@ -4647,13 +4664,14 @@ function appendMessage(msg) {
   const prev = prevIdx >= 0 ? messages[prevIdx] : null;
   const divider = shouldShowTimeDivider(prev, msg);
   if (divider) chatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+  const prevWasFirstInRun = isFirstInRunAt(messages, prevIdx);
   // prev 之前渲染时还不知道后面会接上 msg——重新画一遍，让它把头像/时间戳该让给 msg 的让出去
   if (!divider && prev && prev.role === msg.role) {
     const prevRow = chatScroll.querySelector(`[data-msg-id="${prev.id}"]`);
-    if (prevRow) prevRow.replaceWith(buildMsgRow(prev, mainCtx, findPrevMsg(messages, prevIdx), msg));
+    if (prevRow) prevRow.replaceWith(buildMsgRow(prev, mainCtx, findPrevMsg(messages, prevIdx), msg, isFirstInRunAt(messages, findPrevIdx(messages, prevIdx))));
   }
   if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) chatScroll.appendChild(buildToolNoticeRow(msg));
-  const row = buildMsgRow(msg, mainCtx, divider ? null : prev); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
+  const row = buildMsgRow(msg, mainCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
 }
 function scrollToBottom(container, pageId) { autoFollowState[pageId] = true; requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
 const autoFollowState = { 'page-chat': true, 'page-subchat': true };
@@ -4723,12 +4741,13 @@ function appendSubChatMessage(msg) {
   const prev = prevIdx >= 0 ? sc.messages[prevIdx] : null;
   const divider = shouldShowTimeDivider(prev, msg);
   if (divider) subchatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+  const prevWasFirstInRun = isFirstInRunAt(sc ? sc.messages : [], prevIdx);
   if (!divider && prev && prev.role === msg.role) {
     const prevRow = subchatScroll.querySelector(`[data-msg-id="${prev.id}"]`);
-    if (prevRow) prevRow.replaceWith(buildMsgRow(prev, subCtx, findPrevMsg(sc.messages, prevIdx), msg));
+    if (prevRow) prevRow.replaceWith(buildMsgRow(prev, subCtx, findPrevMsg(sc.messages, prevIdx), msg, isFirstInRunAt(sc.messages, findPrevIdx(sc.messages, prevIdx))));
   }
   if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) subchatScroll.appendChild(buildToolNoticeRow(msg));
-  const row = buildMsgRow(msg, subCtx, divider ? null : prev); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
+  const row = buildMsgRow(msg, subCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
 }
 
 /* ============================================================
