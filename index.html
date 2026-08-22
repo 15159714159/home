@@ -2781,9 +2781,9 @@ async function exportSelectedShot() {
     const contentDiv = document.createElement('div');
     contentDiv.style.cssText = 'position:relative;z-index:1;';
     let prev = null;
-    selected.forEach(m => {
+    selected.forEach((m, i) => {
       if (shouldShowTimeDivider(prev, m)) contentDiv.appendChild(buildTimeDividerRow(m.createdAt));
-      contentDiv.appendChild(buildMsgRow(m, null, prev));
+      contentDiv.appendChild(buildMsgRow(m, null, prev, findNextMsg(selected, i)));
       if (m.role !== 'notice') prev = m;
     });
     stage.appendChild(contentDiv);
@@ -4103,12 +4103,17 @@ function getMsgDisplayText(m) {
   }
   return m.text || '';
 }
+function isThinkingOnlyMsg(m) {
+  if (!m || m.role === 'user' || m.quote) return false;
+  const t = getMsgDisplayText(m);
+  return !(t && t.trim()) && !!(m.thinking && m.thinking.trim());
+}
 function refreshRow(msg, ctx) {
   const oldRow = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`); if (!oldRow) return;
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id);
   let prev = null;
   for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') { prev = arr[i]; break; } }
-  const newRow = buildMsgRow(msg, ctx, prev); oldRow.replaceWith(newRow);
+  const newRow = buildMsgRow(msg, ctx, prev, findNextMsg(arr, idx)); oldRow.replaceWith(newRow);
   if (msg.role !== 'user') syncToolNoticeRow(msg, ctx);
 }
 function switchVersion(msg, ctx, delta) {
@@ -4439,14 +4444,19 @@ function syncToolNoticeRow(msg, ctx) {
     prev.remove();
   }
 }
-function buildMsgRow(msg, ctx, prevMsg) {
+function buildMsgRow(msg, ctx, prevMsg, nextMsg) {
   if (msg.role === 'notice') {
     const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
     if (ctx) attachLongPress(row, msg, ctx); return row;
   }
   const row = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai'); row.dataset.msgId = msg.id;
-  const isSameSender = !!(prevMsg && prevMsg.role === msg.role);
+  // 纯 thinking 气泡只有在后面紧跟着同发送方的气泡时才让出头像/名字——把头部交给
+  // 后面真正有正文的气泡去顶；如果它是这一串里唯一的气泡（后面没有同发送方接着），
+  // 它还是要自己顶头部，不然整段就没头像了
+  const defersHeaderToNext = isThinkingOnlyMsg(msg) && !!nextMsg && nextMsg.role === msg.role && !shouldShowTimeDivider(msg, nextMsg);
+  const inheritsHeaderFromPrev = !!prevMsg && prevMsg.role === msg.role && isThinkingOnlyMsg(prevMsg);
+  const isSameSender = defersHeaderToNext || (!!prevMsg && prevMsg.role === msg.role && !inheritsHeaderFromPrev);
   if (isSameSender) row.classList.add('same-sender');
   const isMultiSelectable = ctx === mainCtx && selectMode;
   if (isMultiSelectable && msg.role === 'ai') row.appendChild(buildSelectCb(msg));
@@ -4500,7 +4510,7 @@ function buildMsgRow(msg, ctx, prevMsg) {
   const displayText = getMsgDisplayText(msg);
   // 内心想法被强制拆成独立气泡时正文是空的——只有上面的 think-cloud/think-content，
   // 不再额外画一个空的 msg-bubble 方块
-  const isThinkingOnlyBubble = msg.role !== 'user' && !msg.quote && (!displayText || !displayText.trim()) && msg.thinking && msg.thinking.trim();
+  const isThinkingOnlyBubble = isThinkingOnlyMsg(msg);
   if (!isThinkingOnlyBubble) {
     const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
 
@@ -4516,7 +4526,12 @@ function buildMsgRow(msg, ctx, prevMsg) {
     wrap.appendChild(bubble);
   }
   if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
-  const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = msg.time; wrap.appendChild(timeEl);
+  // 时间只在"这个人连续发的最后一条"上显示——和 next 同一发送方、且中间没有时间分隔线的话，
+  // 说明还在同一串连续消息里，时间戳交给这一串的最后一条负责
+  const isLastInRun = !nextMsg || nextMsg.role !== msg.role || shouldShowTimeDivider(msg, nextMsg);
+  if (isLastInRun) {
+    const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = msg.time; wrap.appendChild(timeEl);
+  }
   col.appendChild(wrap);
   if (isMultiSelectable && msg.role === 'user') row.appendChild(buildSelectCb(msg));
   if (isMultiSelectable) { row.style.cursor = 'pointer'; row.addEventListener('click', () => toggleSelect(msg.id)); }
@@ -4543,6 +4558,10 @@ function findPrevMsg(arr, idx) {
   for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') return arr[i]; }
   return null;
 }
+function findNextMsg(arr, idx) {
+  for (let i = idx + 1; i < arr.length; i++) { if (arr[i].role !== 'notice') return arr[i]; }
+  return null;
+}
 function buildLoadEarlierSentinel(pageEl, onReach) {
   const el = document.createElement('div');
   el.className = 'load-earlier-sentinel';
@@ -4563,7 +4582,7 @@ function renderMessageWindow(container, page, arr, ctx, fromIdx, sentinelLoader)
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) container.appendChild(buildTimeDividerRow(msg.createdAt));
       if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) container.appendChild(buildToolNoticeRow(msg));
-      container.appendChild(buildMsgRow(msg, ctx, divider ? null : prev));
+      container.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i)));
       prev = msg;
     } else {
       container.appendChild(buildMsgRow(msg, ctx));
@@ -4582,7 +4601,7 @@ function loadEarlierRange(container, page, arr, ctx, renderStart, sentinelLoader
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) frag.appendChild(buildTimeDividerRow(msg.createdAt));
       if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) frag.appendChild(buildToolNoticeRow(msg));
-      frag.appendChild(buildMsgRow(msg, ctx, divider ? null : prev));
+      frag.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i)));
       prev = msg;
     } else {
       frag.appendChild(buildMsgRow(msg, ctx));
@@ -4617,10 +4636,16 @@ function renderAllMessages() {
   scrollToBottom(chatScroll, 'page-chat');
 }
 function appendMessage(msg) {
-  let prev = null;
-  for (let i = messages.length - 2; i >= 0; i--) { if (messages[i].role !== 'notice') { prev = messages[i]; break; } }
+  let prevIdx = -1;
+  for (let i = messages.length - 2; i >= 0; i--) { if (messages[i].role !== 'notice') { prevIdx = i; break; } }
+  const prev = prevIdx >= 0 ? messages[prevIdx] : null;
   const divider = shouldShowTimeDivider(prev, msg);
   if (divider) chatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+  // prev 之前渲染时还不知道后面会接上 msg——重新画一遍，让它把头像/时间戳该让给 msg 的让出去
+  if (!divider && prev && prev.role === msg.role) {
+    const prevRow = chatScroll.querySelector(`[data-msg-id="${prev.id}"]`);
+    if (prevRow) prevRow.replaceWith(buildMsgRow(prev, mainCtx, findPrevMsg(messages, prevIdx), msg));
+  }
   if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) chatScroll.appendChild(buildToolNoticeRow(msg));
   const row = buildMsgRow(msg, mainCtx, divider ? null : prev); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
 }
@@ -4688,9 +4713,14 @@ function renderSubChatMessages() {
 }
 function appendSubChatMessage(msg) {
   const sc = subChats.find(s => s.id === currentSubChatId);
-  const prev = sc && sc.messages.length >= 2 ? sc.messages[sc.messages.length - 2] : null;
+  const prevIdx = sc && sc.messages.length >= 2 ? sc.messages.length - 2 : -1;
+  const prev = prevIdx >= 0 ? sc.messages[prevIdx] : null;
   const divider = shouldShowTimeDivider(prev, msg);
   if (divider) subchatScroll.appendChild(buildTimeDividerRow(msg.createdAt));
+  if (!divider && prev && prev.role === msg.role) {
+    const prevRow = subchatScroll.querySelector(`[data-msg-id="${prev.id}"]`);
+    if (prevRow) prevRow.replaceWith(buildMsgRow(prev, subCtx, findPrevMsg(sc.messages, prevIdx), msg));
+  }
   if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) subchatScroll.appendChild(buildToolNoticeRow(msg));
   const row = buildMsgRow(msg, subCtx, divider ? null : prev); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
 }
