@@ -367,6 +367,38 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
   line-height: 1.6; padding: 8px 12px; margin-top: 6px; border-radius: 10px;
   white-space: pre-wrap; word-break: break-word; max-width: 86%; user-select: text; -webkit-user-select: text;
 }
+/* 自主醒来/私人时间折叠卡片——故意不复用 .tool-notice-pill 那套透明底/11px小字
+   （用户已反馈"看不清、不能用"），改用跟其它面板一致的不透明 --bg-subtle 底色、
+   更大字号，保证默认折叠态和展开态都清晰可读。 */
+.wake-session-row { display: flex; justify-content: center; margin: 4px 0 10px; }
+.wake-session-pill {
+  display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+  min-height: 26px; padding: 5px 14px; border-radius: 13px;
+  background: var(--bg-subtle); color: var(--text-secondary);
+  font-size: 13px; line-height: 18px; white-space: nowrap; cursor: pointer;
+  user-select: none; -webkit-user-select: none; transition: opacity 0.15s ease;
+}
+.wake-session-pill svg { width: 13px; height: 13px; flex-shrink: 0; }
+.wake-session-pill:active { opacity: 0.6; }
+.wake-session-card {
+  max-width: 86%; margin-top: 6px; padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-subtle); color: var(--text-primary);
+  font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+  user-select: text; -webkit-user-select: text;
+}
+.wake-session-card .wake-session-empty { color: var(--text-tertiary); font-size: 13px; }
+.wake-session-toolcalls { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.wake-session-tool-row { border-radius: 8px; background: var(--bg-elevated); overflow: hidden; }
+.wake-session-tool-pill {
+  display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+  font-size: 12.5px; color: var(--text-secondary); cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.wake-session-tool-pill svg { width: 12px; height: 12px; flex-shrink: 0; }
+.wake-session-tool-detail {
+  font-size: 12.5px; color: var(--text-secondary); padding: 0 10px 8px 10px;
+  white-space: pre-wrap; word-break: break-word;
+}
 html.dark .tool-notice-detail { background: rgba(160,180,196,0.16); }
 .tool-notice-detail .tool-call-item + .tool-call-item { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(15,25,32,0.15); }
 html.dark .tool-notice-detail .tool-call-item + .tool-call-item { border-top-color: rgba(220,228,232,0.15); }
@@ -1541,6 +1573,22 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <button class="space-save-btn" id="forcePushCloudBtn">立即同步聊天记录到云端</button>
       </div>
       <div class="space-hint" id="chatSyncStatusHint">同步状态：等待初始化…</div>
+
+      <div class="space-divider"></div>
+      <div class="space-section-title">通知</div>
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">喵喵发消息时通知我</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgPushEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-hint" id="pushHint">需要先把这个页面"添加到主屏幕"打开，才能开启通知。</div>
+
+      <div class="space-divider"></div>
+      <div class="space-section-title">自主醒来</div>
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">允许喵喵自主醒来 / 私人时间</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgWakeEngineEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-hint" id="wakeEngineHint">开启后喵喵会不定期自己"醒来"一小段私人时间，跟你聊天无关，随时可以关掉。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">强制刷新</div>
@@ -3352,7 +3400,7 @@ async function loadMessages() {
   let migrated = false;
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
-    if (m.role !== 'user' && m.role !== 'notice' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
+    if (m.role !== 'user' && m.role !== 'notice' && m.role !== 'wake_session' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
     if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
   });
   if (migrated) persistMessages();
@@ -4076,7 +4124,7 @@ function estimateContextTokens() {
   const timeLine = 40;
   const memChars = (buildMemoryInjection() || '').length;
   const diaryChars = estimateDiaryChars();
-  const real = messages.filter(m => m.role !== 'notice');
+  const real = messages.filter(m => m.role !== 'notice' && m.role !== 'wake_session');
   const filteredReal = filterByTopicStart(real);
   const { windowMsgs } = splitWindow(filteredReal);
   const historyChars = windowMsgs.reduce((s,m) => s + getMsgCharLen(m), 0);
@@ -4176,7 +4224,7 @@ function refreshRow(msg, ctx) {
   for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') { prev = arr[i]; break; } }
   const prevIdx = findPrevIdx(arr, idx);
   const newRow = buildMsgRow(msg, ctx, prev, findNextMsg(arr, idx), isFirstInRunAt(arr, prevIdx)); oldRow.replaceWith(newRow);
-  if (msg.role !== 'user') syncToolNoticeRow(msg, ctx);
+  if (msg.role !== 'user' && msg.role !== 'wake_session') syncToolNoticeRow(msg, ctx);
 }
 function switchVersion(msg, ctx, delta) {
   const newIdx = msg.versionIndex + delta;
@@ -4508,6 +4556,45 @@ function buildToolNoticeRow(msg) {
   row.appendChild(pill); row.appendChild(detail);
   return row;
 }
+// 自主醒来/私人时间折叠卡片——独立于普通消息气泡渲染路径，msg.role === 'wake_session'
+// 由 buildMsgRow 单独分支处理（不走 user/ai 气泡逻辑）。折叠态文案用 startedAt（开始
+// 时刻），跟消息在流里的排序键 createdAt（= session 的 ended_at，见 server.js 落库时的
+// 写法）是两回事：排序按结束时间排在同一次私人时间里可能更早推送的分享消息之后，
+// 但文案仍然告诉用户"喵喵是几点醒的"。
+function buildWakeSessionCard(msg) {
+  const row = document.createElement('div'); row.className = 'wake-session-row'; row.dataset.msgId = msg.id;
+  const pill = document.createElement('div'); pill.className = 'wake-session-pill';
+  const d = new Date(msg.startedAt != null ? msg.startedAt : msg.createdAt);
+  const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+  pill.innerHTML = '🌙 <span>' + appName + '在 ' + hh + ':' + mm + ' 醒来了</span>';
+  const card = document.createElement('div'); card.className = 'wake-session-card'; card.style.display = 'none';
+  if (msg.monologue && msg.monologue.trim()) {
+    const body = document.createElement('div');
+    try { body.innerHTML = marked.parse(msg.monologue).trim(); } catch (e) { body.textContent = msg.monologue; }
+    card.appendChild(body);
+  } else {
+    const empty = document.createElement('div'); empty.className = 'wake-session-empty'; empty.textContent = '这次什么都没留下。';
+    card.appendChild(empty);
+  }
+  if (msg.toolCalls && msg.toolCalls.length) {
+    const list = document.createElement('div'); list.className = 'wake-session-toolcalls';
+    msg.toolCalls.forEach(tc => {
+      const toolRow = document.createElement('div'); toolRow.className = 'wake-session-tool-row';
+      const toolPill = document.createElement('div'); toolPill.className = 'wake-session-tool-pill';
+      toolPill.innerHTML = ICONS.wrench + '<span>' + tc.name + '</span>';
+      const { argsText, resultShown } = toolCallSummaryText(tc);
+      const detail = document.createElement('div'); detail.className = 'wake-session-tool-detail'; detail.style.display = 'none';
+      detail.textContent = (argsText ? '参数：' + argsText + '\n' : '') + (tc.isError ? '执行出错\n' : '') + (resultShown || '（无返回内容）');
+      toolPill.addEventListener('click', (e) => { e.stopPropagation(); const showing = detail.style.display !== 'none'; detail.style.display = showing ? 'none' : 'block'; });
+      toolRow.appendChild(toolPill); toolRow.appendChild(detail);
+      list.appendChild(toolRow);
+    });
+    card.appendChild(list);
+  }
+  pill.addEventListener('click', (e) => { e.stopPropagation(); const showing = card.style.display !== 'none'; card.style.display = showing ? 'none' : 'block'; });
+  row.appendChild(pill); row.appendChild(card);
+  return row;
+}
 function syncToolNoticeRow(msg, ctx) {
   const row = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`); if (!row) return;
   const prev = row.previousElementSibling;
@@ -4536,6 +4623,9 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   if (msg.role === 'notice') {
     const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
     if (ctx) attachLongPress(row, msg, ctx); return row;
+  }
+  if (msg.role === 'wake_session') {
+    return buildWakeSessionCard(msg);
   }
   const row = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai'); row.dataset.msgId = msg.id;
@@ -4702,7 +4792,7 @@ function renderMessageWindow(container, page, arr, ctx, fromIdx, sentinelLoader)
     if (msg.role !== 'notice') {
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) container.appendChild(buildTimeDividerRow(msg.createdAt));
-      if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) container.appendChild(buildToolNoticeRow(msg));
+      if (msg.role !== 'user' && msg.role !== 'wake_session' && msg.toolCalls && msg.toolCalls.length) container.appendChild(buildToolNoticeRow(msg));
       const prevIdx = findPrevIdx(arr, i);
       container.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i), isFirstInRunAt(arr, prevIdx)));
       prev = msg;
@@ -4722,7 +4812,7 @@ function loadEarlierRange(container, page, arr, ctx, renderStart, sentinelLoader
     if (msg.role !== 'notice') {
       const divider = shouldShowTimeDivider(prev, msg);
       if (divider) frag.appendChild(buildTimeDividerRow(msg.createdAt));
-      if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) frag.appendChild(buildToolNoticeRow(msg));
+      if (msg.role !== 'user' && msg.role !== 'wake_session' && msg.toolCalls && msg.toolCalls.length) frag.appendChild(buildToolNoticeRow(msg));
       const prevIdx = findPrevIdx(arr, i);
       frag.appendChild(buildMsgRow(msg, ctx, divider ? null : prev, findNextMsg(arr, i), isFirstInRunAt(arr, prevIdx)));
       prev = msg;
@@ -4770,7 +4860,7 @@ function appendMessage(msg) {
     const prevRow = chatScroll.querySelector(`[data-msg-id="${prev.id}"]`);
     if (prevRow) prevRow.replaceWith(buildMsgRow(prev, mainCtx, findPrevMsg(messages, prevIdx), msg, isFirstInRunAt(messages, findPrevIdx(messages, prevIdx))));
   }
-  if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) chatScroll.appendChild(buildToolNoticeRow(msg));
+  if (msg.role !== 'user' && msg.role !== 'wake_session' && msg.toolCalls && msg.toolCalls.length) chatScroll.appendChild(buildToolNoticeRow(msg));
   const row = buildMsgRow(msg, mainCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
 }
 function scrollToBottom(container, pageId) { autoFollowState[pageId] = true; requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
@@ -4846,7 +4936,7 @@ function appendSubChatMessage(msg) {
     const prevRow = subchatScroll.querySelector(`[data-msg-id="${prev.id}"]`);
     if (prevRow) prevRow.replaceWith(buildMsgRow(prev, subCtx, findPrevMsg(sc.messages, prevIdx), msg, isFirstInRunAt(sc.messages, findPrevIdx(sc.messages, prevIdx))));
   }
-  if (msg.role !== 'user' && msg.toolCalls && msg.toolCalls.length) subchatScroll.appendChild(buildToolNoticeRow(msg));
+  if (msg.role !== 'user' && msg.role !== 'wake_session' && msg.toolCalls && msg.toolCalls.length) subchatScroll.appendChild(buildToolNoticeRow(msg));
   const row = buildMsgRow(msg, subCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
 }
 
@@ -5877,6 +5967,110 @@ const CHAT_MAIN_BASE = 'https://47-107-161-135.sslip.io/chat-main';
 function chatMainUrl(path) { return CHAT_MAIN_BASE + path; }
 function chatMainHeaders(cfg) { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (cfg.chatServiceKey || '') }; }
 
+/* ============================================================
+Web Push 通知：只在"添加到主屏幕"打开的 iOS PWA / 支持 Push 的浏览器里可用。
+============================================================ */
+const LS_PUSH_DEVICE_ID = 'push_device_id';
+function getPushDeviceId() {
+  let id = localStorage.getItem(LS_PUSH_DEVICE_ID);
+  if (!id) { id = crypto.randomUUID(); safeSetItem(LS_PUSH_DEVICE_ID, id); }
+  return id;
+}
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+// iOS 16.4+ 只在"添加到主屏幕"打开的 standalone 模式下支持 Web Push，Safari 标签页里完全不支持。
+function pushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && navigator.standalone === true;
+}
+let swRegistration = null;
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return null;
+  try {
+    swRegistration = await navigator.serviceWorker.register('sw.js');
+    return swRegistration;
+  } catch (e) { console.warn('[web-push] Service Worker 注册失败', e); return null; }
+}
+// 权限弹窗必须由用户手势同步触发——iOS Safari 对这一点比桌面浏览器严格，中间不能插入
+// 其它 await，所以 Notification.requestPermission() 必须是这个函数里第一个异步调用。
+async function subscribeToPush() {
+  const cfg = getConfig();
+  if (!cfg.chatServiceKey) { showToast('请先在设置里填聊天服务密钥'); return false; }
+  let permission = Notification.permission;
+  if (permission === 'default') permission = await Notification.requestPermission();
+  if (permission !== 'granted') { showToast('没有获得通知权限'); return false; }
+  if (!swRegistration) swRegistration = await registerServiceWorker();
+  if (!swRegistration) { showToast('Service Worker 注册失败，无法开启通知'); return false; }
+  try {
+    const res = await fetch(chatMainUrl('/vapid-public-key'), { method: 'POST', headers: chatMainHeaders(cfg), body: '{}' });
+    const { key } = await res.json();
+    if (!key) { showToast('服务器还没配置推送公钥'); return false; }
+    let sub = await swRegistration.pushManager.getSubscription();
+    if (!sub) sub = await swRegistration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) });
+    const raw = sub.toJSON();
+    await fetch(chatMainUrl('/push-subscribe'), {
+      method: 'POST', headers: chatMainHeaders(cfg),
+      body: JSON.stringify({ device_id: getPushDeviceId(), endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }),
+    });
+    return true;
+  } catch (e) { console.warn('[web-push] 订阅失败', e); showToast('订阅通知失败: ' + (e.message || e)); return false; }
+}
+async function unsubscribeFromPush() {
+  const cfg = getConfig();
+  try {
+    if (swRegistration) {
+      const sub = await swRegistration.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe();
+    }
+    await fetch(chatMainUrl('/push-unsubscribe'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify({ device_id: getPushDeviceId() }) });
+  } catch (e) { console.warn('[web-push] 取消订阅失败', e); }
+}
+const cfgPushEnabledEl = document.getElementById('cfgPushEnabled');
+const pushHintEl = document.getElementById('pushHint');
+function initPushUi() {
+  if (!pushSupported()) {
+    cfgPushEnabledEl.checked = false;
+    cfgPushEnabledEl.disabled = true;
+    pushHintEl.textContent = '需要先把这个页面"添加到主屏幕"打开，才能开启通知。';
+    return;
+  }
+  pushHintEl.textContent = '开启后，喵喵发消息时（只要你不在这个页面前台）手机会收到系统通知。';
+  registerServiceWorker();
+  cfgPushEnabledEl.checked = !!getConfig().pushEnabled;
+}
+cfgPushEnabledEl.addEventListener('change', async () => {
+  const wantOn = cfgPushEnabledEl.checked;
+  if (wantOn) {
+    const ok = await subscribeToPush();
+    if (!ok) { cfgPushEnabledEl.checked = false; return; }
+  } else {
+    await unsubscribeFromPush();
+  }
+  patchConfig('pushEnabled', wantOn);
+});
+initPushUi();
+
+const cfgWakeEngineEnabledEl = document.getElementById('cfgWakeEngineEnabled');
+async function initWakeEngineUi() {
+  try {
+    const { data, error } = await window.supabaseWakeEngine.getWakeEngineEnabled();
+    if (error) { console.warn('[wake-engine] 读取开关状态失败', error.message); return; }
+    cfgWakeEngineEnabledEl.checked = !!data;
+  } catch (e) { console.warn('[wake-engine] 读取开关状态出错', e); }
+}
+cfgWakeEngineEnabledEl.addEventListener('change', async () => {
+  const wantOn = cfgWakeEngineEnabledEl.checked;
+  try {
+    const { error } = await window.supabaseWakeEngine.setWakeEngineEnabled(wantOn);
+    if (error) { console.warn('[wake-engine] 更新开关状态失败', error.message); cfgWakeEngineEnabledEl.checked = !wantOn; }
+  } catch (e) { console.warn('[wake-engine] 更新开关状态出错', e); cfgWakeEngineEnabledEl.checked = !wantOn; }
+});
+
 // 书房联动的"暗中触发"：点一下就发出去，没有任何本地反馈（toast/文案），点击本身就是全部
 // 交互——几秒后 AI 的话会像平时一样自然地出现在主聊天里，走 subscribeMainChat 现成的
 // Realtime 推送，这里不用管返回结果。
@@ -6591,6 +6785,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initSupabaseMemorySync(); initChatSync().then(onChatSyncDone);
   loadChecklistFromSupabase().then(() => { renderChecklistSheet(); startChecklistTick(); });
   if (window.supabaseMood) window.supabaseMood.getMood().then(({ data }) => { if (data && data.content != null) aiMood = data.content; });
+  if (window.supabaseWakeEngine) initWakeEngineUi();
 });
 (async function init() {
   setupSafeAreaFallback();

@@ -225,6 +225,19 @@ export async function upsertMood(content) {
   return supabase.from('ai_mood').upsert({ id: 'main', content, updated_at: new Date().toISOString() });
 }
 
+// "自主醒来 / 私人时间"总开关：复用 wake_engine_state 单行表（garden-agent 的
+// wakeEngine.js 每次 tick 都会现查这一列，见其 isEngineEnabled()），开关状态实时生效，
+// 不需要重启后端。这张表本来就对 anon 开了 select/update，前端直接读写即可，不用走
+// chat-main 代理。
+export async function getWakeEngineEnabled() {
+  const { data, error } = await supabase.from('wake_engine_state').select('enabled').eq('id', 'main').maybeSingle();
+  if (error) return { data: null, error };
+  return { data: !data || data.enabled !== false, error: null };
+}
+export async function setWakeEngineEnabled(enabled) {
+  return supabase.from('wake_engine_state').upsert({ id: 'main', enabled });
+}
+
 // 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
 window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
 window.supabaseDiary = { addDiary, getDiaries, addComment };
@@ -232,3 +245,4 @@ window.supabaseChats = { getChat, upsertChat, subscribeMainChat };
 window.supabaseChecklist = { getChecklist, addChecklistItem, updateChecklistItem, deleteChecklistItem, claimDueChecklistAlarms };
 window.supabaseAiConfig = { upsertAiConfig };
 window.supabaseMood = { getMood, upsertMood };
+window.supabaseWakeEngine = { getWakeEngineEnabled, setWakeEngineEnabled };
