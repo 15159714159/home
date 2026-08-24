@@ -367,9 +367,9 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
   line-height: 1.6; padding: 8px 12px; margin-top: 6px; border-radius: 10px;
   white-space: pre-wrap; word-break: break-word; max-width: 86%; user-select: text; -webkit-user-select: text;
 }
-/* 自主醒来/私人时间折叠卡片——iOS 备忘录风：单容器双段背景（灰色标题条 + 白色正文），
-   点击标题条时正文用高度 FLIP 动画"长出来"，不是 display 硬切换。折叠态灰条本身
-   展开/收起时保持不变，只有 .wake-session-body-wrap 做形变，细节见 buildWakeSessionCard。 */
+/* 自主醒来/私人时间折叠卡片——iOS 备忘录风：单容器双段背景（灰色标题条 + 白色正文）。
+   点击标题条时正文用高度 FLIP 动画"长出来"，标题条自身的 free time 文字同步淡出
+   （营造"折叠标注变形长大"的观感），不是 display 硬切换，细节见 buildWakeSessionCard。 */
 .wake-session-row { display: flex; justify-content: center; margin: 4px 0 10px; }
 .wake-session-note {
   max-width: 86%; border-radius: 14px; overflow: hidden;
@@ -381,8 +381,15 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
   user-select: none; -webkit-user-select: none; transition: opacity 0.15s ease;
 }
 .wake-session-header:active { opacity: 0.6; }
-.wake-session-title { font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.04em; }
-.wake-session-subtime { font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.wake-session-title-stack { position: relative; height: 14px; overflow: hidden; }
+.wake-session-title-collapsed, .wake-session-title-expanded {
+  position: absolute; left: 0; top: 0; right: 0;
+  font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.04em;
+  white-space: nowrap; transition: opacity 0.28s ease;
+}
+.wake-session-title-expanded { opacity: 0; }
+.wake-session-note.is-expanded .wake-session-title-collapsed { opacity: 0; }
+.wake-session-note.is-expanded .wake-session-title-expanded { opacity: 1; }
 .wake-session-body-wrap { height: 0; opacity: 0; overflow: hidden; }
 .wake-session-body {
   padding: 12px 14px; user-select: text; -webkit-user-select: text;
@@ -4580,7 +4587,8 @@ function formatWakeDuration(startMs, endMs) {
 }
 // 自主醒来/私人时间折叠卡片——独立于普通消息气泡渲染路径，msg.role === 'wake_session'
 // 由 buildMsgRow 单独分支处理（不走 user/ai 气泡逻辑）。iOS 备忘录风：单容器双段背景，
-// 灰色标题条常驻不变，点击展开时白色正文用高度 FLIP 动画"长出来"（果冻回弹缓动），
+// 折叠态标题条固定显示"喵喵醒来了"，点击展开时该文字渐隐、换成"free time"渐显，
+// 同时白色正文用高度 FLIP 动画"长出来"（果冻回弹缓动）——整体读作"折叠标注变形长大"，
 // 而不是 display 硬切换；reduced-motion 时退化为直接切换，跳过高度过渡。
 function buildWakeSessionCard(msg) {
   const row = document.createElement('div'); row.className = 'wake-session-row'; row.dataset.msgId = msg.id;
@@ -4589,9 +4597,11 @@ function buildWakeSessionCard(msg) {
   const endedAt = msg.endedAt != null ? msg.endedAt : msg.createdAt;
 
   const header = document.createElement('div'); header.className = 'wake-session-header';
-  const title = document.createElement('div'); title.className = 'wake-session-title'; title.textContent = 'free time';
-  const subtime = document.createElement('div'); subtime.className = 'wake-session-subtime'; subtime.textContent = formatWakeTimestamp(startedAt);
-  header.appendChild(title); header.appendChild(subtime);
+  const titleStack = document.createElement('div'); titleStack.className = 'wake-session-title-stack';
+  const titleCollapsed = document.createElement('div'); titleCollapsed.className = 'wake-session-title-collapsed'; titleCollapsed.textContent = '喵喵醒来了';
+  const titleExpanded = document.createElement('div'); titleExpanded.className = 'wake-session-title-expanded'; titleExpanded.textContent = 'free time';
+  titleStack.appendChild(titleCollapsed); titleStack.appendChild(titleExpanded);
+  header.appendChild(titleStack);
 
   const bodyWrap = document.createElement('div'); bodyWrap.className = 'wake-session-body-wrap';
   const body = document.createElement('div'); body.className = 'wake-session-body';
@@ -4632,6 +4642,7 @@ function buildWakeSessionCard(msg) {
     e.stopPropagation();
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     expanded = !expanded;
+    note.classList.toggle('is-expanded', expanded);
     if (reduceMotion) {
       bodyWrap.style.transition = 'none';
       bodyWrap.style.height = expanded ? 'auto' : '0';
