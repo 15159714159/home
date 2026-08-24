@@ -367,37 +367,46 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
   line-height: 1.6; padding: 8px 12px; margin-top: 6px; border-radius: 10px;
   white-space: pre-wrap; word-break: break-word; max-width: 86%; user-select: text; -webkit-user-select: text;
 }
-/* 自主醒来/私人时间折叠卡片——故意不复用 .tool-notice-pill 那套透明底/11px小字
-   （用户已反馈"看不清、不能用"），改用跟其它面板一致的不透明 --bg-subtle 底色、
-   更大字号，保证默认折叠态和展开态都清晰可读。 */
+/* 自主醒来/私人时间折叠卡片——iOS 备忘录风：单容器双段背景（灰色标题条 + 白色正文），
+   点击标题条时正文用高度 FLIP 动画"长出来"，不是 display 硬切换。折叠态灰条本身
+   展开/收起时保持不变，只有 .wake-session-body-wrap 做形变，细节见 buildWakeSessionCard。 */
 .wake-session-row { display: flex; justify-content: center; margin: 4px 0 10px; }
-.wake-session-pill {
-  display: inline-flex; align-items: center; gap: 6px; justify-content: center;
-  min-height: 26px; padding: 5px 14px; border-radius: 13px;
-  background: var(--bg-subtle); color: var(--text-secondary);
-  font-size: 13px; line-height: 18px; white-space: nowrap; cursor: pointer;
+.wake-session-note {
+  max-width: 86%; border-radius: 14px; overflow: hidden;
+  background: var(--bg-surface); box-shadow: var(--shadow-sm);
+}
+.wake-session-header {
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--bg-elevated); cursor: pointer;
   user-select: none; -webkit-user-select: none; transition: opacity 0.15s ease;
 }
-.wake-session-pill svg { width: 13px; height: 13px; flex-shrink: 0; }
-.wake-session-pill:active { opacity: 0.6; }
-.wake-session-card {
-  max-width: 86%; margin-top: 6px; padding: 12px 14px; border-radius: 10px;
-  background: var(--bg-subtle); color: var(--text-primary);
-  font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
-  user-select: text; -webkit-user-select: text;
+.wake-session-header:active { opacity: 0.6; }
+.wake-session-title { font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.04em; }
+.wake-session-subtime { font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.wake-session-body-wrap { height: 0; opacity: 0; overflow: hidden; }
+.wake-session-body {
+  padding: 12px 14px; user-select: text; -webkit-user-select: text;
 }
-.wake-session-card .wake-session-empty { color: var(--text-tertiary); font-size: 13px; }
-.wake-session-toolcalls { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.wake-session-tool-row { border-radius: 8px; background: var(--bg-elevated); overflow: hidden; }
-.wake-session-tool-pill {
-  display: flex; align-items: center; gap: 6px; padding: 6px 10px;
-  font-size: 12.5px; color: var(--text-secondary); cursor: pointer;
-  user-select: none; -webkit-user-select: none;
-}
-.wake-session-tool-pill svg { width: 12px; height: 12px; flex-shrink: 0; }
-.wake-session-tool-detail {
-  font-size: 12.5px; color: var(--text-secondary); padding: 0 10px 8px 10px;
+.wake-session-monologue {
+  font-size: 14px; line-height: 1.6; color: var(--text-primary);
   white-space: pre-wrap; word-break: break-word;
+}
+.wake-session-monologue p { margin: 0 0 10px; }
+.wake-session-monologue p:last-child { margin-bottom: 0; }
+.wake-session-empty { font-size: 14px; color: var(--text-tertiary); text-align: center; padding: 4px 0; }
+.wake-session-tools-divider { width: 48px; height: 1px; margin: 12px auto; border: none; background: var(--border-color); }
+.wake-session-tools { display: flex; flex-direction: column; gap: 8px; }
+.wake-session-tool-row {
+  font-size: 14px; line-height: 1.5; color: var(--text-tertiary);
+  white-space: pre-wrap; word-break: break-word;
+}
+.wake-session-meta-divider { height: 0; margin: 14px 0 10px; border: none; border-top: 2px solid var(--border-strong); }
+.wake-session-meta {
+  display: flex; justify-content: space-between;
+  font-size: 14px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wake-session-body-wrap { transition: none !important; }
 }
 html.dark .tool-notice-detail { background: rgba(160,180,196,0.16); }
 .tool-notice-detail .tool-call-item + .tool-call-item { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(15,25,32,0.15); }
@@ -4556,43 +4565,102 @@ function buildToolNoticeRow(msg) {
   row.appendChild(pill); row.appendChild(detail);
   return row;
 }
+const WAKE_MONTH_ABBR = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+function formatWakeTimestamp(ms) {
+  const d = new Date(ms);
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'pm' : 'am';
+  h = h % 12; if (h === 0) h = 12;
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return WAKE_MONTH_ABBR[d.getMonth()] + ' ' + d.getDate() + ', ' + h + ':' + mm + ' ' + ampm;
+}
+function formatWakeDuration(startMs, endMs) {
+  const mins = Math.floor(Math.max(0, endMs - startMs) / 60000);
+  return mins < 1 ? '<1 min' : mins + ' min';
+}
 // 自主醒来/私人时间折叠卡片——独立于普通消息气泡渲染路径，msg.role === 'wake_session'
-// 由 buildMsgRow 单独分支处理（不走 user/ai 气泡逻辑）。折叠态文案用 startedAt（开始
-// 时刻），跟消息在流里的排序键 createdAt（= session 的 ended_at，见 server.js 落库时的
-// 写法）是两回事：排序按结束时间排在同一次私人时间里可能更早推送的分享消息之后，
-// 但文案仍然告诉用户"喵喵是几点醒的"。
+// 由 buildMsgRow 单独分支处理（不走 user/ai 气泡逻辑）。iOS 备忘录风：单容器双段背景，
+// 灰色标题条常驻不变，点击展开时白色正文用高度 FLIP 动画"长出来"（果冻回弹缓动），
+// 而不是 display 硬切换；reduced-motion 时退化为直接切换，跳过高度过渡。
 function buildWakeSessionCard(msg) {
   const row = document.createElement('div'); row.className = 'wake-session-row'; row.dataset.msgId = msg.id;
-  const pill = document.createElement('div'); pill.className = 'wake-session-pill';
-  const d = new Date(msg.startedAt != null ? msg.startedAt : msg.createdAt);
-  const hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
-  pill.innerHTML = '🌙 <span>' + appName + '在 ' + hh + ':' + mm + ' 醒来了</span>';
-  const card = document.createElement('div'); card.className = 'wake-session-card'; card.style.display = 'none';
+  const note = document.createElement('div'); note.className = 'wake-session-note';
+  const startedAt = msg.startedAt != null ? msg.startedAt : msg.createdAt;
+  const endedAt = msg.endedAt != null ? msg.endedAt : msg.createdAt;
+
+  const header = document.createElement('div'); header.className = 'wake-session-header';
+  const title = document.createElement('div'); title.className = 'wake-session-title'; title.textContent = 'free time';
+  const subtime = document.createElement('div'); subtime.className = 'wake-session-subtime'; subtime.textContent = formatWakeTimestamp(startedAt);
+  header.appendChild(title); header.appendChild(subtime);
+
+  const bodyWrap = document.createElement('div'); bodyWrap.className = 'wake-session-body-wrap';
+  const body = document.createElement('div'); body.className = 'wake-session-body';
   if (msg.monologue && msg.monologue.trim()) {
-    const body = document.createElement('div');
-    try { body.innerHTML = marked.parse(msg.monologue).trim(); } catch (e) { body.textContent = msg.monologue; }
-    card.appendChild(body);
+    const mono = document.createElement('div'); mono.className = 'wake-session-monologue';
+    try { mono.innerHTML = marked.parse(msg.monologue).trim(); } catch (e) { mono.textContent = msg.monologue; }
+    body.appendChild(mono);
   } else {
     const empty = document.createElement('div'); empty.className = 'wake-session-empty'; empty.textContent = '这次什么都没留下。';
-    card.appendChild(empty);
+    body.appendChild(empty);
   }
   if (msg.toolCalls && msg.toolCalls.length) {
-    const list = document.createElement('div'); list.className = 'wake-session-toolcalls';
+    const divider = document.createElement('hr'); divider.className = 'wake-session-tools-divider';
+    body.appendChild(divider);
+    const list = document.createElement('div'); list.className = 'wake-session-tools';
     msg.toolCalls.forEach(tc => {
-      const toolRow = document.createElement('div'); toolRow.className = 'wake-session-tool-row';
-      const toolPill = document.createElement('div'); toolPill.className = 'wake-session-tool-pill';
-      toolPill.innerHTML = ICONS.wrench + '<span>' + tc.name + '</span>';
       const { argsText, resultShown } = toolCallSummaryText(tc);
-      const detail = document.createElement('div'); detail.className = 'wake-session-tool-detail'; detail.style.display = 'none';
-      detail.textContent = (argsText ? '参数：' + argsText + '\n' : '') + (tc.isError ? '执行出错\n' : '') + (resultShown || '（无返回内容）');
-      toolPill.addEventListener('click', (e) => { e.stopPropagation(); const showing = detail.style.display !== 'none'; detail.style.display = showing ? 'none' : 'block'; });
-      toolRow.appendChild(toolPill); toolRow.appendChild(detail);
+      const toolRow = document.createElement('div'); toolRow.className = 'wake-session-tool-row';
+      toolRow.textContent = tc.name + (argsText ? ' ' + argsText : '') + (tc.isError ? ' failed' : (resultShown ? ': ' + resultShown : ''));
       list.appendChild(toolRow);
     });
-    card.appendChild(list);
+    body.appendChild(list);
   }
-  pill.addEventListener('click', (e) => { e.stopPropagation(); const showing = card.style.display !== 'none'; card.style.display = showing ? 'none' : 'block'; });
-  row.appendChild(pill); row.appendChild(card);
+  const metaDivider = document.createElement('hr'); metaDivider.className = 'wake-session-meta-divider';
+  body.appendChild(metaDivider);
+  const meta = document.createElement('div'); meta.className = 'wake-session-meta';
+  const metaStart = document.createElement('span'); metaStart.textContent = formatWakeTimestamp(startedAt);
+  const metaDur = document.createElement('span'); metaDur.textContent = formatWakeDuration(startedAt, endedAt);
+  meta.appendChild(metaStart); meta.appendChild(metaDur);
+  body.appendChild(meta);
+  bodyWrap.appendChild(body);
+
+  note.appendChild(header); note.appendChild(bodyWrap);
+  row.appendChild(note);
+
+  let expanded = false;
+  header.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    expanded = !expanded;
+    if (reduceMotion) {
+      bodyWrap.style.transition = 'none';
+      bodyWrap.style.height = expanded ? 'auto' : '0';
+      bodyWrap.style.opacity = expanded ? '1' : '0';
+      return;
+    }
+    if (expanded) {
+      bodyWrap.style.transition = '';
+      bodyWrap.style.height = 'auto'; bodyWrap.style.opacity = '1';
+      const target = bodyWrap.getBoundingClientRect().height;
+      bodyWrap.style.height = '0px';
+      requestAnimationFrame(() => {
+        bodyWrap.style.transition = 'height 0.34s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease 0.08s';
+        bodyWrap.style.height = target + 'px';
+        bodyWrap.style.opacity = '1';
+      });
+      setTimeout(() => { if (expanded) { bodyWrap.style.height = 'auto'; bodyWrap.style.transition = ''; } }, 340);
+    } else {
+      const current = bodyWrap.getBoundingClientRect().height;
+      bodyWrap.style.transition = '';
+      bodyWrap.style.height = current + 'px';
+      requestAnimationFrame(() => {
+        bodyWrap.style.transition = 'height 0.34s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease';
+        bodyWrap.style.height = '0px';
+        bodyWrap.style.opacity = '0';
+      });
+    }
+  });
+
   return row;
 }
 function syncToolNoticeRow(msg, ctx) {
