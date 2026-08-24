@@ -2594,7 +2594,45 @@ function loadInjectedThemes() {
   try { JSON.parse(localStorage.getItem(LS_INJECTED_THEMES) || '[]').forEach(r => CHAT_THEMES.push(injectedRecordToTheme(r))); }
   catch (e) { console.warn('注入皮肤读取失败', e); }
 }
-async function importKtheme(files) {
+// .ktheme 本体就是 zip：手写最小解包器（读中央目录+DecompressionStream 解 deflate，
+// iOS Safari 16.4+ 原生支持，不引第三方库）。返回 File 数组（文件名取 basename），
+// 跳过目录项和 __MACOSX 垃圾，喂给 importKtheme 的散文件路径复用同一套解析。
+async function unzipKtheme(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = -1; // 从尾部找 EOCD 签名（允许 zip 注释，最多回扫 64KB）
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 22 - 65535); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('不是有效的 ktheme/zip 文件');
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const out = [];
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const csize = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const cmtLen = dv.getUint16(off + 32, true);
+    const lho = dv.getUint32(off + 42, true);
+    const rawName = new TextDecoder().decode(buf.subarray(off + 46, off + 46 + nameLen));
+    off += 46 + nameLen + extraLen + cmtLen;
+    const base = rawName.split('/').pop();
+    if (!base || rawName.startsWith('__MACOSX') || rawName.endsWith('/')) continue;
+    // 数据偏移要按本地文件头自己的 name/extra 长度算（可能与中央目录不一致）
+    const lnl = dv.getUint16(lho + 26, true), lel = dv.getUint16(lho + 28, true);
+    const comp = buf.subarray(lho + 30 + lnl + lel, lho + 30 + lnl + lel + csize);
+    let blob;
+    if (method === 0) blob = new Blob([comp]);
+    else if (method === 8) blob = await new Response(new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
+    else continue; // 罕见压缩法，跳过该条目
+    out.push(new File([blob], base));
+  }
+  if (!out.length) throw new Error('压缩包里没有可用文件');
+  return out;
+}
+async function importKtheme(files, nameHint) {
   const cssFile = files.find(f => /kakaotalktheme\.css$/i.test(f.name));
   if (!cssFile) throw new Error('没找到 KakaoTalkTheme.css（请选择解压后的整个文件夹）');
   const cssText = await cssFile.text();
@@ -2631,8 +2669,8 @@ async function importKtheme(files) {
   const bg = bgFile ? await toDataUrl(bgFile) : null;
   const thumb = profFile ? await toDataUrl(profFile) : null;
   const textColor = (recv.match(/-ios-title-color:\s*'?(#[0-9a-fA-F]{6,8})/) || [])[1] || null;
-  // 多选文件时拿不到文件夹名，问一下皮肤叫什么
-  const folder = (files[0].webkitRelativePath || '').split('/')[0] || prompt('给这个皮肤起个名字：') || 'kkt皮肤';
+  // 多选文件时拿不到文件夹名；zip 导入走 nameHint（文件名），都没有才弹框问
+  const folder = nameHint || (files[0].webkitRelativePath || '').split('/')[0] || prompt('给这个皮肤起个名字：') || 'kkt皮肤';
   const record = {
     id: 'inj-' + Date.now().toString(36),
     name: folder, desc: '注入皮肤 · 仅本机', thumb, bg, textColor, bubbles,
@@ -2691,7 +2729,7 @@ function renderChatThemeList() {
   // 固定在最下面的"注入皮肤"入口：选中 kkt 解压文件夹里的全部文件即可一键导入
   const inj = document.createElement('div');
   inj.className = 'chat-theme-item';
-  inj.innerHTML = '<div class="chat-theme-thumb">➕</div><div class="chat-theme-info"><div class="chat-theme-name">注入皮肤</div><div class="chat-theme-desc">选择 kkt 解压后的全部文件（含 KakaoTalkTheme.css）</div></div>';
+  inj.innerHTML = '<div class="chat-theme-thumb">➕</div><div class="chat-theme-info"><div class="chat-theme-name">注入皮肤</div><div class="chat-theme-desc">选 .ktheme 文件直接导入；或选解压后的全部文件</div></div>';
   inj.addEventListener('click', () => document.getElementById('kthemeFileInput').click());
   list.appendChild(inj);
 }
@@ -5458,10 +5496,20 @@ const chatThemeOverlay = document.getElementById('chatThemeOverlay');
 document.getElementById('chatThemeLink').addEventListener('click', () => { renderChatThemeList(); chatThemeOverlay.classList.add('show'); closeSidebar(); });
 chatThemeOverlay.addEventListener('click', e => { if (e.target === chatThemeOverlay) chatThemeOverlay.classList.remove('show'); });
 document.getElementById('kthemeFileInput').addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files || []);
+  let files = Array.from(e.target.files || []);
   e.target.value = ''; // 允许连续导入同一文件夹
   if (!files.length) return;
-  try { await importKtheme(files); chatThemeOverlay.classList.remove('show'); }
+  try {
+    let nameHint = null;
+    // 选的是 .ktheme 压缩包本体（手机上微信转存的场景，可能带 .ktheme.ktheme 双后缀）：
+    // 先解包成散文件再走同一套解析；名字从文件名取，剥掉微信加的 TalkFile_ 前缀和后缀
+    if (files.length === 1 && /\.ktheme$/i.test(files[0].name)) {
+      nameHint = files[0].name.replace(/^(TalkFile_)+/i, '').replace(/(\.ktheme)+$/i, '');
+      files = await unzipKtheme(files[0]);
+    }
+    await importKtheme(files, nameHint);
+    chatThemeOverlay.classList.remove('show');
+  }
   catch (err) { alert('注入失败：' + (err.message || err)); }
 });
 document.getElementById('settingsSaveBtn').addEventListener('click', () => {
