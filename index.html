@@ -375,6 +375,10 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
   max-width: 86%; border-radius: 14px; overflow: hidden;
   background: var(--bg-surface); box-shadow: var(--shadow-sm);
 }
+/* 折叠态=只包住"喵喵醒来了"的小药丸：藏起来的正文不许撑宽 fit-content（width:0 掐掉
+   它的固有宽度贡献）；展开态卡片宽度固定 86%，由 JS 用 FLIP 在两者之间做果冻变形。 */
+.wake-session-note:not(.is-expanded) .wake-session-body-wrap { width: 0; }
+.wake-session-note.is-expanded { width: 86%; }
 .wake-session-header {
   padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;
   background: var(--bg-elevated); cursor: pointer;
@@ -382,17 +386,20 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
 }
 .wake-session-header:active { opacity: 0.6; }
 .wake-session-title-stack { position: relative; height: 14px; overflow: hidden; }
+/* 折叠标题走正常文档流（撑起药丸宽度），展开标题才是绝对定位覆盖层 */
 .wake-session-title-collapsed, .wake-session-title-expanded {
-  position: absolute; left: 0; top: 0; right: 0;
   font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.04em;
   white-space: nowrap; transition: opacity 0.28s ease;
 }
-.wake-session-title-expanded { opacity: 0; }
+.wake-session-title-expanded { position: absolute; left: 0; top: 0; right: 0; opacity: 0; }
 .wake-session-note.is-expanded .wake-session-title-collapsed { opacity: 0; }
 .wake-session-note.is-expanded .wake-session-title-expanded { opacity: 1; }
 .wake-session-body-wrap { height: 0; opacity: 0; overflow: hidden; }
 .wake-session-body {
   padding: 12px 14px; user-select: text; -webkit-user-select: text;
+  /* freetime 卡片固定基础大小：一行字也是这个高度，内容多才向下加长；
+     flex 列 + spacer(JS里插) 把时间戳一栏推到底部 */
+  display: flex; flex-direction: column; min-height: 150px;
 }
 .wake-session-monologue {
   font-size: 14px; line-height: 1.6; color: var(--text-primary);
@@ -410,7 +417,8 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
 .wake-session-meta-divider { height: 0; margin: 14px 0 10px; border: none; border-top: 2px solid var(--border-strong); }
 .wake-session-meta {
   display: flex; justify-content: space-between;
-  font-size: 14px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+  /* 用户拍板：时间戳比 secondary 浅、比 free time 标题(tertiary)深一个单位 */
+  font-size: 14px; color: color-mix(in srgb, var(--text-tertiary) 60%, var(--text-secondary)); font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) {
   .wake-session-body-wrap { transition: none !important; }
@@ -4654,6 +4662,8 @@ function buildWakeSessionCard(msg) {
     });
     body.appendChild(list);
   }
+  const spacer = document.createElement('div'); spacer.style.flex = '1'; // 把时间戳一栏推到固定高度卡片的底部
+  body.appendChild(spacer);
   const metaDivider = document.createElement('hr'); metaDivider.className = 'wake-session-meta-divider';
   body.appendChild(metaDivider);
   const meta = document.createElement('div'); meta.className = 'wake-session-meta';
@@ -4667,37 +4677,65 @@ function buildWakeSessionCard(msg) {
   row.appendChild(note);
 
   let expanded = false;
+  // 果冻变形：小药丸(fit-content)⇄大卡片(86%宽)用 FLIP 同时动画宽度和正文高度，
+  // 同一根带过冲的 spring 曲线读作"气泡胀大/缩回"。动画期间把正文宽度钉死在最终值，
+  // 避免宽度过渡中文字实时换行抖动。
+  const SPRING = 'cubic-bezier(.34,1.56,.64,1)';
   header.addEventListener('click', (e) => {
     e.stopPropagation();
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     expanded = !expanded;
-    note.classList.toggle('is-expanded', expanded);
     if (reduceMotion) {
+      note.classList.toggle('is-expanded', expanded);
       bodyWrap.style.transition = 'none';
       bodyWrap.style.height = expanded ? 'auto' : '0';
       bodyWrap.style.opacity = expanded ? '1' : '0';
       return;
     }
     if (expanded) {
-      bodyWrap.style.transition = '';
+      const firstW = note.getBoundingClientRect().width; // 药丸宽
+      note.classList.add('is-expanded');
+      bodyWrap.style.transition = 'none'; note.style.transition = 'none';
       bodyWrap.style.height = 'auto'; bodyWrap.style.opacity = '1';
-      const target = bodyWrap.getBoundingClientRect().height;
-      bodyWrap.style.height = '0px';
+      const targetW = note.getBoundingClientRect().width;
+      const targetH = bodyWrap.getBoundingClientRect().height;
+      body.style.width = targetW + 'px'; // 钉死正文排版宽度
+      note.style.width = firstW + 'px';
+      bodyWrap.style.height = '0px'; bodyWrap.style.opacity = '0';
       requestAnimationFrame(() => {
-        bodyWrap.style.transition = 'height 0.34s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease 0.08s';
-        bodyWrap.style.height = target + 'px';
-        bodyWrap.style.opacity = '1';
+        note.style.transition = 'width 0.38s ' + SPRING;
+        bodyWrap.style.transition = 'height 0.38s ' + SPRING + ', opacity 0.22s ease 0.08s';
+        note.style.width = targetW + 'px';
+        bodyWrap.style.height = targetH + 'px'; bodyWrap.style.opacity = '1';
       });
-      setTimeout(() => { if (expanded) { bodyWrap.style.height = 'auto'; bodyWrap.style.transition = ''; } }, 340);
+      setTimeout(() => { if (expanded) {
+        bodyWrap.style.height = 'auto'; bodyWrap.style.transition = '';
+        note.style.width = ''; note.style.transition = ''; body.style.width = '';
+      } }, 400);
     } else {
-      const current = bodyWrap.getBoundingClientRect().height;
-      bodyWrap.style.transition = '';
-      bodyWrap.style.height = current + 'px';
+      const curW = note.getBoundingClientRect().width;
+      const curH = bodyWrap.getBoundingClientRect().height;
+      body.style.width = curW + 'px'; // 收拢时同样钉死排版
+      bodyWrap.style.width = curW + 'px'; // 护住动画期：摘类后 CSS 的 width:0 规则不许立刻掐掉正文
+      note.classList.remove('is-expanded'); // 先摘类测药丸目标宽（bodyWrap 仍有内联高度撑着，不跳）
+      note.style.transition = 'none'; note.style.width = curW + 'px';
+      bodyWrap.style.transition = 'none'; bodyWrap.style.height = curH + 'px';
+      // 测药丸宽：临时把 bodyWrap 归零宽、note 放开，量完还原
+      const pillW = (() => {
+        note.style.width = ''; bodyWrap.style.width = '0px';
+        const w = note.getBoundingClientRect().width;
+        note.style.width = curW + 'px'; bodyWrap.style.width = curW + 'px';
+        return w;
+      })();
       requestAnimationFrame(() => {
-        bodyWrap.style.transition = 'height 0.34s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease';
-        bodyWrap.style.height = '0px';
-        bodyWrap.style.opacity = '0';
+        note.style.transition = 'width 0.34s ' + SPRING;
+        bodyWrap.style.transition = 'height 0.34s ' + SPRING + ', opacity 0.22s ease';
+        note.style.width = pillW + 'px';
+        bodyWrap.style.height = '0px'; bodyWrap.style.opacity = '0';
       });
+      setTimeout(() => { if (!expanded) {
+        note.style.width = ''; note.style.transition = ''; body.style.width = ''; bodyWrap.style.width = '';
+      } }, 360);
     }
   });
 
