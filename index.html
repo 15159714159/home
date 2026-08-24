@@ -260,6 +260,11 @@ color: var(--text-faint); font-size: 14px;
   padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 58px) 10px calc(var(--composer-h, 64px) + 12px) 10px;
   min-width: 0;
 }
+/* 皮肤主题（含以后注入的）统一贴边：只要挂了 data-chat-theme 就把左右留白压到 4px；
+   默认皮肤没有该属性，不受影响（用户拍板 2026-08-24）。 */
+#page-chat[data-chat-theme] #chatScroll, body[data-chat-theme] .subchat-scroll {
+  padding-left: 4px; padding-right: 4px;
+}
 .msg-row { display: flex; margin-bottom: 10px; align-items: flex-end; min-width: 0; }
 .msg-row.user { justify-content: flex-end; }
 .msg-row.ai { justify-content: flex-start; gap: 6px; }
@@ -1879,6 +1884,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="sheet-panel">
     <div class="preset-title">聊天主题</div>
     <div id="chatThemeList"></div>
+    <input type="file" id="kthemeFileInput" multiple style="display:none">
   </div>
 </div>
 
@@ -2574,6 +2580,78 @@ function loadChatTheme() {
   const id = localStorage.getItem(LS_CHAT_THEME) || 'default';
   applyChatTheme(id);
 }
+// ===== 注入皮肤（kkt 解压文件夹一键导入，存 localStorage，仅本机生效）=====
+// 解析规则与手工移植流程一致（见记忆 project-chat-theme-ktheme-import）：
+// KakaoTalkTheme.css 的 DSL 里取 cap 值和 -ios-title-edgeinsets（文字内边距，必须提取，
+// 上次"文字离气泡边太远"的病根就是漏了它）；图片一律用 @3x 变体，实测像素尺寸后喂 bubbleSpec。
+const LS_INJECTED_THEMES = 'nest_injected_themes';
+function injectedRecordToTheme(r) {
+  const bubbles = {};
+  for (const k in r.bubbles) { const b = r.bubbles[k]; bubbles[k] = bubbleSpec(b.file, b.w, b.h, b.leftCap, b.topCap, b.insets); }
+  return { id: r.id, name: r.name, desc: r.desc, thumb: r.thumb, bg: r.bg, textColor: r.textColor, injected: true, bubbles };
+}
+function loadInjectedThemes() {
+  try { JSON.parse(localStorage.getItem(LS_INJECTED_THEMES) || '[]').forEach(r => CHAT_THEMES.push(injectedRecordToTheme(r))); }
+  catch (e) { console.warn('注入皮肤读取失败', e); }
+}
+async function importKtheme(files) {
+  const cssFile = files.find(f => /kakaotalktheme\.css$/i.test(f.name));
+  if (!cssFile) throw new Error('没找到 KakaoTalkTheme.css（请选择解压后的整个文件夹）');
+  const cssText = await cssFile.text();
+  const byName = {};
+  files.forEach(f => { byName[f.name.toLowerCase()] = f; });
+  // css 里写的是 'xxx.png'，实际用 @3x 变体
+  const pickFile = (cssName) => byName[cssName.toLowerCase().replace(/\.png$/, '@3x.png')] || byName[cssName.toLowerCase()];
+  const toDataUrl = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('读文件失败: ' + f.name)); r.readAsDataURL(f); });
+  const measure = (dataUrl) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => rej(new Error('图片解码失败')); im.src = dataUrl; });
+  const block = (n) => { const m = cssText.match(new RegExp(n + '[^{]*\\{([^}]*)\\}')); return m ? m[1] : ''; };
+  // -ios-background-image: 'file.png' <leftCap>px <topCap>px（@1x 单位）
+  const capOf = (body, prop) => { const m = body.match(new RegExp(prop + ":\\s*'([^']+)'\\s+([\\d.]+)(?:px)?\\s+([\\d.]+)(?:px)?")); return m ? { name: m[1], leftCap: +m[2], topCap: +m[3] } : null; };
+  // -ios-title-edgeinsets: 上 左 下 右（官方顺序，bubbleSpec 内部再转 CSS 顺序）
+  const insetOf = (body, prop) => { const m = body.match(new RegExp(prop + ':\\s*([\\d.-]+)(?:px)?\\s+([\\d.-]+)(?:px)?\\s+([\\d.-]+)(?:px)?\\s+([\\d.-]+)(?:px)?')); return m ? [+m[1], +m[2], +m[3], +m[4]] : [8, 12, 8, 12]; };
+  const send = block('MessageCellStyle-Send'), recv = block('MessageCellStyle-Receive');
+  const defs = [
+    ['sendFirst',    capOf(send, '-ios-background-image'),       insetOf(send, '-ios-title-edgeinsets')],
+    ['sendGroup',    capOf(send, '-ios-group-background-image'), insetOf(send, '-ios-group-title-edgeinsets')],
+    ['receiveFirst', capOf(recv, '-ios-background-image'),       insetOf(recv, '-ios-title-edgeinsets')],
+    ['receiveGroup', capOf(recv, '-ios-group-background-image'), insetOf(recv, '-ios-group-title-edgeinsets')],
+  ];
+  const bubbles = {};
+  for (const [key, cap, insets] of defs) {
+    if (!cap) throw new Error('css 里缺少 ' + key + ' 的气泡定义');
+    const f = pickFile(cap.name);
+    if (!f) throw new Error('缺少图片文件: ' + cap.name.replace(/\.png$/, '@3x.png'));
+    const dataUrl = await toDataUrl(f);
+    const { w, h } = await measure(dataUrl);
+    bubbles[key] = { file: dataUrl, w, h, leftCap: cap.leftCap, topCap: cap.topCap, insets };
+  }
+  const bgName = (cssText.match(/BackgroundStyle-ChatRoom[^{]*\{[^}]*-ios-background-image:\s*'([^']+)'/) || [])[1];
+  const profName = (cssText.match(/DefaultProfileStyle[^{]*\{[^}]*-ios-profile-images?:\s*'([^']+)'/) || [])[1];
+  const bgFile = bgName && pickFile(bgName), profFile = profName && pickFile(profName);
+  const bg = bgFile ? await toDataUrl(bgFile) : null;
+  const thumb = profFile ? await toDataUrl(profFile) : null;
+  const textColor = (recv.match(/-ios-title-color:\s*'?(#[0-9a-fA-F]{6,8})/) || [])[1] || null;
+  // 多选文件时拿不到文件夹名，问一下皮肤叫什么
+  const folder = (files[0].webkitRelativePath || '').split('/')[0] || prompt('给这个皮肤起个名字：') || 'kkt皮肤';
+  const record = {
+    id: 'inj-' + Date.now().toString(36),
+    name: folder, desc: '注入皮肤 · 仅本机', thumb, bg, textColor, bubbles,
+  };
+  const arr = JSON.parse(localStorage.getItem(LS_INJECTED_THEMES) || '[]');
+  arr.push(record);
+  try { localStorage.setItem(LS_INJECTED_THEMES, JSON.stringify(arr)); }
+  catch (e) { throw new Error('本机存储放不下了（背景图太大或皮肤太多），先删几个注入皮肤再试'); }
+  CHAT_THEMES.push(injectedRecordToTheme(record));
+  applyChatTheme(record.id);
+}
+function deleteInjectedTheme(id) {
+  const arr = JSON.parse(localStorage.getItem(LS_INJECTED_THEMES) || '[]').filter(r => r.id !== id);
+  localStorage.setItem(LS_INJECTED_THEMES, JSON.stringify(arr));
+  const i = CHAT_THEMES.findIndex(t => t.id === id);
+  if (i >= 0) CHAT_THEMES.splice(i, 1);
+  if ((localStorage.getItem(LS_CHAT_THEME) || 'default') === id) applyChatTheme('default');
+  else renderChatThemeList();
+}
 function preloadChatThemeAssets() {
   CHAT_THEMES.forEach(t => {
     if (t.id === 'default') return;
@@ -2599,8 +2677,23 @@ function renderChatThemeList() {
     const check = document.createElement('div'); check.className = 'chat-theme-check'; check.textContent = '✓';
     item.appendChild(thumb); item.appendChild(info); item.appendChild(check);
     item.addEventListener('click', () => { applyChatTheme(t.id); document.getElementById('chatThemeOverlay').classList.remove('show'); });
+    // 注入皮肤长按 0.6s 删除（本机存储，删了不可恢复但可重新导入）
+    if (t.injected) {
+      let timer = null;
+      const start = () => { timer = setTimeout(() => { timer = null; if (confirm('删除注入皮肤「' + t.name + '」？')) deleteInjectedTheme(t.id); }, 600); };
+      const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+      item.addEventListener('touchstart', start, { passive: true });
+      item.addEventListener('touchend', cancel); item.addEventListener('touchmove', cancel);
+      item.addEventListener('contextmenu', (e) => { e.preventDefault(); if (confirm('删除注入皮肤「' + t.name + '」？')) deleteInjectedTheme(t.id); });
+    }
     list.appendChild(item);
   });
+  // 固定在最下面的"注入皮肤"入口：选中 kkt 解压文件夹里的全部文件即可一键导入
+  const inj = document.createElement('div');
+  inj.className = 'chat-theme-item';
+  inj.innerHTML = '<div class="chat-theme-thumb">➕</div><div class="chat-theme-info"><div class="chat-theme-name">注入皮肤</div><div class="chat-theme-desc">选择 kkt 解压后的全部文件（含 KakaoTalkTheme.css）</div></div>';
+  inj.addEventListener('click', () => document.getElementById('kthemeFileInput').click());
+  list.appendChild(inj);
 }
 function applyAppIcon() {
   const v = localStorage.getItem(LS_APPICON);
@@ -5364,6 +5457,13 @@ document.getElementById('settingsCancelBtn').addEventListener('click', closeSett
 const chatThemeOverlay = document.getElementById('chatThemeOverlay');
 document.getElementById('chatThemeLink').addEventListener('click', () => { renderChatThemeList(); chatThemeOverlay.classList.add('show'); closeSidebar(); });
 chatThemeOverlay.addEventListener('click', e => { if (e.target === chatThemeOverlay) chatThemeOverlay.classList.remove('show'); });
+document.getElementById('kthemeFileInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = ''; // 允许连续导入同一文件夹
+  if (!files.length) return;
+  try { await importKtheme(files); chatThemeOverlay.classList.remove('show'); }
+  catch (err) { alert('注入失败：' + (err.message || err)); }
+});
 document.getElementById('settingsSaveBtn').addEventListener('click', () => {
   appUsername = settingsUsername.value.trim() || 'ao'; appName = settingsName.value.trim() || '然竣';
   appPersona = buildPersonaFromPresets(); persistSettings(); applyGlobalNames(); showToast('设定已保存'); closeSettingsPanel();
@@ -6954,6 +7054,7 @@ window.addEventListener('DOMContentLoaded', () => {
   applyAvatar();
   applyUserAvatar();
   applyBg();
+  loadInjectedThemes(); // 先把本机注入皮肤挂进 CHAT_THEMES，再应用当前选中主题
   loadChatTheme();
   preloadChatThemeAssets();
   applyAppIcon();
