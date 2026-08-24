@@ -2588,7 +2588,7 @@ const LS_INJECTED_THEMES = 'nest_injected_themes';
 function injectedRecordToTheme(r) {
   const bubbles = {};
   for (const k in r.bubbles) { const b = r.bubbles[k]; bubbles[k] = bubbleSpec(b.file, b.w, b.h, b.leftCap, b.topCap, b.insets); }
-  return { id: r.id, name: r.name, desc: r.desc, thumb: r.thumb, bg: r.bg, textColor: r.textColor, injected: true, bubbles };
+  return { id: r.id, name: r.name, desc: r.desc, thumb: r.thumb, bg: r.bg, textColor: r.textColor, inputBar: r.inputBar || null, injected: true, bubbles };
 }
 function loadInjectedThemes() {
   try { JSON.parse(localStorage.getItem(LS_INJECTED_THEMES) || '[]').forEach(r => CHAT_THEMES.push(injectedRecordToTheme(r))); }
@@ -2668,12 +2668,28 @@ async function importKtheme(files, nameHint) {
   const bgFile = bgName && pickFile(bgName), profFile = profName && pickFile(profName);
   const bg = bgFile ? await toDataUrl(bgFile) : null;
   const thumb = profFile ? await toDataUrl(profFile) : null;
-  const textColor = (recv.match(/-ios-title-color:\s*'?(#[0-9a-fA-F]{6,8})/) || [])[1] || null;
+  // 字体颜色：气泡文字用 Receive/Send 块的 -ios-text-color（注意不是 title-color，DSL 里没那个字段）；
+  // #fff 这种 3 位色归一化成 6 位（hexToRgba 只认 6 位）
+  const colorOf = (body, prop) => {
+    const c = (body.match(new RegExp(prop + ':\\s*(#[0-9a-fA-F]{3,8})')) || [])[1] || null;
+    if (c && c.length === 4) return '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+    return c;
+  };
+  const textColor = colorOf(recv, '-ios-text-color') || colorOf(send, '-ios-text-color');
+  // 输入栏颜色组（InputBarStyle-Chat）：背景/发送键底色前景色/左侧按钮图标色，和内置皮肤同结构
+  const ibBlock = block('InputBarStyle-Chat');
+  const inputBar = ibBlock ? {
+    bg: colorOf(ibBlock, 'background-color') || '#FFFFFF',
+    sendBg: colorOf(ibBlock, '-ios-send-normal-background-color') || '#EDEDED',
+    sendFg: colorOf(ibBlock, '-ios-send-normal-foreground-color') || textColor || '#636363',
+    iconColor: colorOf(ibBlock, '-ios-button-normal-foreground-color') || textColor || '#636363',
+    textColor: textColor || '#636363',
+  } : null;
   // 多选文件时拿不到文件夹名；zip 导入走 nameHint（文件名），都没有才弹框问
   const folder = nameHint || (files[0].webkitRelativePath || '').split('/')[0] || prompt('给这个皮肤起个名字：') || 'kkt皮肤';
   const record = {
     id: 'inj-' + Date.now().toString(36),
-    name: folder, desc: '注入皮肤 · 仅本机', thumb, bg, textColor, bubbles,
+    name: folder, desc: '注入皮肤 · 仅本机', thumb, bg, textColor, inputBar, bubbles,
   };
   const arr = JSON.parse(localStorage.getItem(LS_INJECTED_THEMES) || '[]');
   arr.push(record);
