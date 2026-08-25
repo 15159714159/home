@@ -647,6 +647,16 @@ transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.15s ease;
 }
 .space-danger-btn:active { transform: scale(0.95); opacity: 0.8; }
 .space-hint { font-size: 12px; color: var(--text-faint); margin-top: 8px; line-height: 1.5; }
+.cache-debug-block { margin-top: 4px; }
+.cache-debug-seg-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 8px; font-size: 12px; color: var(--text-secondary); }
+.cache-debug-seg-row + .cache-debug-seg-row { margin-top: 2px; }
+.cache-debug-seg-row.is-changed { background: rgba(224, 85, 74, 0.14); color: var(--text-primary); }
+.cache-debug-seg-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cache-debug-seg-meta { color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cache-debug-usage-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+.cache-debug-usage-table th, .cache-debug-usage-table td { padding: 5px 6px; text-align: right; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); }
+.cache-debug-usage-table th:first-child, .cache-debug-usage-table td:first-child { text-align: left; }
+.cache-debug-usage-table th { color: var(--text-faint); font-weight: 500; }
 
 #toast {
 position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
@@ -1537,6 +1547,17 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       </div>
       <div class="space-hint" id="tokenEstimateLabel">当前上下文约 ~0k tokens</div>
       <div class="space-hint" id="cacheUsageLabel">缓存命中率：暂无数据</div>
+      <div class="cache-debug-block">
+        <div class="space-btn-row">
+          <button class="space-save-btn" id="cacheDebugBtn">刷新缓存诊断</button>
+        </div>
+        <div class="space-hint">estTokens 是按字符数/2 粗估的中文估算值，不是精确值；hash 变化说明该段内容变了，是定位"哪段导致缓存写入飙高"的线索。点按钮才请求，不自动轮询。</div>
+        <div id="cacheDebugSegments"></div>
+        <div id="cacheDebugUsageWrap" style="display:none;">
+          <div class="space-hint" style="margin-top:14px;">最近 usage（最多20条，进程内存，重启即丢）</div>
+          <table class="cache-debug-usage-table" id="cacheDebugUsageTable"></table>
+        </div>
+      </div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">对话设置</div>
@@ -4349,6 +4370,56 @@ function renderCacheUsage() {
   const rate = total > 0 ? Math.round(read / total * 100) : 0;
   el.textContent = `命中 ${read} / 未命中 ${creation + input} / 输出 ${output}（命中率 ${rate}%）`;
 }
+
+/* ============================================================
+缓存诊断面板（任务I 2026-08-25）：点按钮才请求 /chat-main/cache-debug，不自动轮询。
+hash 变化对比靠 localStorage 记住上一次刷新的结果，纯前端逻辑，不依赖后端存历史。
+============================================================ */
+const LS_CACHE_DEBUG_LAST = 'cacheDebugLastSegments';
+function renderCacheDebugSegments(segments) {
+  const wrap = document.getElementById('cacheDebugSegments'); if (!wrap) return;
+  let prevMap = {};
+  try { (JSON.parse(localStorage.getItem(LS_CACHE_DEBUG_LAST) || '[]')).forEach(s => { prevMap[s.label] = s.hash; }); } catch (_) {}
+  wrap.innerHTML = '';
+  segments.forEach(seg => {
+    const row = document.createElement('div');
+    const changed = prevMap[seg.label] != null && prevMap[seg.label] !== seg.hash;
+    row.className = 'cache-debug-seg-row' + (changed ? ' is-changed' : '');
+    row.innerHTML = `<span class="cache-debug-seg-label">${seg.label}${changed ? '（已变化）' : ''}</span><span class="cache-debug-seg-meta">~${seg.estTokens} tok · ${seg.hash}</span>`;
+    wrap.appendChild(row);
+  });
+  safeSetItem(LS_CACHE_DEBUG_LAST, JSON.stringify(segments));
+}
+function renderCacheDebugUsage(recentUsage) {
+  const table = document.getElementById('cacheDebugUsageTable');
+  const tableWrap = document.getElementById('cacheDebugUsageWrap');
+  if (!table || !tableWrap) return;
+  if (!recentUsage || !recentUsage.length) { tableWrap.style.display = 'none'; return; }
+  tableWrap.style.display = '';
+  const rows = [...recentUsage].reverse().map(u => {
+    const t = new Date(u.ts);
+    const time = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+    return `<tr><td>${time}</td><td>${u.path}</td><td>${u.cache_read}</td><td>${u.cache_creation}</td></tr>`;
+  }).join('');
+  table.innerHTML = `<tr><th>时间</th><th>路径</th><th>cache_read</th><th>cache_creation</th></tr>${rows}`;
+}
+document.getElementById('cacheDebugBtn').addEventListener('click', async () => {
+  const cfg = getConfig();
+  const btn = document.getElementById('cacheDebugBtn');
+  btn.disabled = true; const oldText = btn.textContent; btn.textContent = '加载中…';
+  try {
+    const res = await fetch(chatMainUrl('/cache-debug'), { method: 'POST', headers: chatMainHeaders(cfg), body: '{}' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    renderCacheDebugSegments(data.segments || []);
+    renderCacheDebugUsage(data.recentUsage || []);
+  } catch (e) {
+    showToast('缓存诊断加载失败: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = oldText;
+  }
+});
+
 
 /* ============================================================
 清空主聊天记录
