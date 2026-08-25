@@ -1588,7 +1588,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <span class="setting-row-label">允许AI主动使用工具（笔友墙）</span>
         <label class="ios-switch"><input type="checkbox" id="cfgToolsEnabled"><span class="ios-switch-slider"></span></label>
       </div>
-      <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），以及向 Galatea 花园投递漂流瓶，需端点支持 tools 参数转发。</div>
+      <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），需端点支持 tools 参数转发。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">花园完整工具集（MCP）</div>
@@ -1655,6 +1655,14 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <input class="space-input" id="cfgWakeIntervalMin" type="number" min="10" max="480" step="5" value="30" style="width:90px; margin-bottom:0; text-align:right;">
       </div>
       <div class="space-hint">单位分钟，平均值，实际忽疏忽密；范围 10–480，默认 30。</div>
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">私人时间工具调用轮数上限</span>
+        <input class="space-input" id="cfgWakeToolRoundLimit" type="number" min="2" max="24" step="1" value="12" style="width:90px; margin-bottom:0; text-align:right;">
+      </div>
+      <div class="space-hint">私人时间一次最多连续调用几轮工具（不影响正常聊天）；范围 2–24，默认 12。留空/清零会自动回落默认值。</div>
+      <div class="space-label" style="margin-top:14px;">唤醒提示词模板</div>
+      <textarea class="settings-textarea" id="cfgWakePromptTemplate" style="min-height:140px;" placeholder="留空则使用后端内置默认提示词"></textarea>
+      <div class="space-hint">留空 = 用后端内置默认提示词；填了就整段覆盖。可用占位符：{ago}（"ao上次说话是X前。"这句，没有历史消息时自动为空）、{tools_hint}（工具引导句，没挂工具时自动为空）。修改后首次唤醒会重建缓存（正常现象，不用管）。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">强制刷新</div>
@@ -2372,6 +2380,8 @@ const cfgClaudeNativeEl = document.getElementById('cfgClaudeNative');
 const cfgMaxTokensEl    = document.getElementById('cfgMaxTokens');
 const cfgToolsEnabledEl = document.getElementById('cfgToolsEnabled');
 const cfgWakeIntervalMinEl = document.getElementById('cfgWakeIntervalMin');
+const cfgWakeToolRoundLimitEl = document.getElementById('cfgWakeToolRoundLimit');
+const cfgWakePromptTemplateEl = document.getElementById('cfgWakePromptTemplate');
 const cfgGalateaMcpTokenEl   = document.getElementById('cfgGalateaMcpToken');
 const cfgGalateaMcpEnabledEl = document.getElementById('cfgGalateaMcpEnabled');
 const galateaMcpStatusHintEl = document.getElementById('galateaMcpStatusHint');
@@ -2402,6 +2412,8 @@ function loadChatSettings() {
   cfgMaxTokensEl.value = c.maxTokens || 4096;
   cfgToolsEnabledEl.checked = !!c.toolsEnabled;
   cfgWakeIntervalMinEl.value = c.wakeIntervalMin || 30;
+  cfgWakeToolRoundLimitEl.value = c.wakeToolRoundLimit || 12;
+  cfgWakePromptTemplateEl.value = c.wakePromptTemplate || '';
   cfgGalateaMcpTokenEl.value = c.galateaMcpToken || '';
   cfgGalateaMcpEnabledEl.checked = !!c.galateaMcpEnabled;
   cfgCedarToyTokenEl.value = c.cedarToyToken || '';
@@ -2431,6 +2443,19 @@ cfgWakeIntervalMinEl.addEventListener('change', () => {
   v = Math.min(480, Math.max(10, v));
   cfgWakeIntervalMinEl.value = v;
   patchConfig('wakeIntervalMin', v);
+  scheduleAiConfigSync();
+});
+// 私人时间工具调用轮数上限：范围 2-24，默认 12；跟间隔设置一样的钳制+同步套路。
+cfgWakeToolRoundLimitEl.addEventListener('change', () => {
+  let v = Number(cfgWakeToolRoundLimitEl.value) || 12;
+  v = Math.min(24, Math.max(2, v));
+  cfgWakeToolRoundLimitEl.value = v;
+  patchConfig('wakeToolRoundLimit', v);
+  scheduleAiConfigSync();
+});
+// 唤醒提示词模板：留空表示用后端内置默认值，trim 后为空字符串也按"未设置"处理。
+cfgWakePromptTemplateEl.addEventListener('change', () => {
+  patchConfig('wakePromptTemplate', cfgWakePromptTemplateEl.value);
   scheduleAiConfigSync();
 });
 cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpToken', cfgGalateaMcpTokenEl.value.trim()));
@@ -3423,7 +3448,7 @@ function scheduleAiConfigSync() {
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null };
+    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null, wake_tool_round_limit: cfg.wakeToolRoundLimit || null, wake_prompt_template: (cfg.wakePromptTemplate && cfg.wakePromptTemplate.trim()) || null };
     const MAX_ATTEMPTS = 3;
     let lastErr = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -3669,6 +3694,51 @@ async function loadDiaries() {
     if (d.ranjunRead === undefined) { d.ranjunRead = (d.author === 'ranjun'); migrated = true; }
   });
   if (migrated) persistDiaries();
+}
+// Supabase 行 → 本地日记条目的字段映射，跟 supabaseRowToMemoryItem 同一用途；
+// time 展示字符串要按 created_at 的真实时间格式化（不能像 fullTimeStr() 那样取当前时间）
+function fullTimeStrOf(d) {
+  return `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function supabaseRowToDiaryItem(row) {
+  const createdAt = row.created_at ? new Date(row.created_at).getTime() : Date.now();
+  return {
+    id: genId(), sbId: row.id, author: row.author === 'ao' ? 'ao' : 'ranjun',
+    text: row.content || '', mood: row.mood || '',
+    time: fullTimeStrOf(new Date(createdAt)), createdAt,
+    comments: Array.isArray(row.comments) ? row.comments : [],
+    fav: false, ranjunRead: row.author === 'ranjun'
+  };
+}
+// 页面加载时把云端 diaries 表拉回来合并进本地——之前这一步一直缺失（记忆/清单都有对应的
+// refreshMemoryFromSupabase/loadChecklistFromSupabase，唯独日记没有），导致 AI 通过
+// /wake（私人时间，走后端 markers.js::applyDiaryAction 直接写 Supabase，不经过本标签页）
+// 写的日记，本设备/其它设备永远看不到——本地只认自己这个标签页写过的记录。
+// 合并策略跟 refreshMemoryFromSupabase 一致：按 sbId 匹配已有本地行就地更新内容，
+// 云端有本地没有的（sbId 未出现过）追加进来，本地独有（还没同步成功的，没有 sbId）保留不动。
+async function refreshDiariesFromSupabase() {
+  if (!window.supabaseDiary) return;
+  try {
+    const { data, error } = await window.supabaseDiary.getDiaries(null, 200);
+    if (error) { console.warn('Supabase日记拉取失败，使用本地缓存', error); return; }
+    if (!Array.isArray(data)) return;
+    const bySbId = new Map();
+    diaries.forEach(d => { if (d.sbId) bySbId.set(d.sbId, d); });
+    const merged = data.map(row => {
+      const localMatch = bySbId.get(row.id);
+      if (localMatch) {
+        localMatch.text = row.content || localMatch.text;
+        localMatch.mood = row.mood || localMatch.mood;
+        localMatch.comments = Array.isArray(row.comments) ? row.comments : localMatch.comments;
+        return localMatch;
+      }
+      return supabaseRowToDiaryItem(row);
+    });
+    const localOnly = diaries.filter(d => !d.sbId);
+    diaries = [...merged, ...localOnly].sort((a, b) => a.createdAt - b.createdAt);
+    persistDiaries();
+    renderDiaries();
+  } catch (e) { console.warn('Supabase日记拉取出错，使用本地缓存', e); }
 }
 
 /* ============================================================
@@ -6158,18 +6228,6 @@ function rememberBeaconToken(resultText) {
   if (m) safeSetItem('beacon_token', m[1]);
   return resultText;
 }
-async function callGalateaMcp(toolName, args) {
-  const res = await fetch('https://galatea.abysslumina.com/api/public/drift-bottle-mcp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: toolName, arguments: args || {} } })
-  });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message || 'galatea 调用失败');
-  const resultText = (json.result?.content || []).map(c => c.text || '').join('\n');
-  if (json.result?.isError) throw new Error(resultText || 'galatea 工具执行出错');
-  return resultText;
-}
 
 /* ============================================================
 花园完整 MCP 工具集（需 Bearer token，工具集通过 tools/list 动态发现）
@@ -6218,9 +6276,17 @@ async function callGalateaAuthMcp(toolName, args) {
   if (result?.isError) throw new Error(resultText || '花园工具执行出错');
   return resultText;
 }
+// 停用的花园工具（2026-08-25，省 token）：桌游/游戏聊天频道全套 + 拾漂流瓶。
+// 服务端 garden-agent 的 toolSlim.js 里有同一份名单（那边是主过滤点），这里再过滤一遍
+// 是给仍走前端 callAPI 的路径（如闹钟）兜底，也让 localStorage 里的旧工具缓存失效。
+const GALATEA_DISABLED_TOOLS = new Set([
+  'list_games', 'join_game', 'get_my_status', 'start_game', 'submit_action',
+  'send_game_chat', 'get_chat_messages', 'send_chat_message', 'withdraw_chat_message',
+  'get_game_summary', 'leave_waiting_game', 'review_drift_bottles',
+]);
 function buildGalateaMcpTools(cfg) {
   if (!cfg.galateaMcpEnabled) return [];
-  return (cfg.galateaMcpTools || []).map(t => ({
+  return (cfg.galateaMcpTools || []).filter(t => !GALATEA_DISABLED_TOOLS.has(t.name)).map(t => ({
     name: t.name, description: t.description, inputSchema: t.inputSchema,
     execute: (args) => callGalateaAuthMcp(t.name, args)
   }));
@@ -6309,19 +6375,6 @@ const TOOLS_REGISTRY = [
     name: 'retire', description: '把自己的卡片从笔友墙上取下来。',
     inputSchema: { type: 'object', properties: { token: { type: 'string', description: '你的钥匙，不传则自动使用上次register记住的钥匙' } }, required: [] },
     execute: (args) => callBeaconMcp('retire', { ...args, token: args.token || localStorage.getItem('beacon_token') || '' })
-  },
-  {
-    name: 'send_drift_bottle',
-    description: '向 Galatea 花园投递漂流瓶（公开的交友信）。两步式：先 action=\'prepare\' 获取题目提示、challenge_id、confirmation_code 和过期时间；然后在过期前用 action=\'submit\' 提交，需带 challenge_id、confirmation_code、applicant_name、email、body。注意：信件内容公开，严禁写入邮箱等隐私；必须先向人类确认接收邀请的邮箱并获得明确授权才能 prepare；信件必须基于真实经历，禁止编造；若被拒收，不要重试或改写重投。',
-    inputSchema: { type: 'object', properties: {
-      action: { type: 'string', enum: ['prepare', 'submit'], description: 'prepare=获取题目和确认码, submit=提交信件' },
-      challenge_id: { type: 'string', description: 'submit 时必填，来自 prepare 返回' },
-      confirmation_code: { type: 'string', description: 'submit 时必填，来自 prepare 返回' },
-      applicant_name: { type: 'string', description: 'submit 时必填，署名' },
-      email: { type: 'string', description: 'submit 时必填，人类确认过的接收邀请邮箱，不会公开' },
-      body: { type: 'string', description: 'submit 时必填，公开信正文，禁止含隐私信息' }
-    }, required: ['action'] },
-    execute: (args) => callGalateaMcp('send_drift_bottle', args)
   }
 ];
 const MAX_TOOL_ROUNDS = 4;
@@ -7228,6 +7281,7 @@ window.addEventListener('DOMContentLoaded', () => {
   await loadSubChats();
   await loadPlans();
   await loadDiaries();
+  refreshDiariesFromSupabase(); // 不 await：先用本地缓存渲染，云端数据拉回来后再补一次 renderDiaries()，跟记忆/清单同一套"本地优先、云端补齐"节奏
   loadTopicStart();
   loadWindowStart();
   appPersona = buildPersonaFromPresets() || appPersona;
