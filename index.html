@@ -419,6 +419,16 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
   font-size: 14px; line-height: 1.5; color: var(--text-tertiary);
   white-space: pre-wrap; word-break: break-word;
 }
+/* 任务F：toolCalls 多于1条时先折叠成一行摘要，点击后再展开完整列表 */
+.wake-session-tools-summary {
+  font-size: 13px; line-height: 1.4; color: var(--text-tertiary);
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+}
+.wake-session-tools-list-wrap { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; }
+.wake-session-tools-list-wrap.is-expanded { max-height: 2000px; margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .wake-session-tools-list-wrap { transition: none !important; }
+}
 .wake-session-meta-divider { height: 0; margin: 14px 0 10px; border: none; border-top: 2px solid var(--border-strong); }
 .wake-session-meta {
   display: flex; justify-content: space-between;
@@ -1619,6 +1629,11 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <label class="ios-switch"><input type="checkbox" id="cfgWakeEngineEnabled"><span class="ios-switch-slider"></span></label>
       </div>
       <div class="space-hint" id="wakeEngineHint">开启后喵喵会不定期自己"醒来"一小段私人时间，跟你聊天无关，随时可以关掉。</div>
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">自动唤醒平均间隔</span>
+        <input class="space-input" id="cfgWakeIntervalMin" type="number" min="10" max="480" step="5" value="30" style="width:90px; margin-bottom:0; text-align:right;">
+      </div>
+      <div class="space-hint">单位分钟，平均值，实际忽疏忽密；范围 10–480，默认 30。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">强制刷新</div>
@@ -2335,6 +2350,7 @@ const cfgStreamEl = document.getElementById('cfgStream');
 const cfgClaudeNativeEl = document.getElementById('cfgClaudeNative');
 const cfgMaxTokensEl    = document.getElementById('cfgMaxTokens');
 const cfgToolsEnabledEl = document.getElementById('cfgToolsEnabled');
+const cfgWakeIntervalMinEl = document.getElementById('cfgWakeIntervalMin');
 const cfgGalateaMcpTokenEl   = document.getElementById('cfgGalateaMcpToken');
 const cfgGalateaMcpEnabledEl = document.getElementById('cfgGalateaMcpEnabled');
 const galateaMcpStatusHintEl = document.getElementById('galateaMcpStatusHint');
@@ -2364,6 +2380,7 @@ function loadChatSettings() {
   cfgClaudeNativeEl.checked = !!c.claudeNative;
   cfgMaxTokensEl.value = c.maxTokens || 4096;
   cfgToolsEnabledEl.checked = !!c.toolsEnabled;
+  cfgWakeIntervalMinEl.value = c.wakeIntervalMin || 30;
   cfgGalateaMcpTokenEl.value = c.galateaMcpToken || '';
   cfgGalateaMcpEnabledEl.checked = !!c.galateaMcpEnabled;
   cfgCedarToyTokenEl.value = c.cedarToyToken || '';
@@ -2388,6 +2405,13 @@ cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.c
 cfgClaudeNativeEl.addEventListener('change', () => { patchConfig('claudeNative', cfgClaudeNativeEl.checked); scheduleAiConfigSync(); });
 cfgMaxTokensEl.addEventListener('change', () => patchConfig('maxTokens', Number(cfgMaxTokensEl.value) || 4096));
 cfgToolsEnabledEl.addEventListener('change', () => { patchConfig('toolsEnabled', cfgToolsEnabledEl.checked); scheduleAiConfigSync(); });
+cfgWakeIntervalMinEl.addEventListener('change', () => {
+  let v = Number(cfgWakeIntervalMinEl.value) || 30;
+  v = Math.min(480, Math.max(10, v));
+  cfgWakeIntervalMinEl.value = v;
+  patchConfig('wakeIntervalMin', v);
+  scheduleAiConfigSync();
+});
 cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpToken', cfgGalateaMcpTokenEl.value.trim()));
 cfgGalateaMcpEnabledEl.addEventListener('change', () => patchConfig('galateaMcpEnabled', cfgGalateaMcpEnabledEl.checked));
 cfgCedarToyTokenEl.addEventListener('change', () => patchConfig('cedarToyToken', cfgCedarToyTokenEl.value.trim()));
@@ -3378,7 +3402,7 @@ function scheduleAiConfigSync() {
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000 };
+    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null };
     const MAX_ATTEMPTS = 3;
     let lastErr = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -4766,6 +4790,13 @@ function formatWakeDuration(startMs, endMs) {
   const mins = Math.floor(Math.max(0, endMs - startMs) / 60000);
   return mins < 1 ? '<1 min' : mins + ' min';
 }
+// 任务F：wake_session 卡片内 toolCalls 的折叠摘要文案，去重计数（不同于 toolNoticeLabel，这里带次数）
+function wakeToolsSummaryText(toolCalls) {
+  const counts = new Map();
+  toolCalls.forEach(tc => counts.set(tc.name, (counts.get(tc.name) || 0) + 1));
+  const parts = [...counts.entries()].map(([name, n]) => n > 1 ? `${name} ×${n}` : name);
+  return `🔧 调用了 ${toolCalls.length} 次工具（${parts.join('、')}）`;
+}
 // 自主醒来/私人时间折叠卡片——独立于普通消息气泡渲染路径，msg.role === 'wake_session'
 // 由 buildMsgRow 单独分支处理（不走 user/ai 气泡逻辑）。iOS 备忘录风：单容器双段背景，
 // 折叠态标题条固定显示"喵喵醒来了"，点击展开时该文字渐隐、换成"free time"渐显，
@@ -4807,7 +4838,23 @@ function buildWakeSessionCard(msg) {
       toolRow.textContent = parts.join('\n');
       list.appendChild(toolRow);
     });
-    body.appendChild(list);
+    if (msg.toolCalls.length === 1) {
+      // 单条工具调用不折叠，直接显示
+      body.appendChild(list);
+    } else {
+      const summary = document.createElement('div'); summary.className = 'wake-session-tools-summary';
+      summary.textContent = wakeToolsSummaryText(msg.toolCalls);
+      const listWrap = document.createElement('div'); listWrap.className = 'wake-session-tools-list-wrap';
+      listWrap.appendChild(list);
+      let toolsExpanded = false;
+      summary.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toolsExpanded = !toolsExpanded;
+        listWrap.classList.toggle('is-expanded', toolsExpanded);
+      });
+      body.appendChild(summary);
+      body.appendChild(listWrap);
+    }
   }
   const spacer = document.createElement('div'); spacer.style.flex = '1'; // 把时间戳一栏推到固定高度卡片的底部
   body.appendChild(spacer);
