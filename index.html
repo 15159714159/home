@@ -1591,6 +1591,18 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），需端点支持 tools 参数转发。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">Ombre Brain 脱水模型</div>
+      <div class="model-row">
+        <input class="space-input" id="cfgOmbreModel" type="text" placeholder="输入或从列表选择（复用上方端点+Key）">
+        <button class="load-model-btn" id="loadOmbreModelsBtn">获取列表</button>
+      </div>
+      <div id="ombreModelDropdown"></div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="cfgOmbreModelSaveBtn">保存</button>
+      </div>
+      <div class="space-hint" id="ombreModelHint">Ombre Brain 自动起名/摘要压缩 + attunement 用户画像检测共用这一个模型，跟主聊天用的模型是两码事。复用上面填的 API 端点+Key 获取列表。保存后立即热更新生效；但服务器那边设了环境变量优先，如果哪天 OB 服务重启后又变回了旧模型，重新点一次保存即可。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">花园完整工具集（MCP）</div>
       <input class="space-input" id="cfgGalateaMcpToken" type="password" placeholder="Bearer token（在花园App里生成）">
       <div class="setting-row" style="border-bottom:none;">
@@ -3556,6 +3568,36 @@ loadModelsBtn.addEventListener('click', () => {
   const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
   const key      = document.getElementById('cfgKey').value.trim();
   fetchModelsInto(endpoint, key, cfgModelInput, modelDropdown, loadModelsBtn);
+});
+
+// Ombre Brain 脱水模型：模型列表复用主聊天填的端点+Key（同一个网关调 MiniMax/GLM/Gemini 等），
+// 只是要保存到真后端 /api/config 而不是本地 localStorage，读取现值也要另外向真后端要一次
+// （不像主聊天模型那样存在 LS_CONFIG 里）。
+const loadOmbreModelsBtn = document.getElementById('loadOmbreModelsBtn');
+const ombreModelDropdown = document.getElementById('ombreModelDropdown');
+const cfgOmbreModelInput = document.getElementById('cfgOmbreModel');
+loadOmbreModelsBtn.addEventListener('click', () => {
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key      = document.getElementById('cfgKey').value.trim();
+  fetchModelsInto(endpoint, key, cfgOmbreModelInput, ombreModelDropdown, loadOmbreModelsBtn);
+});
+async function loadOmbreModelConfig() {
+  if (!window.ombreDehydrationConfig) return;
+  const { model, error } = await window.ombreDehydrationConfig.getDehydrationModel();
+  if (!error && model) cfgOmbreModelInput.value = model;
+}
+document.getElementById('cfgOmbreModelSaveBtn').addEventListener('click', async () => {
+  const model = cfgOmbreModelInput.value.trim();
+  if (!model) { showToast('先填/选一个模型'); return; }
+  if (!window.ombreDehydrationConfig) { showToast('Ombre Brain 未连接'); return; }
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key      = document.getElementById('cfgKey').value.trim();
+  const btn = document.getElementById('cfgOmbreModelSaveBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  const { error } = await window.ombreDehydrationConfig.setDehydrationModel(model, endpoint, key);
+  btn.disabled = false; btn.textContent = '保存';
+  if (error) { showToast('保存失败：' + (error.message || error), 4000); return; }
+  showToast('Ombre Brain 脱水模型已更新');
 });
 
 /* ============================================================
@@ -5658,7 +5700,7 @@ function switchPage(pageName) {
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
-  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); }
+  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); }
   if (pageName === 'vocab') { vocabOnEnterPage(); }
 }
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {

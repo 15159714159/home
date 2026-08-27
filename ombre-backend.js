@@ -187,3 +187,27 @@ async function getRelevantMemories(context, topK = 5) {
 }
 
 window.memoryEmbedding = { storeWithEmbedding, searchByEmbedding, getRelevantMemories };
+
+// ---- 脱水模型配置：真后端 /api/config，自动起名/摘要压缩 + attunement 共用这一个模型 ----
+// 只改 model 字段，端点(base_url)和 key 复用 home 主聊天 Space 页已经填好的那份
+// （cfgEndpoint/cfgKey），不重复问用户要一遍——传 base_url/api_key 给 /api/config 是为了让
+// 真后端也能连到同一个网关，模型名本身才是这次要切换的东西。
+async function getDehydrationModel() {
+  const { data, error } = await ombreFetch('/api/config');
+  if (error || !data) return { model: '', error };
+  return { model: (data.dehydration && data.dehydration.model) || '', error: null };
+}
+
+async function setDehydrationModel(model, endpoint, key) {
+  if (!model || !model.trim()) return { error: '模型名不能为空' };
+  const body = { dehydration: { model: model.trim() }, persist: true };
+  if (endpoint) body.dehydration.base_url = endpoint;
+  if (key) body.dehydration.api_key = key;
+  const { data, error } = await ombreFetch('/api/config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (error) return { error };
+  return { data, error: null };
+}
+
+window.ombreDehydrationConfig = { getDehydrationModel, setDehydrationModel };
