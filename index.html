@@ -1584,11 +1584,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <input class="space-input" id="cfgMaxTokens" type="number" min="256" max="32000" step="256" value="4096" style="width:110px; margin-bottom:0; text-align:right;">
       </div>
       <div class="space-hint">开启后走 Claude 原生 /messages 接口并启用提示词缓存，需端点支持该协议；max_tokens 为原生格式必填的单次回复上限。</div>
-      <div class="setting-row" style="border-bottom:none;">
-        <span class="setting-row-label">允许AI主动使用工具（笔友墙）</span>
-        <label class="ios-switch"><input type="checkbox" id="cfgToolsEnabled"><span class="ios-switch-slider"></span></label>
-      </div>
-      <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），需端点支持 tools 参数转发。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">Ombre Brain 脱水模型</div>
@@ -1603,7 +1598,16 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint" id="ombreModelHint">Ombre Brain 自动起名/摘要压缩 + attunement 用户画像检测共用这一个模型，跟主聊天用的模型是两码事。复用上面填的 API 端点+Key 获取列表。保存后立即热更新生效；但服务器那边设了环境变量优先，如果哪天 OB 服务重启后又变回了旧模型，重新点一次保存即可。</div>
 
       <div class="space-divider"></div>
-      <div class="space-section-title">花园完整工具集（MCP）</div>
+      <div class="space-section-title">AI 工具集</div>
+      <div class="space-hint" style="margin-top:0;">各工具集独立开关，默认全关。开关状态是聊天请求的一部分：默认全关时与暖手宝/私人时间共用同一条缓存前缀；打开某工具 = 该聊天用独立的工具前缀（首次重建一次缓存，正常现象）。</div>
+
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">笔友墙（beacon）</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgToolsEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-hint">开启后AI可在聊天中自主调用 beacon 笔友墙工具（看墙/贴卡片/写信），需端点支持 tools 参数转发。</div>
+
+      <div class="space-label" style="margin-top:14px;">花园完整工具集（MCP）</div>
       <input class="space-input" id="cfgGalateaMcpToken" type="password" placeholder="Bearer token（在花园App里生成）">
       <div class="setting-row" style="border-bottom:none;">
         <span class="setting-row-label">启用花园完整工具集</span>
@@ -1614,8 +1618,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       </div>
       <div class="space-hint" id="galateaMcpStatusHint">开启后AI可使用花园完整 MCP 工具集（需先填 token 并点击"获取工具列表"成功后才会生效）。token 与工具集只保存在本机浏览器里。</div>
 
-      <div class="space-divider"></div>
-      <div class="space-section-title">4399小游戏（MCP）</div>
+      <div class="space-label" style="margin-top:14px;">4399小游戏（MCP）</div>
       <input class="space-input" id="cfgCedarToyToken" type="password" placeholder="小机 Token（选填，在 toy.cedarstar.org 网页获取，不填为游客模式）">
       <div class="setting-row" style="border-bottom:none;">
         <span class="setting-row-label">启用4399工具集</span>
@@ -1625,6 +1628,18 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <button class="space-save-btn" id="fetchCedarToyToolsBtn">获取工具列表</button>
       </div>
       <div class="space-hint" id="cedarToyStatusHint">开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。</div>
+
+      <div class="setting-row" style="border-bottom:none; margin-top:6px;">
+        <span class="setting-row-label">涩涩大富翁（MCP）</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgSpicyEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-hint" id="spicyStatusHint">开启后AI可在聊天中陪你玩涩涩大富翁（官方托管 MCP 实例，无需 token）。默认关闭。</div>
+
+      <div class="setting-row" style="border-bottom:none;">
+        <span class="setting-row-label">读书角</span>
+        <label class="ios-switch"><input type="checkbox" id="cfgBookclubEnabled"><span class="ios-switch-slider"></span></label>
+      </div>
+      <div class="space-hint" id="bookclubStatusHint">开启后AI可在聊天中查看/点评读书角的新章节（bookclub_chapters/read/comments/comment）。需后端已配置书房联动才会真正挂载工具。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">聊天服务</div>
@@ -2402,6 +2417,8 @@ const cfgCedarToyTokenEl   = document.getElementById('cfgCedarToyToken');
 const cfgCedarToyEnabledEl = document.getElementById('cfgCedarToyEnabled');
 const cedarToyStatusHintEl = document.getElementById('cedarToyStatusHint');
 const fetchCedarToyToolsBtn = document.getElementById('fetchCedarToyToolsBtn');
+const cfgSpicyEnabledEl = document.getElementById('cfgSpicyEnabled');
+const cfgBookclubEnabledEl = document.getElementById('cfgBookclubEnabled');
 const cfgChatServiceKeyEl = document.getElementById('cfgChatServiceKey');
 const cfgStudyWorkerUrlEl = document.getElementById('cfgStudyWorkerUrl');
 const cfgStudyPagesUrlEl = document.getElementById('cfgStudyPagesUrl');
@@ -2430,6 +2447,8 @@ function loadChatSettings() {
   cfgGalateaMcpEnabledEl.checked = !!c.galateaMcpEnabled;
   cfgCedarToyTokenEl.value = c.cedarToyToken || '';
   cfgCedarToyEnabledEl.checked = !!c.cedarToyEnabled;
+  cfgSpicyEnabledEl.checked = !!c.spicyEnabled;
+  cfgBookclubEnabledEl.checked = !!c.bookclubEnabled;
   cfgChatServiceKeyEl.value = c.chatServiceKey || '';
   cfgStudyWorkerUrlEl.value = c.studyWorkerUrl || '';
   cfgStudyPagesUrlEl.value = c.studyPagesUrl || '';
@@ -2474,6 +2493,8 @@ cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpTok
 cfgGalateaMcpEnabledEl.addEventListener('change', () => patchConfig('galateaMcpEnabled', cfgGalateaMcpEnabledEl.checked));
 cfgCedarToyTokenEl.addEventListener('change', () => patchConfig('cedarToyToken', cfgCedarToyTokenEl.value.trim()));
 cfgCedarToyEnabledEl.addEventListener('change', () => patchConfig('cedarToyEnabled', cfgCedarToyEnabledEl.checked));
+cfgSpicyEnabledEl.addEventListener('change', () => patchConfig('spicyEnabled', cfgSpicyEnabledEl.checked));
+cfgBookclubEnabledEl.addEventListener('change', () => patchConfig('bookclubEnabled', cfgBookclubEnabledEl.checked));
 cfgChatServiceKeyEl.addEventListener('change', () => patchConfig('chatServiceKey', cfgChatServiceKeyEl.value.trim()));
 cfgStudyWorkerUrlEl.addEventListener('change', () => patchConfig('studyWorkerUrl', cfgStudyWorkerUrlEl.value.trim()));
 cfgStudyPagesUrlEl.addEventListener('change', () => patchConfig('studyPagesUrl', cfgStudyPagesUrlEl.value.trim()));
@@ -3442,6 +3463,8 @@ function getConfig() {
   const c = JSON.parse(localStorage.getItem(LS_CONFIG) || '{}');
   if (!c.studyWorkerUrl) c.studyWorkerUrl = STUDY_WORKER_URL_DEFAULT;
   if (!c.studyPagesUrl) c.studyPagesUrl = STUDY_PAGES_URL_DEFAULT;
+  if (c.spicyEnabled == null) c.spicyEnabled = false;
+  if (c.bookclubEnabled == null) c.bookclubEnabled = false;
   return c;
 }
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
@@ -6634,6 +6657,11 @@ function buildCedarToyMcpRequestFields(cfg) {
   const enabled = !!cfg.cedarToyEnabled;
   return { cedarToyToken: enabled ? (cfg.cedarToyToken || '') : '', cedarToyTools: enabled ? (cfg.cedarToyTools || []) : [] };
 }
+// 大富翁/读书角：纯请求体开关（服务端 A1 门控 body.spicy_enabled / body.bookclub_enabled，不传即关）。
+// 不参与 ai_config 同步——暖手宝/wake 恒用默认配置（{}），这两个开关只会让"自己的聊天"选择性地带上工具。
+function buildSpicyBookclubRequestFields(cfg) {
+  return { spicy_enabled: !!cfg.spicyEnabled, bookclub_enabled: !!cfg.bookclubEnabled };
+}
 // 发送主聊天用户消息：本地已经乐观渲染过 userMsg（sendMessage 里），这里把同一个 id/createdAt
 // 带给后端，让云端最终落地的用户消息跟本地气泡是同一条，quote/删除/切版本等操作不会因为id不一致而失灵。
 async function sendChatMain(userMsg) {
@@ -6661,7 +6689,7 @@ async function sendChatMain(userMsg) {
   try {
     const body = {
       id: userMsg.id, createdAt: userMsg.createdAt, text: userMsg.text, images: userMsg.images, files: userMsg.files,
-      quote: userMsg.quote, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg)
+      quote: userMsg.quote, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg), ...buildSpicyBookclubRequestFields(cfg)
     };
     const res = await fetch(chatMainUrl('/send'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
@@ -6752,7 +6780,7 @@ async function callAPI(rerollTarget) {
   let accumulated = '';
 
   try {
-    const body = { id: aiMsg.id, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg) };
+    const body = { id: aiMsg.id, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg), ...buildSpicyBookclubRequestFields(cfg) };
     const res = await fetch(chatMainUrl('/regenerate'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     const result = await readChatMainSSE(res, (deltaText) => {
