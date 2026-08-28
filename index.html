@@ -1627,7 +1627,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-btn-row">
         <button class="space-save-btn" id="fetchCedarToyToolsBtn">获取工具列表</button>
       </div>
-      <div class="space-hint" id="cedarToyStatusHint">开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。</div>
+      <div class="space-hint" id="cedarToyStatusHint">开启后AI可在聊天中玩 CEDAR TOY 上的小游戏。主聊天/wake/暖手宝的 4399 身份由服务器配置（.env 的 CEDAR_TOY_TOKEN，无需在此填写）；此处的 token 与工具列表仅影响副聊天直连。</div>
 
       <div class="setting-row" style="border-bottom:none; margin-top:6px;">
         <span class="setting-row-label">涩涩大富翁（MCP）</span>
@@ -2492,9 +2492,9 @@ cfgWakePromptTemplateEl.addEventListener('change', () => {
 cfgGalateaMcpTokenEl.addEventListener('change', () => patchConfig('galateaMcpToken', cfgGalateaMcpTokenEl.value.trim()));
 cfgGalateaMcpEnabledEl.addEventListener('change', () => patchConfig('galateaMcpEnabled', cfgGalateaMcpEnabledEl.checked));
 cfgCedarToyTokenEl.addEventListener('change', () => patchConfig('cedarToyToken', cfgCedarToyTokenEl.value.trim()));
-cfgCedarToyEnabledEl.addEventListener('change', () => patchConfig('cedarToyEnabled', cfgCedarToyEnabledEl.checked));
-cfgSpicyEnabledEl.addEventListener('change', () => patchConfig('spicyEnabled', cfgSpicyEnabledEl.checked));
-cfgBookclubEnabledEl.addEventListener('change', () => patchConfig('bookclubEnabled', cfgBookclubEnabledEl.checked));
+cfgCedarToyEnabledEl.addEventListener('change', () => { patchConfig('cedarToyEnabled', cfgCedarToyEnabledEl.checked); scheduleAiConfigSync(); });
+cfgSpicyEnabledEl.addEventListener('change', () => { patchConfig('spicyEnabled', cfgSpicyEnabledEl.checked); scheduleAiConfigSync(); });
+cfgBookclubEnabledEl.addEventListener('change', () => { patchConfig('bookclubEnabled', cfgBookclubEnabledEl.checked); scheduleAiConfigSync(); });
 cfgChatServiceKeyEl.addEventListener('change', () => patchConfig('chatServiceKey', cfgChatServiceKeyEl.value.trim()));
 cfgStudyWorkerUrlEl.addEventListener('change', () => patchConfig('studyWorkerUrl', cfgStudyWorkerUrlEl.value.trim()));
 cfgStudyPagesUrlEl.addEventListener('change', () => patchConfig('studyPagesUrl', cfgStudyPagesUrlEl.value.trim()));
@@ -3483,7 +3483,7 @@ function scheduleAiConfigSync() {
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null, wake_tool_round_limit: cfg.wakeToolRoundLimit || null, wake_prompt_template: (cfg.wakePromptTemplate && cfg.wakePromptTemplate.trim()) || null };
+    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null, wake_tool_round_limit: cfg.wakeToolRoundLimit || null, wake_prompt_template: (cfg.wakePromptTemplate && cfg.wakePromptTemplate.trim()) || null, cedar_toy_enabled: !!cfg.cedarToyEnabled, spicy_enabled: !!cfg.spicyEnabled, bookclub_enabled: !!cfg.bookclubEnabled };
     const MAX_ATTEMPTS = 3;
     let lastErr = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
