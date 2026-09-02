@@ -2043,7 +2043,6 @@ let diaries = [];
 let diaryFilter = 'all';
 let emojiTargetDiaryId = null;
 let presets = [];
-let topicStartId = null;
 let windowStartId = null;
 let editingPresetId = null;
 let editingPresetOriginal = { note:'', content:'' };
@@ -2137,7 +2136,6 @@ const LS_PERSONA  = 'nest_persona';
 const LS_PRESETS  = 'nest_presets';
 const LS_MAIN_TOUCHED_AT = 'nest_messages_touched_at';
 const LS_SUB_TOUCHED_AT  = 'nest_subchats_touched_at';
-const LS_TOPIC_START = 'nest_topic_start';
 const LS_WINDOW_START = 'nest_window_start';
 const LS_AVATAR   = 'nest_avatar';
 const LS_USER_AVATAR = 'nest_user_avatar';
@@ -3419,22 +3417,41 @@ presetEditDeleteBtn.addEventListener('click', () => {
 /* ============================================================
 开启新话题
 ============================================================ */
-function loadTopicStart() { topicStartId = localStorage.getItem(LS_TOPIC_START) || null; }
-function persistTopicStart() { if (topicStartId) safeSetItem(LS_TOPIC_START, topicStartId); else localStorage.removeItem(LS_TOPIC_START); }
-function filterByTopicStart(msgArray) {
-  if (!topicStartId) return msgArray;
-  const idx = msgArray.findIndex(m => m.id === topicStartId);
-  if (idx === -1) return msgArray;
-  return msgArray.slice(idx + 1);
+// 话题分隔标记在后端 chats(main) 里是一条 role:'notice' + kind:'topic_start' 的消息
+// （渲染/删除/同步全复用 notice 现成通道；旧版没更新的 index.html 也会把它当普通
+// notice 居中显示，不会渲染成 AI 气泡）。真正的上下文切分由后端完成——见 garden-agent
+// 的 sliceCurrentTopic：所有拼 LLM 上下文的入口只取"最近一条 kind:'topic_start' 之后"。
+// 前端只需要：①点击调 /chat-main/new-topic；②本地 token 估算按同一条规则裁切
+// （sliceLocalTopic），不再依赖已经失效的 localStorage 指针。
+function sliceLocalTopic(msgArray) {
+  if (!msgArray || !msgArray.length) return msgArray;
+  for (let i = msgArray.length - 1; i >= 0; i--) {
+    const m = msgArray[i];
+    if (m && m.role === 'notice' && m.kind === 'topic_start') return msgArray.slice(i + 1);
+  }
+  return msgArray;
 }
 function loadWindowStart() { windowStartId = localStorage.getItem(LS_WINDOW_START) || null; }
 function persistWindowStart() { if (windowStartId) safeSetItem(LS_WINDOW_START, windowStartId); else localStorage.removeItem(LS_WINDOW_START); }
-function triggerNewTopic() {
-  if (!confirm('开启新话题？之前的对话将不再发给然竣，但聊天记录会保留。')) return;
-  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-  topicStartId = lastMsg ? lastMsg.id : 'START'; persistTopicStart();
-  windowStartId = null; persistWindowStart();
-  pushChatNotice('—— 新话题开始 ——');
+async function triggerNewTopic() {
+  const cfg = getConfig();
+  if (!cfg.chatServiceKey) { showToast('请先在 Space 页填写聊天服务密钥'); return; }
+  if (mainGenerating) { showToast('等这条回复发完再开新话题'); return; }
+  if (!confirm('开启新话题？之前的话题不再发给然竣，但聊天记录会保留。')) return;
+  try {
+    const res = await fetch(chatMainUrl('/new-topic'), { method: 'POST', headers: chatMainHeaders(cfg), body: '{}' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.message && !messages.some(m => m.id === data.message.id)) {
+      // 后端落库会触发 Realtime 推回（applyCloudMainUpdate）。本地这步只保证即时反馈；
+      // 用的是后端返回的同一条消息（同 id），后面 Realtime 合并按 id 对齐不会重复。
+      messages.push(data.message); persistMessages(); renderAllMessages();
+    }
+    showToast('已开启新话题');
+  } catch (e) {
+    console.error('开启新话题失败', e);
+    showToast('开启新话题失败：' + ((e && e.message) || e), 4000);
+  }
 }
 
 /* ============================================================
@@ -4476,9 +4493,8 @@ function estimateContextTokens() {
   const timeLine = 40;
   const memChars = (buildMemoryInjection() || '').length;
   const diaryChars = estimateDiaryChars();
-  const real = messages.filter(m => m.role !== 'notice' && m.role !== 'wake_session');
-  const filteredReal = filterByTopicStart(real);
-  const { windowMsgs } = splitWindow(filteredReal);
+  const currentTopic = sliceLocalTopic(messages).filter(m => m.role !== 'notice' && m.role !== 'wake_session');
+  const { windowMsgs } = splitWindow(currentTopic);
   const historyChars = windowMsgs.reduce((s,m) => s + getMsgCharLen(m), 0);
   const totalChars = persona + timeLine + memChars + diaryChars + historyChars;
   return totalChars / 1.5;
@@ -4578,7 +4594,7 @@ function goToClearStep2() {
 clearChatBtn1.addEventListener('click', () => { if (clearChatStep === 1) goToClearStep2(); else clearChatOverlay.classList.remove('show'); });
 clearChatBtn2.addEventListener('click', () => {
   if (clearChatStep === 1) { document.getElementById('exportBackupBtn').click(); goToClearStep2(); }
-  else { messages = []; mainRenderStart = null; topicStartId = null; persistTopicStart(); windowStartId = null; persistWindowStart(); persistMessages(); renderAllMessages(); clearChatOverlay.classList.remove('show'); showToast('主聊天记录已清空'); }
+  else { messages = []; mainRenderStart = null; windowStartId = null; persistWindowStart(); persistMessages(); renderAllMessages(); clearChatOverlay.classList.remove('show'); showToast('主聊天记录已清空'); }
 });
 clearChatOverlay.addEventListener('click', e => { if (e.target === clearChatOverlay) clearChatOverlay.classList.remove('show'); });
 
@@ -7352,7 +7368,6 @@ window.addEventListener('DOMContentLoaded', () => {
   await loadPlans();
   await loadDiaries();
   refreshDiariesFromSupabase(); // 不 await：先用本地缓存渲染，云端数据拉回来后再补一次 renderDiaries()，跟记忆/清单同一套"本地优先、云端补齐"节奏
-  loadTopicStart();
   loadWindowStart();
   appPersona = buildPersonaFromPresets() || appPersona;
   loadChatSettings();
