@@ -2048,6 +2048,8 @@ let editingPresetId = null;
 let editingPresetOriginal = { note:'', content:'' };
 let mainGenerating = false;
 let mainAbortController = null;
+let mainAbortDiscard = false;   // 删除触发消息=撤回本回合 → 连已生成的 partial 一起作废
+let mainTurnSourceId = null;    // 当前进行中回合的触发消息 id（send=刚发出的那条 user 消息）
 // 主聊天流式生成过程中，正在生成的AI占位消息id——applyCloudMainUpdate 靠它避免云端Realtime更新
 // 中途把用户正在看的流式气泡整个替换掉（云端行要等这一轮生成完、后端持久化后才会包含这条消息）。
 let activeStreamMsgId = null;
@@ -4731,10 +4733,22 @@ function triggerEditMessage(msg, ctx) {
 }
 function deleteMessage(msg, ctx) {
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id); if (idx === -1) return;
+  // 撤回：删的正是"正在进行中那回合"的触发消息（自己刚发出去、AI 还在回的那条）→ 打断本地
+  // fetch 并把 AI 占位气泡一并作废（不留半截）。服务端那头由同一发 /chat-main/delete 里 abort
+  // 掉正在生成的回合（不落库、不触发标记动作），本地/云端收敛为"这条消息从未存在过"。
+  const isUnsendTrigger = ctx === mainCtx && msg.role === 'user' && msg.id === mainTurnSourceId
+    && mainGenerating && mainAbortController && activeStreamMsgId;
   const page = document.getElementById(ctx.pageId); const savedScroll = page.scrollTop;
   if (ctx.pageId === 'page-chat' && mainRenderStart != null && idx < mainRenderStart) mainRenderStart--;
   if (ctx.pageId === 'page-subchat' && subRenderStart != null && idx < subRenderStart) subRenderStart--;
-  arr.splice(idx, 1); ctx.persist(); ctx.renderAll();
+  arr.splice(idx, 1);
+  if (isUnsendTrigger) {
+    mainAbortDiscard = true;
+    if (mainAbortController) mainAbortController.abort();
+    const pid = arr.findIndex(m => m.id === activeStreamMsgId);
+    if (pid !== -1) arr.splice(pid, 1);
+  }
+  ctx.persist(); ctx.renderAll();
   photoDeckStates.delete(msg.id);
   if (ctx === mainCtx) chatMainDeleteRequest([msg.id]);
   requestAnimationFrame(() => { requestAnimationFrame(() => { page.scrollTop = Math.min(savedScroll, page.scrollHeight - page.clientHeight); }); });
@@ -6684,6 +6698,8 @@ async function sendChatMain(userMsg) {
   const cfg = getConfig();
   if (!cfg.chatServiceKey) { showToast('请先在 Space 页填写聊天服务密钥'); return; }
   const aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
+  mainTurnSourceId = userMsg.id;   // 撤回锚点：删掉这条自己刚发的消息 = 整回合作废
+  mainAbortDiscard = false;
   messages.push(aiMsg); persistMessages(); const aiRow = appendMessage(aiMsg); const aiBubble = aiRow.querySelector('.msg-bubble');
   aiBubble.innerHTML = '';
 
@@ -6695,7 +6711,7 @@ async function sendChatMain(userMsg) {
   let accumulated = '';
 
   function dropPlaceholderIfEmpty() {
-    if (accumulated.trim()) { aiMsg.text = accumulated; aiMsg.versions[0] = accumulated; persistMessages(); refreshRow(aiMsg, mainCtx); return; }
+    if (!mainAbortDiscard && accumulated.trim()) { aiMsg.text = accumulated; aiMsg.versions[0] = accumulated; persistMessages(); refreshRow(aiMsg, mainCtx); return; }
     const idx = messages.findIndex(m => m.id === aiMsg.id);
     if (idx !== -1) messages.splice(idx, 1);
     if (aiRow && aiRow.parentNode) aiRow.remove();
@@ -6737,7 +6753,7 @@ async function sendChatMain(userMsg) {
     if (err.name === 'AbortError') { dropPlaceholderIfEmpty(); }
     else { console.error(err); dropPlaceholderIfEmpty(); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
   } finally {
-    activeStreamMsgId = null; mainGenerating = false; mainAbortController = null; gen.stop();
+    activeStreamMsgId = null; mainGenerating = false; mainAbortController = null; mainTurnSourceId = null; mainAbortDiscard = false; gen.stop();
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
   }
 }
