@@ -5704,6 +5704,17 @@ const sidebar        = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 function openSidebar()  { sidebar.classList.add('show'); sidebarOverlay.classList.add('show'); }
 function closeSidebar() { sidebar.classList.remove('show'); sidebarOverlay.classList.remove('show'); }
+// 跳转会切走当前页/开新标签的入口用：先关掉 0.3s 过渡、同步收拢侧栏并强制 reflow 落定，
+// 再打开新页面。否则滑出动画刚起步、页面就被新标签切进后台挂起，返回后侧栏偶发图层不刷新
+// （命中区还在、画面冻结成看不见，即"看不到但可以点"）。点遮罩/左滑关闭仍走动画版 closeSidebar。
+function instantCloseSidebar() {
+  sidebar.style.transition = 'none';
+  sidebarOverlay.style.transition = 'none';
+  closeSidebar();
+  void sidebar.offsetWidth; // 同步提交布局，确保收起状态在切后台前落定
+  sidebar.style.transition = '';
+  sidebarOverlay.style.transition = '';
+}
 document.getElementById('sidebarToggleBtn').addEventListener('click', openSidebar);
 sidebarOverlay.addEventListener('click', closeSidebar);
 let touchStartX = 0;
@@ -5716,8 +5727,8 @@ document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
   });
 });
 document.getElementById('ombreBrainLink').addEventListener('click', () => {
+  instantCloseSidebar(); // 先无动画收拢再开新标签，避免过渡随页面切后台被挂起（见 instantCloseSidebar 注释）
   window.open('https://47-107-161-135.sslip.io/v2/', '_blank');
-  closeSidebar();
 });
 document.getElementById('studyLink').addEventListener('click', () => {
   const url = getConfig().studyPagesUrl;
