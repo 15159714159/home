@@ -1598,6 +1598,18 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint" id="ombreModelHint">Ombre Brain 自动起名/摘要压缩 + attunement 用户画像检测共用这一个模型，跟主聊天用的模型是两码事。复用上面填的 API 端点+Key 获取列表。保存后立即热更新生效；但服务器那边设了环境变量优先，如果哪天 OB 服务重启后又变回了旧模型，重新点一次保存即可。</div>
 
       <div class="space-divider"></div>
+      <div class="space-section-title">判官模型（心潮互动分类）</div>
+      <div class="model-row">
+        <input class="space-input" id="cfgJudgeModel" type="text" placeholder="输入或从列表选择（复用上方端点+Key）">
+        <button class="load-model-btn" id="loadJudgeModelsBtn">获取列表</button>
+      </div>
+      <div id="judgeModelDropdown"></div>
+      <div class="space-btn-row">
+        <button class="space-save-btn" id="cfgJudgeModelSaveBtn">保存</button>
+      </div>
+      <div class="space-hint">心潮"判官"：garden 每轮互动交给这个独立模型分到正确维度（affection/companionship/intimacy/conflict…10 类），避免现在一律按 sharing 上报、把 possess/monitor/crave 养在恒高位。留空 = 判官关闭，行为与今天完全一致（每轮 sharing）；配了才激活。复用上方端点+Key、只换模型名，建议挑便宜的。⚠️ 先手动跑 migration_20（ai_config 加 judge_model 列）再填，否则整条 ai_config 同步会被 PostgREST 拒掉。填了先存库不生效，等 garden 端判官（计划 P2/P3）上线才算数。</div>
+
+      <div class="space-divider"></div>
       <div class="space-section-title">AI 工具集</div>
       <div class="space-hint" style="margin-top:0;">各工具集独立开关，默认全关。开关状态是聊天请求的一部分：默认全关时与暖手宝/私人时间共用同一条缓存前缀；打开某工具 = 该聊天用独立的工具前缀（首次重建一次缓存，正常现象）。</div>
 
@@ -3464,12 +3476,14 @@ function loadConfig() {
   document.getElementById('cfgEndpoint').value = cfg.endpoint || '';
   document.getElementById('cfgKey').value      = cfg.key      || '';
   document.getElementById('cfgModel').value    = cfg.model    || '';
+  document.getElementById('cfgJudgeModel').value = cfg.judgeModel || '';
 }
 function saveConfig() {
   const cfg = getConfig();
   cfg.endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
   cfg.key      = document.getElementById('cfgKey').value.trim();
   cfg.model    = document.getElementById('cfgModel').value.trim();
+  cfg.judgeModel = document.getElementById('cfgJudgeModel').value.trim();
   safeSetItem(LS_CONFIG, JSON.stringify(cfg));
   scheduleAiConfigSync();
   showToast('设置已保存');
@@ -3502,7 +3516,7 @@ function scheduleAiConfigSync() {
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null, wake_tool_round_limit: cfg.wakeToolRoundLimit || null, wake_prompt_template: (cfg.wakePromptTemplate && cfg.wakePromptTemplate.trim()) || null, cedar_toy_enabled: !!cfg.cedarToyEnabled, spicy_enabled: !!cfg.spicyEnabled, bookclub_enabled: !!cfg.bookclubEnabled };
+    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null, wake_tool_round_limit: cfg.wakeToolRoundLimit || null, wake_prompt_template: (cfg.wakePromptTemplate && cfg.wakePromptTemplate.trim()) || null, cedar_toy_enabled: !!cfg.cedarToyEnabled, spicy_enabled: !!cfg.spicyEnabled, bookclub_enabled: !!cfg.bookclubEnabled, judge_model: (cfg.judgeModel && cfg.judgeModel.trim()) || null };
     const MAX_ATTEMPTS = 3;
     let lastErr = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -3640,6 +3654,24 @@ document.getElementById('cfgOmbreModelSaveBtn').addEventListener('click', async 
   btn.disabled = false; btn.textContent = '保存';
   if (error) { showToast('保存失败：' + (error.message || error), 4000); return; }
   showToast('Ombre Brain 脱水模型已更新');
+});
+
+// 判官模型：与 Ombre 脱水模型不同——那个存 OB 后端 /api/config；这个存本地 LS_CONFIG
+// 并同步到 Supabase ai_config.judge_model（列 = migration_20，garden getAiConfig select('*') 自动带出）。
+// 模型列表同样复用主聊天端点+Key。
+const loadJudgeModelsBtn = document.getElementById('loadJudgeModelsBtn');
+const judgeModelDropdown = document.getElementById('judgeModelDropdown');
+const cfgJudgeModelInput = document.getElementById('cfgJudgeModel');
+loadJudgeModelsBtn.addEventListener('click', () => {
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key      = document.getElementById('cfgKey').value.trim();
+  fetchModelsInto(endpoint, key, cfgJudgeModelInput, judgeModelDropdown, loadJudgeModelsBtn);
+});
+document.getElementById('cfgJudgeModelSaveBtn').addEventListener('click', () => {
+  const model = cfgJudgeModelInput.value.trim();
+  patchConfig('judgeModel', model);
+  scheduleAiConfigSync();
+  showToast(model ? '判官模型已保存' : '已清空判官模型（=判官关闭，garden 每轮回到一律 sharing）');
 });
 
 /* ============================================================
