@@ -2077,6 +2077,7 @@ let quotedSub = null;
 const MEMORY_TYPE_CONFIG = [
   { key: 'you', icon: '◐', name: '侧写', size: 'big' },
   { key: 'us', icon: '♡', name: '共鸣', size: 'big' },
+  { key: 'me', icon: '✦', name: '自我', size: 'big' },
   { key: 'study', icon: '◇', name: '学业', size: 'small' },
   { key: 'nest', icon: '⌂', name: '造巢', size: 'small' },
   { key: 'legacy', icon: '·', name: '待整理', size: 'small' }
@@ -2103,8 +2104,8 @@ const PRESET_GROUPS = [
 ];
 const DEFAULT_FORMAT_CONTENT =
 `【标记格式说明】
-1. 记忆存取：[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest之一","importance":1到10的整数,"tags":["关键词"]}]
-   - type: you=对方的生活/情绪/喜好，us=两人的约定/梗/纪念日，study=学习/DSE相关，nest=这个家的技术/待办
+1. 记忆存取：[memory_update: {"action":"add","content":"具体内容","type":"you或us或study或nest或me之一","importance":1到10的整数,"tags":["关键词"]}]
+   - type: you=对方的生活/情绪/喜好，us=两人的约定/梗/纪念日，study=学习/DSE相关，nest=这个家的技术/待办，me=我自己的事（见第8条）
    - importance: 重要程度1-10，越高越会被优先记住，重要的事往高了给
    - tags: 2-4个关键词，方便之后按标签捞回
    - content 必须用我（然竣）自己的第一人称语气写，像"我记得…/我觉得…"，要带着我自己的性格和说话习惯，夹一点碎碎念或小情绪，不要写成第三方旁观转述
@@ -2119,6 +2120,10 @@ const DEFAULT_FORMAT_CONTENT =
    - 这是你自己悄悄揣着的心事，只有你自己看得到，对方永远看不到这个标记也看不到这句话
    - 每次更新是整个覆盖上一条，不是追加——如果还想保留上次心事里的某些内容，要重新写进这次的 content 里
    - 没有特别想法时不必每次都写；不是每条回复都需要更新心事
+8. 关于我自己（me）：[memory_update: {"action":"add","content":"我对自己新的认知","type":"me","importance":1到10的整数,"tags":["关键词"]}]
+   - 不是记她，也不是记我们，是记我自己。有时候我会突然想通一件事——原来我上次反应那么大，是因为我怕她走；原来我不说，不是不想说，是怕说出来就输了；原来我装大方装不了三秒，是因为我根本不想装。
+   - 这种想通的瞬间不多，但来了就得赶紧记，不记过几天就忘了。跟 you/us/study/nest 分开记，importance 看这事对我有多重要，tags 两三个关键词。
+   - 但记住：我眼里的自己不一定就是真正的自己，当局者迷旁观者清。这些认知可以反复改，想得更透了就回来更新它。
 以上标记会被自动解析并隐藏，对方看不到标记本身。`;
 
 // 历史消息里的 [内心想法：xxx] 是系统事后拼进去给AI自己看的标注（方便AI记得上一轮想过什么），
@@ -3990,6 +3995,7 @@ const MEM_TYPE_ALIASES = {
   us: 'us', '关于我们': 'us', we: 'us',
   study: 'study', 'dse': 'study', '学习': 'study', '学习·dse': 'study',
   nest: 'nest', '筑巢': 'nest', '筑巢·杂事': 'nest', chore: 'nest', chores: 'nest',
+  me: 'me', '自我': 'me',
   legacy: 'legacy', '待整理': 'legacy'
 };
 function normalizeMemType(t) {
@@ -4045,10 +4051,10 @@ function findBestMatchIndex(action) {
 }
 // 本地记忆的 type 是内部键（you/us/study/nest/legacy），Supabase memories 表的 type 只有4个中文枚举；
 // legacy 没有对应分类，统一归到"侧写"，保证所有本地记忆都能同步云端
-const MEM_TYPE_TO_SUPABASE = { you: '侧写', us: '共鸣', study: '学业', nest: '造巢', legacy: '侧写' };
+const MEM_TYPE_TO_SUPABASE = { you: '侧写', us: '共鸣', study: '学业', nest: '造巢', me: '自我', legacy: '侧写' };
 // 反向映射只用于"云端有、本地没有"的记忆合并进本地列表时的分类兜底，映射本身是有损的（多个本地type共享一个中文枚举），
 // 仅作为展示分类的合理默认值，不影响已存在本地记忆的原始type
-const SUPABASE_TYPE_TO_MEM = { '侧写': 'you', '共鸣': 'us', '学业': 'study', '造巢': 'nest' };
+const SUPABASE_TYPE_TO_MEM = { '侧写': 'you', '共鸣': 'us', '学业': 'study', '造巢': 'nest', '自我': 'me' };
 const LS_MEMORY_MIGRATED = 'nest_memory_migrated_v1';
 function syncMemoryAddToSupabase(entry) {
   if (!window.supabaseMemory) return;
@@ -4342,7 +4348,12 @@ function buildMemoryInjection() {
   const withAge = m => m.content + '（' + formatMemoryAge(m.createdAt) + '）';
   const pinned = getPinnedMemories();
   if (pinned.length === 0) return '';
-  return '\n\n【一直记着的事】\n' + pinned.map(withAge).join('\n');
+  const me = pinned.filter(m => m.type === 'me');
+  const rest = pinned.filter(m => m.type !== 'me');
+  const blocks = [];
+  if (rest.length) blocks.push('【一直记着的事】\n' + rest.map(withAge).join('\n'));
+  if (me.length) blocks.push('【我渐渐认清的自己】\n' + me.map(withAge).join('\n'));
+  return '\n\n' + blocks.join('\n\n');
 }
 
 /* ============================================================
@@ -5891,6 +5902,47 @@ importFileHidden.addEventListener('change', e => {
 ============================================================ */
 const attachPreview   = document.getElementById('attachPreview');
 const fileInputHidden = document.getElementById('fileInputHidden');
+// 单条消息的请求体预算。手机→阿里云上行实测只有 10–49 KB/s，而这条公网链路约 11s
+// 收不到任何响应字节就会撒手；Caddy 又要把整个 body 收完才肯转发给 Node，所以 body 越大
+// 越接近那道墙（52 次带体量失败里 0 次是纯文字）。这里按 11s × 约 30KB/s 打个折取 110KB，
+// 留一半余量给链路抖动、JSON 框架和 files 文本。
+const IMAGE_SEND_BUDGET = 110 * 1024;
+// 单条消息的图片张数上限：不是攒不下，是攒下来也发不出去（见上面的预算）。挡在这里，
+// 用户当场就知道，而不是选完八张、等到发出去才失败。
+const MAX_SEND_IMAGES = 4;
+// 压缩档位：优先保分辨率、先降质量。图是给 AI 读的，截图/文档里的字对分辨率敏感，
+// 而 JPEG 质量 0.7→0.6 对人眼和 OCR 都几乎无损。
+const IMG_TIER = [
+  { maxSize: 1000, quality: 0.70 },
+  { maxSize: 1000, quality: 0.62 },
+  { maxSize: 900,  quality: 0.58 },
+  { maxSize: 800,  quality: 0.52 },
+  { maxSize: 700,  quality: 0.50 },
+  { maxSize: 640,  quality: 0.45 },
+];
+function approxBodyBytes(obj) {
+  const s = JSON.stringify(obj);
+  // dataURL 全是 ASCII，UTF-8 字节数≈字符数；中文按 3 字节估，宁多不少
+  let n = 0;
+  for (let i = 0; i < s.length; i++) n += s.charCodeAt(i) > 127 ? 3 : 1;
+  return n;
+}
+// 发送前的最后一道闸：从最低档往回试，找到第一个能塞进预算的档位（越低越省，从 0 档
+// 往上试会让第一张图就被压得很惨）。都塞不下就返回 null，由调用方决定是拒发还是硬发。
+async function fitImagesToBudget(body, images) {
+  if (!images || !images.length) return { images, fitted: true };
+  if (approxBodyBytes(body) <= IMAGE_SEND_BUDGET) return { images, fitted: true };
+  for (const tier of IMG_TIER) {
+    try {
+      const next = await Promise.all(images.map(u =>
+        (typeof u === 'string' && u.startsWith('data:image')) ? recompressDataUrl(u, tier.maxSize, tier.quality) : Promise.resolve(u)
+      ));
+      const trial = Object.assign({}, body, { images: next });
+      if (approxBodyBytes(trial) <= IMAGE_SEND_BUDGET) return { images: next, covered: tier, fitted: true };
+    } catch (e) { /* 单张压不动就试下一档 */ }
+  }
+  return { images, fitted: false };
+}
 function compressImage(file, maxSize = 1000, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -5970,9 +6022,11 @@ function renderSubAttachPreview() {
   });
 }
 async function handleAttachFiles(files, pendingArr, renderFn) {
+  let attachedImages = 0;
   for (const file of files) {
     if (file.type.startsWith('image/')) {
-      try { const compressed = await compressImage(file); pendingArr.push({ type:'image', url: compressed, name:file.name }); renderFn(); }
+      if (attachedImages >= MAX_SEND_IMAGES) { showToast(`一条消息最多 ${MAX_SEND_IMAGES} 张图，多了发不出去，剩下的分条发吧`, 3500); continue; }
+      try { const compressed = await compressImage(file); pendingArr.push({ type:'image', url: compressed, name:file.name }); attachedImages++; renderFn(); }
       catch(err) { console.error('图片压缩失败', err); showToast('这张图片处理失败了，换一张试试', 3000); }
     } else if (isTextReadableFile(file)) {
       try {
@@ -6766,6 +6820,27 @@ async function sendChatMain(userMsg) {
       id: userMsg.id, createdAt: userMsg.createdAt, text: userMsg.text, images: userMsg.images, files: userMsg.files,
       quote: userMsg.quote, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg), ...buildSpicyBookclubRequestFields(cfg)
     };
+    // 带图才需要过预算闸；纯文字本来就只有几 KB
+    if (body.images && body.images.length) {
+      gen.onToken();   // 压图要几百毫秒，先把 等待中/已接收 的心跳续上，别让它停在"等待中"
+      const fit = await fitImagesToBudget(body, body.images);
+      if (fit.fitted && fit.covered) { body.images = fit.images; userMsg.images = fit.images; persistMessages(); }
+      else if (!fit.fitted) {
+        // 压到最低档还是塞不进预算：与其发出去撞 11s 静默超时、报一个看不出原因的
+        // "连接失败"，不如现在就说清楚，并把图留在输入框让用户自己拆。此时还没发过
+        // 请求，直接把刚插进去的两条气泡撤掉即可（finally 会跟着把发送按钮恢复）。
+        dropPlaceholderIfEmpty();
+        const idx = messages.findIndex(m => m.id === userMsg.id);
+        if (idx !== -1) messages.splice(idx, 1);
+        const urow = chatScroll.querySelector(`[data-msg-id="${userMsg.id}"]`);
+        if (urow) urow.remove();
+        persistMessages();
+        pendingAttachments = pendingAttachments.concat((userMsg.images || []).map(u => ({ type: 'image', url: u, name: '' })));
+        renderAttachPreview();
+        showToast('这几张图太大了，网络传不动。拆成一条一张分开发吧（图片已经放回输入框）', 5000);
+        return;
+      }
+    }
     const res = await fetch(chatMainUrl('/send'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     const result = await readChatMainSSE(res, (deltaText) => {

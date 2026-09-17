@@ -22,7 +22,7 @@ function getOmbreToken() {
 // index.html 在调用 addMemory/updateMemory 之前，已经把内部分类键(you/us/study/nest/legacy)
 // 转成了中文标签(侧写/共鸣/学业/造巢)，这里收到的 type 参数就是这四个中文标签之一。
 // 真后端没有这个分类维度，借用它的自由分类字段 domain 存这个标签，读回时再从 domain[0] 还原。
-const MEMORY_TYPES = ['侧写', '共鸣', '学业', '造巢'];
+const MEMORY_TYPES = ['侧写', '共鸣', '学业', '造巢', '自我'];
 
 // home source(manual/ai/import) <-> 真后端 created_by(user/ai/import)，只有 manual/user 这一对不同名。
 const SOURCE_TO_CREATED_BY = { manual: 'user', ai: 'ai', import: 'import' };
