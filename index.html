@@ -677,6 +677,20 @@ position: relative; width: 56px; height: 56px; border-radius: 10px;
 overflow: hidden; flex-shrink: 0; background: var(--bg-elevated);
 }
 .attach-thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* 发图阶段 E：选图即上传，角标显示每张图的上传状态（转圈 / 失败可点重传） */
+.attach-badge {
+  position: absolute; left: 2px; bottom: 2px; height: 16px; min-width: 16px; padding: 0 3px;
+  border-radius: 8px; background: rgba(0,0,0,0.55); color: #fff; border: none;
+  font-size: 11px; line-height: 16px; text-align: center; box-sizing: border-box;
+}
+.attach-badge.spin { animation: attachSpin 1.1s linear infinite; }
+@keyframes attachSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.attach-badge.fail { background: rgba(198,58,58,0.9); cursor: pointer; }
+/* 远程图取不到、连缩略图都没有时的兜底外观（照片栈另有加在卡片上的 .load-error） */
+img.img-load-error {
+  min-width: 48px; min-height: 48px; border-radius: 8px;
+  background: var(--bg-elevated); color: var(--text-faint);
+}
 .attach-thumb.file-thumb {
 display: flex; align-items: center; justify-content: center;
 font-size: 10px; color: var(--text-secondary); text-align: center; padding: 4px; word-break: break-all;
@@ -1723,7 +1737,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       </div>
       <div class="space-hint" id="syncMemoryHint">把这台设备本地的记忆推送到 Ombre Brain 云端，按内容去重，不会重复添加。换新设备或怀疑记忆没同步上时点一下。</div>
       <div class="space-btn-row">
-        <button class="space-danger-btn" id="compressImagesBtn">压缩历史图片</button>
+        <button class="space-danger-btn" id="compressImagesBtn">迁移历史图片</button>
       </div>
       <div class="space-hint">把之前发送过的图片重新压缩一遍以节省储存空间，图片显示效果基本不变，此操作不可撤销。</div>
       <input type="file" id="backupImportHidden" accept="application/json">
@@ -2292,15 +2306,21 @@ localStorage 配额通常只有 5-10MB，这些数据会一直增长（尤其是
 很容易触发 QuotaExceededError；IndexedDB 配额通常有几百MB以上，避免"存不下"的问题。
 ============================================================ */
 const IDB_NAME = 'nest_idb';
-const IDB_VERSION = 1;
+// v2（发图阶段 E）：新增 `thumbs` 仓库存 320px 离线兜底缩略图。升级只加仓库、不动 kv。
+const IDB_VERSION = 2;
 const IDB_STORE = 'kv';
+const IDB_STORE_THUMBS = 'thumbs';
 const IDB_KEYS = [LS_MESSAGES, LS_MEMORY, LS_SUBCHATS, LS_PLANS, LS_DIARIES];
 let idbDbPromise = null;
 function openIdb() {
   if (idbDbPromise) return idbDbPromise;
   idbDbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-    req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE); };
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE);
+      // 发图阶段 E：缩略图单独一个仓库，键 = 图片 id（内容 hash），值是 320px 的 dataURL
+      if (!req.result.objectStoreNames.contains(IDB_STORE_THUMBS)) req.result.createObjectStore(IDB_STORE_THUMBS);
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -2321,6 +2341,44 @@ function idbSet(key, value) {
     tx.onerror = () => reject(tx.error);
   }));
 }
+// ============================================================
+// 发图阶段 E（2026-09-18）：本地缩略图仓库
+// 图片搬到服务器之后本地只留一张 320px 缩略图当离线兜底——飞行模式打开时显示缩略图，
+// 而不是一片裂图。键 = 图片 id（内容 hash），和消息里的图片 URL 同源，所以拿到 URL
+// 就能反查（消息对象上的 thumbs 字段丢了也能靠这里补回来）。
+// 所有操作都不抛：渲染路径不能因为 IndexedDB 出问题而炸掉。
+// ============================================================
+const idbThumbCache = new Map();
+let idbThumbsLoaded = false;
+function loadThumbsIntoCache() {
+  if (idbThumbsLoaded) return Promise.resolve(idbThumbCache);
+  return openIdb().then(db => new Promise((resolve) => {
+    let req = null;
+    try { req = db.transaction(IDB_STORE_THUMBS, 'readonly').objectStore(IDB_STORE_THUMBS).openCursor(); }
+    catch (e) { idbThumbsLoaded = true; resolve(idbThumbCache); return; }
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (cur) { idbThumbCache.set(String(cur.key), cur.value); cur.continue(); return; }
+      idbThumbsLoaded = true; resolve(idbThumbCache);
+    };
+    req.onerror = () => { idbThumbsLoaded = true; resolve(idbThumbCache); };
+  })).catch(() => idbThumbCache);
+}
+function idbThumbPut(id, dataUrl) {
+  if (!id || !dataUrl) return Promise.resolve(false);
+  idbThumbCache.set(id, dataUrl);
+  return openIdb().then(db => new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE_THUMBS, 'readwrite');
+      tx.objectStore(IDB_STORE_THUMBS).put(dataUrl, id);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    } catch (e) { resolve(false); }
+  })).catch(() => false);
+}
+// 由图片 URL 反查缩略图；查不到返回 ''
+function thumbForImage(u) { const id = imageIdOf(u); return id ? (idbThumbCache.get(id) || '') : ''; }
+
 async function safeIdbSet(key, value) {
   try { await idbSet(key, value); return true; }
   catch(e) { console.error('IndexedDB存储失败', key, e); showToast('存储失败，数据可能未保存', 4000); return false; }
@@ -4833,7 +4891,7 @@ function buildCollapsedStack(msg, state) {
   for (let i = 0; i < cardCount; i++) {
     const card = document.createElement('div');
     const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async';
-    img.addEventListener('error', () => card.classList.add('load-error'));
+    attachImgFallback(img, '');   // 失败先退回本地缩略图（阶段 E），再失败才标裂图
     img.addEventListener('load', () => card.classList.remove('load-error'));
     card.appendChild(img);
     stack.appendChild(card);
@@ -4846,7 +4904,9 @@ function buildCollapsedStack(msg, state) {
       card.style.transition = withTransition === false ? 'none' : '';
       card.className = 'photo-stack-card' + (i === 0 ? ' front' : ' behind-' + i);
       card.style.transform = ''; card.style.opacity = '';
-      card.querySelector('img').src = msg.images[imgIndex];
+      const cel = card.querySelector('img');
+      cel.dataset.fallback = imgFallbackOf(msg, imgIndex);
+      cel.src = imgSrcOf(msg, imgIndex);
     }
     if (withTransition === false) {
       void stack.offsetWidth;
@@ -4870,7 +4930,10 @@ function buildCollapsedStack(msg, state) {
       swiped.style.transition = reduceMotion ? 'none' : '';
       swiped.className = 'photo-stack-card' + (swipedPos === 0 ? ' front' : ' behind-' + swipedPos);
       swiped.style.transform = ''; swiped.style.opacity = '';
-      swiped.querySelector('img').src = msg.images[(state.index + swipedPos) % total];
+      const sel = swiped.querySelector('img');
+      const sIdx = (state.index + swipePos) % total;
+      sel.dataset.fallback = imgFallbackOf(msg, sIdx);
+      sel.src = imgSrcOf(msg, sIdx);
       cards = others.concat([swiped]);
     }
 
@@ -4924,7 +4987,9 @@ function buildExpandedList(msg) {
   const list = document.createElement('div'); list.className = 'photo-list';
   msg.images.forEach((src, i) => {
     const item = document.createElement('div'); item.className = 'photo-list-item';
-    const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.src = src;
+    const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async';
+    attachImgFallback(img, imgFallbackOf(msg, i));
+    img.src = imgSrcOf(msg, i);
     item.appendChild(img);
     list.appendChild(item);
     if (!reduceMotion) {
@@ -5292,7 +5357,9 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   if (msg.images && msg.images.length > 0) {
     if (msg.images.length === 1) {
       const single = document.createElement('div'); single.className = 'photo-single';
-      const img = document.createElement('img'); img.src = msg.images[0]; img.loading = 'lazy'; img.decoding = 'async';
+      const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async';
+      attachImgFallback(img, imgFallbackOf(msg, 0));
+      img.src = imgSrcOf(msg, 0);
       single.appendChild(img);
       col.appendChild(single);
     } else {
@@ -5973,6 +6040,21 @@ function recompressDataUrl(dataUrl, maxSize, quality) {
     img.onerror = reject; img.src = dataUrl;
   });
 }
+// 阶段 E（2026-09-18）：这个按钮从"就地再压一遍"改成"把历史图片搬到服务器"。
+// 只搬主聊天——副聊天是浏览器直连中转站，链路和失败面都不同，这次不动（见计划「明确不做」）。
+// 可中断：判断依据是"images[i] 还是 base64"，随时关掉下次接着搬；失败的跳过不中断整批。
+async function migrateHistoryImages() {
+  if (!confirm('把所有历史图片搬到服务器上？\n\n搬完之后本地只留小缩略图：手机省空间，发消息也不再卡。图片照样能看，AI 也照样能看见。\n中途关掉没关系，下次接着搬。')) return;
+  const btn = document.getElementById('compressImagesBtn');
+  const originalText = btn.textContent;
+  const total = pendingMigrationTargets().length;
+  if (!total) { showToast('没有需要迁移的图片', 3000); return; }
+  if (imageMigrationRunning) { showToast('正在迁移，稍等一下', 2500); return; }
+  btn.disabled = true; btn.textContent = '迁移中 0/' + total;
+  const r = await migrateImageBatch(0, (done, failed) => { btn.textContent = `迁移中 ${done + failed}/${total}`; }, false);
+  btn.disabled = false; btn.textContent = originalText;
+  showToast(`迁移完成：成功 ${r.done} 张${r.failed ? `，失败 ${r.failed} 张（失败的下次可以再来）` : ''}`, 4000);
+}
 async function compressAllHistoryImages() {
   if (!confirm('将重新压缩所有历史图片以节省空间，操作不可撤销，确定继续？')) return;
   const btn = document.getElementById('compressImagesBtn');
@@ -5996,12 +6078,230 @@ async function compressAllHistoryImages() {
   btn.disabled = false; btn.textContent = originalText;
   showToast(count > 0 ? `已压缩 ${count} 张图片，节省约 ${Math.round(savedBytes / 1024)} KB` : '没有可压缩的图片', 3000);
 }
-document.getElementById('compressImagesBtn').addEventListener('click', compressAllHistoryImages);
+document.getElementById('compressImagesBtn').addEventListener('click', migrateHistoryImages);
+/* ============================================================
+发图阶段 E：图片独立上传（选图即传）—— 2026-09-18
+手机→阿里云上行实测只有 10–49KB/s，而 Caddy 必须把整个 body 收完才肯连上游 Node，
+所以 4 张图 ≈326KB 的那个 body 必然撞上这条链路约 11s 的静默超时（Node 全程不被连接，
+两边日志都查不到，看起来像"根本没发出去"）。
+拆法：选图那一刻就把每张图单独 POST 上去，发消息时 body 里只带几十字节的 URL。
+一趟 ≈330KB 的长请求 → 四趟 ≈80KB 的短请求，每一趟都远在墙内。
+预算 60KB：按最差的 10KB/s 约 6s，留了近一倍余量。
+服务端在调模型前会把 URL 还原成 base64——中转站对 url 形式的图片源是**静默丢弃 + 200**，
+不还原就等于图凭空消失。
+============================================================ */
+const IMG_UPLOAD_BUDGET = 60 * 1024;   // 单张上传前的压缩目标
+const IMG_PUBLIC_BASE = 'https://47-107-161-135.sslip.io/chat-img';
+const IMG_THUMB_MAX = 320;             // 本地离线兜底缩略图的长边
+
+function isRemoteImg(u) { return typeof u === 'string' && /^https?:\/\//i.test(u); }
+// 从图片 URL 里抠出图片 id（服务端 /chat-img/<id> 的那一段），拿不到返回 ''
+function imageIdOf(url) {
+  if (typeof url !== 'string' || !url) return '';
+  let t = url.split('#')[0].split('?')[0];
+  const i = t.indexOf('/chat-img/');
+  if (i !== -1) t = t.slice(i + '/chat-img/'.length);
+  t = t.replace(/^\/+/, '');
+  if (!t || t.indexOf('/') !== -1) return '';
+  return t;
+}
+// 逐档往下压，直到 <= budgetBytes。返回 { dataUrl, fits }
+// 与「迁移历史图片」那条链路共用 IMG_TIER，等级策略只有一份，不会两边漂移。
+async function fitOneImage(dataUrl, budgetBytes) {
+  if (typeof dataUrl !== 'string' || dataUrl.length <= budgetBytes) return { dataUrl, fits: true };
+  let last = dataUrl;
+  for (const tier of IMG_TIER) {
+    try {
+      const next = await recompressDataUrl(dataUrl, tier.maxSize, tier.quality);
+      last = next;
+      if (next.length <= budgetBytes) return { dataUrl: next, fits: true };
+    } catch (e) { /* 这一档压不动就试下一档 */ }
+  }
+  return { dataUrl: last, fits: false };
+}
+function makeThumb(dataUrl) { return recompressDataUrl(dataUrl, IMG_THUMB_MAX, 0.6).catch(() => ''); }
+
+// 上传单张图。成功 { id, url }；失败 null（调用方据此回退到 base64 老路）。
+// 4xx 是确定性失败（图太大 / 格式不对），重试没有意义，直接放弃。
+async function uploadImageToServer(dataUrl, tries) {
+  tries = tries || 3;
+  const cfg = getConfig();
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(chatMainUrl('/image'), {
+        method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify({ dataUrl })
+      });
+      if (res.ok) {
+        const j = await res.json();
+        if (j && j.id && j.url) return j;
+        throw new Error('响应缺少 id/url');
+      }
+      if (res.status >= 400 && res.status < 500) return null;
+      throw new Error('HTTP ' + res.status);
+    } catch (e) {
+      if (i === tries - 1) { console.warn('图片上传失败', e); return null; }
+      await new Promise(r => setTimeout(r, 600 * (i + 1)));
+    }
+  }
+  return null;
+}
+
+// 正在上传的张数（串行上传，所以最多 1，但按通用写法维护）。
+// 发送那一刻如果还有图在传，等它一小会儿再决定走 URL 还是退回 base64。
+let imageUploadsInFlight = 0;
+function waitPendingUploads(ms) {
+  if (!imageUploadsInFlight) return Promise.resolve();
+  const deadline = Date.now() + ms;
+  return new Promise(resolve => {
+    (function tick() {
+      if (!imageUploadsInFlight || Date.now() >= deadline) { resolve(); return; }
+      setTimeout(tick, 150);
+    })();
+  });
+}
+
+// 把一张待发图片压到预算内并传上去，全过程更新 att 的状态（预览角标据此变化）
+async function uploadPendingAttachment(att, renderFn) {
+  imageUploadsInFlight++;
+  att.status = 'uploading';
+  renderFn();
+  try {
+    const fit = await fitOneImage(att.url, IMG_UPLOAD_BUDGET);
+    att.url = fit.dataUrl; att.fits = fit.fits;
+    renderFn();
+    const j = await uploadImageToServer(att.url);
+    if (!j) { att.status = 'failed'; renderFn(); return; }
+    att.id = j.id; att.remoteUrl = j.url; att.status = 'ready';
+    const thumb = await makeThumb(att.url);
+    if (thumb) { att.thumb = thumb; idbThumbPut(j.id, thumb); }
+    renderFn();
+  } catch (e) {
+    console.warn('图片处理/上传异常', e);
+    att.status = 'failed'; renderFn();
+  } finally {
+    imageUploadsInFlight--;
+  }
+}
+
+// 渲染用的取源：能远程就远程；离线时直接给缩略图，避免每张图都先失败一次再回退。
+function imgSrcOf(msg, i) {
+  const remote = msg && msg.images ? msg.images[i] : '';
+  if (typeof remote === 'string' && remote.startsWith('data:')) return remote;   // 迁移前的存量 / 副聊天
+  const saved = (msg && msg.thumbs && msg.thumbs[i]) || thumbForImage(remote);
+  if (navigator.onLine === false && saved) return saved;
+  return remote || saved || '';
+}
+function imgFallbackOf(msg, i) {
+  const remote = msg && msg.images ? msg.images[i] : '';
+  if (typeof remote === 'string' && remote.startsWith('data:')) return '';
+  return (msg && msg.thumbs && msg.thumbs[i]) || thumbForImage(remote) || '';
+}
+// 图片加载失败 → 先退回本地缩略图（只退一次），再失败才标裂图
+function attachImgFallback(img, thumb) {
+  img.dataset.fallback = thumb || '';
+  img.addEventListener('error', () => {
+    const fb = img.dataset.fallback || '';
+    if (fb && img.src !== fb) { img.dataset.fallback = ''; img.src = fb; return; }
+    // 阶段 E：单图/列表的裂图样式由这个类接管（照片栈的 .load-error 是加在卡片上的）
+    img.classList.add('img-load-error');
+  });
+}
+
+/* ---------- 存量迁移（把本地 base64 的图搬到服务器） ---------- */
+function pendingMigrationTargets() {
+  const out = [];
+  for (const m of messages) {
+    if (!m || !Array.isArray(m.images) || !m.images.length) continue;
+    for (let i = 0; i < m.images.length; i++) {
+      const u = m.images[i];
+      if (typeof u === 'string' && u.startsWith('data:image')) out.push({ m, i });
+    }
+  }
+  return out;
+}
+// 搬一张。返回 'ok' | 'fail' | 'skip'。
+// 关键：**只有上传成功、并且 HEAD 确认这个 URL 真能取到东西之后**，才敢改 images[i]——
+// 迁移是不可逆的，宁可这张不动，也不能把图搬丢。
+// 另外上传的是**原始字节**（不重压）：服务端还原出来的 base64 与原样逐字节一致，
+// 所以上下文里这条消息的 prompt 前缀不变，cache 不被打散。
+async function migrateOneImage(t) {
+  const m = t.m, i = t.i;
+  const orig = m.images[i];
+  if (typeof orig !== 'string' || !orig.startsWith('data:image')) return 'skip';
+  let up = orig;
+  // 服务端硬闸 200KB，存量最大 111KB，正常不会走到这里。真超了只能压一下：
+  // 这一张的 prompt 字节会变（该消息的 cache 前缀重写一次），比整张图传不上去强。
+  if (up.length > 190 * 1024) up = (await fitOneImage(up, 190 * 1024)).dataUrl;
+  const j = await uploadImageToServer(up);
+  if (!j) return 'fail';
+  try {
+    const head = await fetch(j.url, { method: 'HEAD' });
+    if (!head.ok) return 'fail';
+  } catch (e) { return 'fail'; }
+  const thumb = await makeThumb(up);
+  if (m.images[i] !== orig) return 'skip';   // 期间被别的标签页改过，别覆盖别人的结果
+  if (thumb) { idbThumbPut(j.id, thumb); m.thumbs = Array.isArray(m.thumbs) ? m.thumbs : []; m.thumbs[i] = thumb; }
+  m.images[i] = j.url;
+  return 'ok';
+}
+let imageMigrationRunning = false;
+// maxCount=0 表示不限量；stopWhenHidden 用于后台自动迁移（切走就停）。
+// 节奏 1 张 / 500ms：给上行链路留口气，也不至于把页面卡住。
+async function migrateImageBatch(maxCount, onProgress, stopWhenHidden) {
+  if (imageMigrationRunning) return { done: 0, failed: 0, skipped: 0 };
+  imageMigrationRunning = true;
+  let done = 0, failed = 0, seen = 0;
+  const targets = pendingMigrationTargets().reverse();   // 近的优先
+  try {
+    for (const t of targets) {
+      if (maxCount && seen >= maxCount) break;
+      if (stopWhenHidden && document.hidden) break;
+      seen++;
+      let r = 'skip';
+      try { r = await migrateOneImage(t); } catch (e) { r = 'fail'; }
+      if (r === 'ok') { done++; persistMessages(); }
+      else if (r === 'fail') failed++;
+      if (onProgress) onProgress(done, failed, seen, targets.length);
+      await new Promise(res => setTimeout(res, 500));
+    }
+  } finally {
+    imageMigrationRunning = false;
+  }
+  return { done, failed, skipped: seen - done - failed };
+}
+let imageAutoMigrationScheduled = false;
+function scheduleImageAutoMigration() {
+  if (imageAutoMigrationScheduled) return;
+  imageAutoMigrationScheduled = true;
+  // 页面开 20s 之后、手头没有正在生成的回复时，悄悄搬最近 5 张。
+  // 判断依据是"这条消息的 images[i] 还是 base64"，所以随时刷新/关页面都只是停下，
+  // 下次打开接着搬，不会因为中断而丢进度。
+  setTimeout(() => {
+    if (mainGenerating || subGenerating || imageMigrationRunning) return;
+    if (!pendingMigrationTargets().length) return;
+    migrateImageBatch(5, null, true);
+  }, 20000);
+}
+
 function renderAttachPreview() {
   attachPreview.innerHTML = '';
   pendingAttachments.forEach((att, idx) => {
     const thumb = document.createElement('div'); thumb.className = 'attach-thumb';
-    if (att.type === 'image') { const img = document.createElement('img'); img.src = att.url; thumb.appendChild(img); }
+    if (att.type === 'image') {
+      const img = document.createElement('img'); img.src = att.url; thumb.appendChild(img);
+      // 上传中转圈；失败变红、可点重传（重传成功前照旧能发，退回 base64 老路）
+      if (att.status === 'uploading') {
+        const b = document.createElement('div'); b.className = 'attach-badge spin'; b.textContent = '◌'; thumb.appendChild(b);
+      } else if (att.status === 'failed') {
+        const b = document.createElement('button'); b.className = 'attach-badge fail'; b.textContent = '↻';
+        b.title = '上传失败，点一下重传';
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (att.status === 'failed') uploadPendingAttachment(att, renderAttachPreview);
+        });
+        thumb.appendChild(b);
+      }
+    }
     else { thumb.classList.add('file-thumb'); thumb.textContent = att.name; }
     const rb = document.createElement('button'); rb.className = 'attach-remove'; rb.textContent = '✕';
     rb.addEventListener('click', () => { pendingAttachments.splice(idx, 1); renderAttachPreview(); });
@@ -6021,12 +6321,19 @@ function renderSubAttachPreview() {
     thumb.appendChild(rb); subAttachPreview.appendChild(thumb);
   });
 }
-async function handleAttachFiles(files, pendingArr, renderFn) {
+async function handleAttachFiles(files, pendingArr, renderFn, onUpload) {
   let attachedImages = 0;
   for (const file of files) {
     if (file.type.startsWith('image/')) {
       if (attachedImages >= MAX_SEND_IMAGES) { showToast(`一条消息最多 ${MAX_SEND_IMAGES} 张图，多了发不出去，剩下的分条发吧`, 3500); continue; }
-      try { const compressed = await compressImage(file); pendingArr.push({ type:'image', url: compressed, name:file.name }); attachedImages++; renderFn(); }
+      try {
+        const compressed = await compressImage(file);
+        const att = { type:'image', url: compressed, name:file.name, id:'', remoteUrl:'', thumb:'', status:'local', fits:true };
+        pendingArr.push(att); attachedImages++; renderFn();
+        // 主聊天传了 onUpload → 选完就传（阶段 E）；副聊天不传 → 保持 base64 直发，行为一字不变。
+        // 一张一张串行：弱网下并发只会让几趟互相抢带宽，每趟都更慢、更容易撞超时。
+        if (onUpload) await uploadPendingAttachment(att, renderFn);
+      }
       catch(err) { console.error('图片压缩失败', err); showToast('这张图片处理失败了，换一张试试', 3000); }
     } else if (isTextReadableFile(file)) {
       try {
@@ -6135,7 +6442,7 @@ document.getElementById('checklistToggleBtn').addEventListener('click', () => {
   openChecklistSheet();
 });
 fileInputHidden.addEventListener('change', async e => {
-  await handleAttachFiles(Array.from(e.target.files), pendingAttachments, renderAttachPreview);
+  await handleAttachFiles(Array.from(e.target.files), pendingAttachments, renderAttachPreview, true);
   fileInputHidden.value = '';
 });
 setupComposerPanels('sub', document.getElementById('subPlusBtn'), document.getElementById('subEmojiToggleBtn'), subFileInputHidden, document.getElementById('subchatTextInput'));
@@ -6822,7 +7129,14 @@ async function sendChatMain(userMsg) {
     };
     // 带图才需要过预算闸；纯文字本来就只有几 KB
     if (body.images && body.images.length) {
-      gen.onToken();   // 压图要几百毫秒，先把 等待中/已接收 的心跳续上，别让它停在"等待中"
+      gen.onToken();   // 压图/上传要几百毫秒到几秒，先把 等待中/已接收 的心跳续上，别停在"等待中"
+      // 阶段 E：还有图没拿到远端 URL 就再等一小会儿（选完图立刻按发送时，上传多半还没跑完）
+      if (body.images.some(u => !isRemoteImg(u))) await waitPendingUploads(6000);
+      if (body.images.every(isRemoteImg)) {
+        // 全部在服务器上：body 只剩几十字节的 URL，一趟几十毫秒，预算闸没有意义，直接发
+        gen.onToken();
+      } else {
+      // 有图没传上去（弱网 / 被服务端拒了）：整条退回阶段一的 base64 + 预算闸路径，行为不比现在差
       const fit = await fitImagesToBudget(body, body.images);
       if (fit.fitted && fit.covered) { body.images = fit.images; userMsg.images = fit.images; persistMessages(); }
       else if (!fit.fitted) {
@@ -6840,6 +7154,7 @@ async function sendChatMain(userMsg) {
         showToast('这几张图太大了，网络传不动。拆成一条一张分开发吧（图片已经放回输入框）', 5000);
         return;
       }
+      }
     }
     const res = await fetch(chatMainUrl('/send'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
@@ -6856,7 +7171,12 @@ async function sendChatMain(userMsg) {
       const { userMessage, aiMessages, usage } = result.payload;
       if (userMessage) {
         const uidx = messages.findIndex(m => m.id === userMsg.id);
-        if (uidx !== -1) messages[uidx] = userMessage;
+        if (uidx !== -1) {
+          // 服务端不认识 thumbs（那是纯本地的离线兜底），回填时别把它丢了
+          const keepThumbs = userMsg.thumbs;
+          messages[uidx] = userMessage;
+          if (keepThumbs && !messages[uidx].thumbs) messages[uidx].thumbs = keepThumbs;
+        }
       }
       const aidx = messages.findIndex(m => m.id === aiMsg.id);
       if (aidx !== -1) messages.splice(aidx, 1);
@@ -7065,9 +7385,22 @@ textInput.addEventListener('input', () => {
 async function sendMessage() {
   const text = textInput.value.trim();
   if (!text && pendingAttachments.length === 0) return;
-  const images = pendingAttachments.filter(a => a.type==='image').map(a => a.url);
+  // 阶段 E：还在传的图先等一小会儿（最多 6s）——传上去了就发 URL，没传上去就用本地那份
+  // 压缩结果走 base64 老路，行为不比现在差。拖久了不如直接发，所以有上限。
+  const attImgs = pendingAttachments.filter(a => a.type==='image');
+  if (attImgs.some(a => a.status === 'uploading')) {
+    // 等的时候**禁用**发送按钮：不能让它看起来可点——再点一下会带着同一批附件
+    // 重入一次 sendMessage，发出去两条一样的消息。
+    showToast('图片上传中，稍等一下…', 2000);
+    updateSendBtnState(sendBtn, false, false);
+    await waitPendingUploads(6000);
+  }
+  const images = attImgs.map(a => a.remoteUrl || a.url);
+  const thumbs = attImgs.map(a => a.thumb || '');
   const files  = pendingAttachments.filter(a => a.type==='file').map(a => ({ name:a.name, text:a.text, truncated:a.truncated }));
   const userMsg = { id: genId(), role:'user', text, images, files, time:timeStr(), createdAt: Date.now(), quote: quotedMain || undefined };
+  // 缩略图只留在本地，不发给服务端（云端那条消息只认 images）
+  if (thumbs.some(Boolean)) userMsg.thumbs = thumbs;
   quotedMain = null; renderQuoteBar('main');
   messages.push(userMsg); persistMessages(); appendMessage(userMsg);
   textInput.value = ''; textInput.style.height = 'auto';
@@ -7497,6 +7830,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadConfig();
   await migrateLocalStorageToIdb();
   await loadMessages();
+  await loadThumbsIntoCache();   // 阶段 E：离线兜底缩略图，必须在首次渲染之前灌好
   await loadMemory();
   await loadSubChats();
   await loadPlans();
@@ -7520,6 +7854,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupViewportKeyboardHandling();
   setupAutoFollowTracking('page-chat');
   setupAutoFollowTracking('page-subchat');
+  scheduleImageAutoMigration();   // 阶段 E：20s 后悄悄搬最近几张存量图（仅空闲时）
 })();
 </script>
 
