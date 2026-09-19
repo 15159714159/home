@@ -376,6 +376,17 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
    点击标题条时正文用高度 FLIP 动画"长出来"，标题条自身的 free time 文字同步淡出
    （营造"折叠标注变形长大"的观感），不是 display 硬切换，细节见 buildWakeSessionCard。 */
 .wake-session-row { display: flex; justify-content: center; margin: 4px 0 10px; }
+/* 多选态：勾选框挂进 header，row 就成了"勾选框 + 卡片"的左右件。卡片原来是 fit-content，
+   旁边多一个 22px 的兄弟节点后要显式给宽（86%，与 .wake-session-note 的 max-width 一致，
+   别写死 px——卡片宽度本来就是按容器百分比算的），否则折叠态下勾选框会被挤出屏幕；
+   justify-content 仍是 center，勾选框靠 note 吃掉的剩余宽度居中。
+   间距 8px 走 header 的 gap——`.msg-select-cb` 的 margin 规则只挂在 .msg-row.user/.ai 下，
+   而 wake 行这两个类都没有。 */
+.wake-session-multiselect .wake-session-note { width: 86%; }
+.wake-session-multiselect .wake-session-header { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+/* 展开态那条 `.wake-session-note.is-expanded { width: 86% }` 写在后面且特异性相同，
+   压不住它（两个类 vs 一个类）；抬成三件套才管用。折叠态是 fit-content，无需处理。 */
+.wake-session-row .wake-session-note.is-expanded { width: 86%; }
 .wake-session-note {
   max-width: 86%; border-radius: 14px; overflow: hidden;
   background: var(--bg-surface); box-shadow: var(--shadow-sm);
@@ -2536,8 +2547,10 @@ function loadChatSettings() {
     ? `已获取 ${cedarToyToolCount} 个4399工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
     : '开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。';
 }
-cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); });
-cfgTempEl.addEventListener('change', () => patchConfig('temp', Number(cfgTempEl.value)));
+// 拖动过程中就同步后端——scheduleAiConfigSync 是 800ms 防抖的，松手前那一串 input 会合并成一次请求，
+// 不会把服务端打出一串写。label 的即时反馈照旧，不受影响。
+cfgTempEl.addEventListener('input', () => { cfgTempVal.textContent = Number(cfgTempEl.value).toFixed(1); patchConfig('temp', Number(cfgTempEl.value)); scheduleAiConfigSync(); });
+cfgTempEl.addEventListener('change', () => { patchConfig('temp', Number(cfgTempEl.value)); scheduleAiConfigSync(); });
 cfgCtxEl.addEventListener('input', () => { cfgCtxVal.textContent = cfgCtxEl.value + '字'; });
 cfgCtxEl.addEventListener('change', () => { patchConfig('ctxLimit', Number(cfgCtxEl.value)); refreshTokenEstimate(); scheduleAiConfigSync(); });
 cfgStreamEl.addEventListener('change', () => patchConfig('stream', cfgStreamEl.checked));
@@ -3138,6 +3151,7 @@ function deleteSelected() {
   const ids = Array.from(selectedIds);
   messages = messages.filter(m => !selectedIds.has(m.id));
   mainRenderStart = null;
+  markDeletedLocally(ids); // 本地先删，云端那次删除请求是异步的，这里登记短期黑名单防止被云端旧窗口复活
   persistMessages(); exitSelectMode();
   chatMainDeleteRequest(ids); // 多选删除只在主聊天可用（打开多选入口本身就限定 ctx === mainCtx），所以这里无条件调用
 }
@@ -3579,7 +3593,10 @@ function scheduleAiConfigSync() {
   clearTimeout(aiConfigSyncTimer);
   aiConfigSyncTimer = setTimeout(async () => {
     const cfg = getConfig();
-    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null, wake_tool_round_limit: cfg.wakeToolRoundLimit || null, wake_prompt_template: (cfg.wakePromptTemplate && cfg.wakePromptTemplate.trim()) || null, cedar_toy_enabled: !!cfg.cedarToyEnabled, spicy_enabled: !!cfg.spicyEnabled, bookclub_enabled: !!cfg.bookclubEnabled, judge_model: (cfg.judgeModel && cfg.judgeModel.trim()) || null };
+    // temperature 一定要带上：garden 的 chatEngine.js 读的就是 cfg.temp（`cfg.temp != null ? cfg.temp : 0.9`），
+    // 不带的话后台所有生成（主聊天/wake/暖手宝）永远按硬编码 0.9 跑，设置页这个滑杆等于只管前端本地。
+    // 依赖 supabase_migration_21.sql 的 ai_config.temperature 列先落地，否则 PostgREST 会整条 400。
+    const payload = { api_key: cfg.key || '', endpoint: cfg.endpoint || '', model: cfg.model || '', persona: appPersona ? appPersona.trim() : '', temperature: cfg.temp != null ? cfg.temp : null, tools_enabled: !!cfg.toolsEnabled, claude_native: !!cfg.claudeNative, ctx_limit: cfg.ctxLimit || 6000, wake_interval_min: cfg.wakeIntervalMin || null, wake_tool_round_limit: cfg.wakeToolRoundLimit || null, wake_prompt_template: (cfg.wakePromptTemplate && cfg.wakePromptTemplate.trim()) || null, cedar_toy_enabled: !!cfg.cedarToyEnabled, spicy_enabled: !!cfg.spicyEnabled, bookclub_enabled: !!cfg.bookclubEnabled, judge_model: (cfg.judgeModel && cfg.judgeModel.trim()) || null };
     const MAX_ATTEMPTS = 3;
     let lastErr = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -3805,7 +3822,7 @@ async function refreshChatsOnResume() {
   chatSyncRefreshing = true;
   try {
     const { data: mainRow } = await window.supabaseChats.getChat('main');
-    if (mainRow) applyCloudMainUpdate(mainRow);
+    if (mainRow) applyCloudMainUpdate(mainRow); // 内部的 filterDeletedLocally 会挡住"云端还没落地这次删除"的旧快照
     await refreshSubChatsFromSupabase();
     onChatSyncDone();
   }
@@ -4278,7 +4295,7 @@ async function initChatSync(attempt = 0) {
   try {
     const { data: mainRow, error } = await window.supabaseChats.getChat('main');
     if (error) { console.warn('Supabase聊天记录状态检查失败，稍后重试', error); retry(); return; }
-    if (mainRow && Array.isArray(mainRow.data)) { messages = mergeCloudTailIntoLocal(messages, mainRow.data); safeIdbSet(LS_MESSAGES, messages); }
+    if (mainRow && Array.isArray(mainRow.data)) { messages = mergeCloudTailIntoLocal(messages, mainRow.data); messages = filterDeletedLocally(messages); safeIdbSet(LS_MESSAGES, messages); }
     subscribeMainChatOnce();
     await refreshSubChatsFromSupabase();
     chatSyncReady = true;
@@ -4301,12 +4318,33 @@ function subscribeMainChatOnce() {
 // 找不到锚点（比如本地历史比云端窗口还短，或者本地暂时是空的）时：本地为空就直接用云端数据；
 // 本地不为空但对不齐，宁可跳过这次合并保持本地不动，也不要用云端这个"尾部窗口"覆盖掉
 // 可能更完整的本地历史——避免重演之前"用旧/不完整数据覆盖本地"的同步事故。
+// 删除的短期粘性(tombstone)：主聊天的云端窗口由后端追加式写入决定，而删除请求是异步 fire-and-forget 的，
+// 这里的两条只读通道（Realtime UPDATE / 回到前台补拉）会把云端整段窗口铺回本地——只要那次请求还没落地，
+// 或者 UPDATE 是删除前的旧快照/重放帧，已删消息就会被原样复活。删除不产生新的 createdAt，
+// 没有任何"新旧"可比，所以按 id 记一个带时限的黑名单，在合并结果里直接滤掉。
+// TTL 取得比事件重放和补拉往返都长，又不至于久到挡住用户后来真正需要的内容。
+const DELETED_ID_TTL_MS = 120000;
+const deletedIdTombstones = new Map(); // id -> 本地删除时刻
+function markDeletedLocally(ids) {
+  const now = Date.now();
+  (ids || []).forEach(id => { if (id) deletedIdTombstones.set(id, now); });
+  for (const [id, t] of deletedIdTombstones) { if (now - t > DELETED_ID_TTL_MS) deletedIdTombstones.delete(id); }
+}
+function filterDeletedLocally(list) {
+  if (!deletedIdTombstones.size || !Array.isArray(list)) return list;
+  const now = Date.now();
+  for (const [id, t] of deletedIdTombstones) { if (now - t > DELETED_ID_TTL_MS) deletedIdTombstones.delete(id); }
+  if (!deletedIdTombstones.size) return list;
+  let changed = false;
+  const out = list.filter(m => { const gone = deletedIdTombstones.has(m.id); if (gone) changed = true; return !gone; });
+  return changed ? out : list;
+}
 function mergeCloudTailIntoLocal(localMessages, cloudMessages) {
   if (!cloudMessages.length) return localMessages;
   const anchorId = cloudMessages[0].id;
   const idx = localMessages.findIndex(m => m.id === anchorId);
-  if (idx !== -1) return [...localMessages.slice(0, idx), ...cloudMessages];
-  if (localMessages.length === 0) return cloudMessages;
+  if (idx !== -1) return filterDeletedLocally([...localMessages.slice(0, idx), ...cloudMessages]);
+  if (localMessages.length === 0) return filterDeletedLocally(cloudMessages);
   console.warn('云端主聊天窗口与本地历史无法对齐，暂不合并（本地未改动）');
   return localMessages;
 }
@@ -4320,7 +4358,7 @@ function applyCloudMainUpdate(row) {
       if (localPlaceholder) nextMessages = [...nextMessages, localPlaceholder];
     }
   }
-  messages = nextMessages;
+  messages = filterDeletedLocally(nextMessages);
   safeIdbSet(LS_MESSAGES, messages);
   mainRenderStart = null;
   renderAllMessages();
@@ -4849,6 +4887,7 @@ function deleteMessage(msg, ctx) {
     const pid = arr.findIndex(m => m.id === activeStreamMsgId);
     if (pid !== -1) arr.splice(pid, 1);
   }
+  markDeletedLocally([msg.id]); // 同上：单条删除同样要防云端旧窗口把它铺回来
   ctx.persist(); ctx.renderAll();
   photoDeckStates.delete(msg.id);
   if (ctx === mainCtx) chatMainDeleteRequest([msg.id]);
@@ -4931,7 +4970,7 @@ function buildCollapsedStack(msg, state) {
       swiped.className = 'photo-stack-card' + (swipedPos === 0 ? ' front' : ' behind-' + swipedPos);
       swiped.style.transform = ''; swiped.style.opacity = '';
       const sel = swiped.querySelector('img');
-      const sIdx = (state.index + swipePos) % total;
+      const sIdx = (state.index + swipedPos) % total;
       sel.dataset.fallback = imgFallbackOf(msg, sIdx);
       sel.src = imgSrcOf(msg, sIdx);
       cards = others.concat([swiped]);
@@ -5146,7 +5185,8 @@ function wakeToolsSummaryText(toolCalls) {
 // 折叠态标题条固定显示"喵喵醒来了"，点击展开时该文字渐隐、换成"free time"渐显，
 // 同时白色正文用高度 FLIP 动画"长出来"（果冻回弹缓动）——整体读作"折叠标注变形长大"，
 // 而不是 display 硬切换；reduced-motion 时退化为直接切换，跳过高度过渡。
-function buildWakeSessionCard(msg) {
+// ctx 是可选的（旧调用点不传也能跑）：只有传了 ctx 且是主聊天 + 多选态时，标题条上才会多一个勾选框。
+function buildWakeSessionCard(msg, ctx) {
   const row = document.createElement('div'); row.className = 'wake-session-row'; row.dataset.msgId = msg.id;
   const note = document.createElement('div'); note.className = 'wake-session-note';
   const startedAt = msg.startedAt != null ? msg.startedAt : msg.createdAt;
@@ -5211,8 +5251,17 @@ function buildWakeSessionCard(msg) {
   body.appendChild(meta);
   bodyWrap.appendChild(body);
 
+  // 多选态（主聊天 + 已进入多选）才挂勾选框：挂在 header 里而不是 row 上，
+  // 因为 row 是"占满整行居中卡片"的容器，直接塞个兄弟节点会跑到卡片外面去。
+  const isMultiSelectable = ctx === mainCtx && selectMode;
+  if (isMultiSelectable) { header.appendChild(buildSelectCb(msg)); row.classList.add('wake-session-multiselect'); }
+
   note.appendChild(header); note.appendChild(bodyWrap);
   row.appendChild(note);
+
+  // 勾选框 pointer-events:none，点它等于点 row——所以多选态下整行（含展开的正文）
+  // 都要能切换选中；否则展开时只有那条 22px 的头部还管用。
+  if (isMultiSelectable) { row.style.cursor = 'pointer'; row.addEventListener('click', () => toggleSelect(msg.id)); }
 
   let expanded = false;
   // 果冻变形：小药丸(fit-content)⇄大卡片(86%宽)用 FLIP 同时动画宽度和正文高度，
@@ -5220,7 +5269,17 @@ function buildWakeSessionCard(msg) {
   // 避免宽度过渡中文字实时换行抖动。
   const SPRING = 'cubic-bezier(.34,1.56,.64,1)';
   header.addEventListener('click', (e) => {
-    e.stopPropagation();
+    e.stopPropagation(); // 多选态下必须留着：不挡的话会冒泡到 row 的 toggleSelect，点一下切两次=没反应
+    if (ctx === mainCtx && selectMode) {
+      toggleSelect(msg.id);
+      if (expanded) { // 顺手把展开的卡片收起来，否则想点勾选框得先往上滚找回那颗药丸
+        expanded = false;
+        note.classList.remove('is-expanded');
+        bodyWrap.style.height = '0'; bodyWrap.style.opacity = '0';
+        body.style.width = ''; note.style.width = ''; bodyWrap.style.width = '';
+      }
+      return; // 多选态里点头部只管选中，不展开/折叠
+    }
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     expanded = !expanded;
     if (reduceMotion) {
@@ -5309,7 +5368,7 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
     if (ctx) attachLongPress(row, msg, ctx); return row;
   }
   if (msg.role === 'wake_session') {
-    return buildWakeSessionCard(msg);
+    return buildWakeSessionCard(msg, ctx); // ctx 别丢：丢了就永远拿不到多选态，勾选框/长按全没有
   }
   const row = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai'); row.dataset.msgId = msg.id;
