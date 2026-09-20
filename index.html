@@ -1940,6 +1940,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="page" id="page-kaleidoscope">
     <div class="kld-view kld-active" id="kld-lobby">
       <div class="kld-header">
+        <button class="kld-back-btn" id="kldLobbyBack">←</button>
         <span class="kld-header-title">万花筒</span>
         <button class="kld-header-btn" id="kldNewBtn" title="新世界">＋</button>
       </div>
@@ -9525,6 +9526,7 @@ async function kldAddKeyword() {
 }
 
 /* --- Event bindings --- */
+document.getElementById('kldLobbyBack').addEventListener('click', () => switchPage('chat'));
 document.getElementById('kldNewBtn').addEventListener('click', () => kldGoSlots());
 document.getElementById('kldEmptyNewBtn').addEventListener('click', () => kldGoSlots());
 document.getElementById('kldSlotsBack').addEventListener('click', () => kldSwitchView('kld-lobby'));
