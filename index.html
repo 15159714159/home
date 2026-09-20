@@ -3998,6 +3998,8 @@ function getConfig() {
   if (!c.studyPagesUrl) c.studyPagesUrl = STUDY_PAGES_URL_DEFAULT;
   if (c.spicyEnabled == null) c.spicyEnabled = false;
   if (c.bookclubEnabled == null) c.bookclubEnabled = false;
+  if (!c.chatServiceKey) c.chatServiceKey = '8a1d110930927d9df8d23b1e8e918e8df7ba0dfce3e7c2c5';
+  if (!c.galateaMcpToken) c.galateaMcpToken = 'gg_H5pvg4yyN6HoHLlwpNoEzdrCfoAz2_MoY7H_uxqveHE';
   return c;
 }
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
@@ -9246,7 +9248,7 @@ function vocabParseForms(exchange) {
 万花筒 (Kaleidoscope) RP 引擎 — 重写版
 ============================================================ */
 const KLD_BASE = () => (typeof CHAT_MAIN_BASE !== 'undefined' ? CHAT_MAIN_BASE.replace('/chat-main', '/rp') : 'https://47-107-161-135.sslip.io/rp');
-const KLD_TOKEN = () => localStorage.getItem('kld_token') || '';
+const KLD_TOKEN = () => localStorage.getItem('kld_token') || '120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6';
 let kldWorlds = [], kldRuns = [], kldKeywords = [], kldCategories = [], kldRedCats = [];
 let kldConfig = null, kldCurrentRun = null, kldCurrentWorld = null;
 let kldSlotTone = 'sfw', kldChosenWords = {}, kldLockedCols = new Set(), kldCurrentDraft = null;
@@ -9275,7 +9277,7 @@ function kldSwitchTab(tabId){
 }
 async function kldOnEnter(){
   kldSwitchView('kld-hub');
-  if(!KLD_TOKEN()){const t=prompt('万花筒 token：');if(t)localStorage.setItem('kld_token',t.trim());else return}
+  if(!KLD_TOKEN()){showToast('万花筒 token 未配置');return}
   try{
     const[wr,rr,cr]=await Promise.all([kldApi('/api/worlds'),kldApi('/api/runs'),kldApi('/api/config')]);
     kldWorlds=wr.worlds||[];kldRuns=rr.runs||[];kldConfig=cr;
