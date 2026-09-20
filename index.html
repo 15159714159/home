@@ -251,6 +251,7 @@ opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s e
 .page.active { opacity: 1; visibility: visible; pointer-events: auto; }
 #page-chat { overflow-x: hidden; }
 #page-diary, #page-space, #page-subchat, #page-log { background: var(--bg-app); }
+#page-kaleidoscope:not(.active) { display:none !important; }
 #page-kaleidoscope {
   --kld-bg: #12121a; --kld-bg-card: #1a1a28; --kld-bg-input: #22222e;
   --kld-text: #d8d8dc; --kld-text-dim: #78788a; --kld-text-faint: #4a4a58;
