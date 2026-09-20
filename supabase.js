@@ -31,19 +31,35 @@ async function api(path, body = {}) {
 }
 
 // === Memory ===
-// 记忆由 Ombre Brain 管理，Supabase memories 表已不可用。
-// 前端 UI 操作全部降级为空/静默失败——不影响 AI 侧记忆功能。
+// 记忆通过 garden-agent 代理到 Ombre Brain。
 const MEMORY_TYPES = ['侧写', '共鸣', '学业', '造巢'];
 
-export async function addMemory() { return { data: null, error: { message: '记忆存储暂不可用' } }; }
-export async function getMemories() { return { data: [], error: null }; }
-export async function searchMemories() { return { data: [], error: null }; }
+export async function addMemory(content, type, importance, flags, source, tags) {
+  return api('/memories', { action: 'add', content, type, importance, flags, source, tags });
+}
+export async function getMemories(type, limit = 500) {
+  const { data, error } = await api('/memories', { action: 'list', limit });
+  if (error) return { data: null, error };
+  const rows = Array.isArray(data) ? data : [];
+  const filtered = type ? rows.filter(r => r.type === type) : rows;
+  const withDecay = filtered.map(m => ({ ...m, decayScore: updateDecay(m.created_at || new Date().toISOString()) }));
+  return { data: withDecay, error: null };
+}
+export async function searchMemories(keyword) {
+  const { data, error } = await api('/memories', { action: 'search', keyword });
+  if (error) return { data: null, error };
+  return { data: Array.isArray(data) ? data : [], error: null };
+}
 export function updateDecay(lastAccessed) {
   const days = (Date.now() - new Date(lastAccessed).getTime()) / 86400000;
   return 1 / (1 + 0.05 * Math.max(days, 0));
 }
-export async function updateMemory() { return { data: null, error: { message: '记忆存储暂不可用' } }; }
-export async function deleteMemory() { return { data: null, error: null }; }
+export async function updateMemory(id, fields) {
+  return api('/memories', { action: 'update', id, fields });
+}
+export async function deleteMemory(id) {
+  return api('/memories', { action: 'delete', id });
+}
 
 // === Diary ===
 export async function addDiary(author, mood, content) {
