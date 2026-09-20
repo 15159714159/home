@@ -2994,7 +2994,7 @@ function loadChatSettings() {
   cedarToyStatusHintEl.textContent = cedarToyToolCount
     ? `已获取 ${cedarToyToolCount} 个4399工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
     : '开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。';
-  if(typeof _loadKldModels==='function')_loadKldModels();
+  loadKldModelConfig();
 }
 // 拖动过程中就同步后端——scheduleAiConfigSync 是 800ms 防抖的，松手前那一串 input 会合并成一次请求，
 // 不会把服务端打出一串写。label 的即时反馈照旧，不受影响。
@@ -3039,40 +3039,78 @@ testStudyConnBtn.addEventListener('click', () => testStudyConnection());
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 fetchCedarToyToolsBtn.addEventListener('click', () => fetchCedarToyTools());
 
-// 万花筒模型设置（复用 fetchModelsInto + 主聊天端点+Key）
-(function(){
-  const pEl=document.getElementById('cfgKldProtagonist'),sEl=document.getElementById('cfgKldSupporting'),wEl=document.getElementById('cfgKldWorldgen');
-  const btn=document.getElementById('cfgKldSaveBtn'),hint=document.getElementById('cfgKldHint');
-  function kldBase(){return (typeof CHAT_MAIN_BASE!=='undefined'?CHAT_MAIN_BASE.replace('/chat-main','/rp'):'https://47-107-161-135.sslip.io/rp')}
-  function kldToken(){return localStorage.getItem('kld_token')||'120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6'}
-  async function kldModelApi(path,body){
-    const url=new URL(kldBase()+path);
-    const opts={method:body?'POST':'GET',headers:{}};
-    if(!body)url.searchParams.set('token',kldToken());
-    if(body){opts.headers['Content-Type']='application/json';const p={...body,token:kldToken()};opts.body=JSON.stringify(p)}
-    const res=await fetch(url,opts);const j=await res.json();if(!res.ok)throw new Error(j.message||res.status);return j;
+// 万花筒模型设置（与 Ombre/Judge 同构：fetchModelsInto 拉列表 + 独立 save 按钮同步后端）
+const cfgKldProtagonistInput = document.getElementById('cfgKldProtagonist');
+const cfgKldSupportingInput = document.getElementById('cfgKldSupporting');
+const cfgKldWorldgenInput = document.getElementById('cfgKldWorldgen');
+const cfgKldSaveBtn = document.getElementById('cfgKldSaveBtn');
+const cfgKldHint = document.getElementById('cfgKldHint');
+
+function kldModelBase() {
+  return (typeof CHAT_MAIN_BASE !== 'undefined' ? CHAT_MAIN_BASE : 'https://47-107-161-135.sslip.io/chat-main').replace('/chat-main', '/rp');
+}
+function kldModelToken() { return localStorage.getItem('kld_token') || '120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6'; }
+
+async function kldModelApi(path, body) {
+  const url = kldModelBase() + path;
+  const token = kldModelToken();
+  if (!body) {
+    const res = await fetch(url + '?token=' + encodeURIComponent(token));
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.message || res.status);
+    return j;
   }
-  window._loadKldModels=async function(){
-    try{const r=await kldModelApi('/api/models');if(r.protagonist)pEl.value=r.protagonist;if(r.supporting)sEl.value=r.supporting;if(r.worldgen)wEl.value=r.worldgen}catch(e){}
-  };
-  [[pEl,'loadKldProtagonistBtn','kldProtagonistDropdown'],
-   [sEl,'loadKldSupportingBtn','kldSupportingDropdown'],
-   [wEl,'loadKldWorldgenBtn','kldWorldgenDropdown']].forEach(([input,btnId,ddId])=>{
-    document.getElementById(btnId).addEventListener('click',()=>{
-      const endpoint=document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-      const key=document.getElementById('cfgKey').value.trim();
-      fetchModelsInto(endpoint,key,input,document.getElementById(ddId),document.getElementById(btnId));
-    });
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, token })
   });
-  btn.addEventListener('click',async()=>{
-    btn.disabled=true;hint.textContent='同步中…';
-    try{
-      await kldModelApi('/api/models',{protagonist:pEl.value.trim(),supporting:sEl.value.trim(),worldgen:wEl.value.trim()});
-      hint.textContent='已同步，后端立即生效。';
-    }catch(e){hint.textContent='同步失败：'+e.message}
-    btn.disabled=false;
-  });
-})();
+  const j = await res.json();
+  if (!res.ok) throw new Error(j.message || res.status);
+  return j;
+}
+
+async function loadKldModelConfig() {
+  try {
+    const r = await kldModelApi('/api/models');
+    if (r.protagonist) cfgKldProtagonistInput.value = r.protagonist;
+    if (r.supporting) cfgKldSupportingInput.value = r.supporting;
+    if (r.worldgen) cfgKldWorldgenInput.value = r.worldgen;
+  } catch (e) { /* 静默：打开设置页时后端不可达不阻塞 */ }
+}
+window._loadKldModels = loadKldModelConfig;
+
+document.getElementById('loadKldProtagonistBtn').addEventListener('click', () => {
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key = document.getElementById('cfgKey').value.trim();
+  fetchModelsInto(endpoint, key, cfgKldProtagonistInput, document.getElementById('kldProtagonistDropdown'), document.getElementById('loadKldProtagonistBtn'));
+});
+document.getElementById('loadKldSupportingBtn').addEventListener('click', () => {
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key = document.getElementById('cfgKey').value.trim();
+  fetchModelsInto(endpoint, key, cfgKldSupportingInput, document.getElementById('kldSupportingDropdown'), document.getElementById('loadKldSupportingBtn'));
+});
+document.getElementById('loadKldWorldgenBtn').addEventListener('click', () => {
+  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+  const key = document.getElementById('cfgKey').value.trim();
+  fetchModelsInto(endpoint, key, cfgKldWorldgenInput, document.getElementById('kldWorldgenDropdown'), document.getElementById('loadKldWorldgenBtn'));
+});
+
+cfgKldSaveBtn.addEventListener('click', async () => {
+  const protagonist = cfgKldProtagonistInput.value.trim();
+  const supporting = cfgKldSupportingInput.value.trim();
+  const worldgen = cfgKldWorldgenInput.value.trim();
+  cfgKldSaveBtn.disabled = true; cfgKldSaveBtn.textContent = '同步中…';
+  try {
+    await kldModelApi('/api/models', { protagonist, supporting, worldgen });
+    cfgKldSaveBtn.textContent = '同步到后端';
+    showToast('万花筒模型已同步');
+  } catch (e) {
+    cfgKldSaveBtn.textContent = '同步到后端';
+    showToast('同步失败：' + e.message, 4000);
+  }
+  cfgKldSaveBtn.disabled = false;
+});
 
 /* ============================================================
 引用回复
@@ -6452,7 +6490,7 @@ function switchPage(pageName) {
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
-  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); }
+  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); loadKldModelConfig(); }
   if (pageName === 'vocab') { vocabOnEnterPage(); }
   if (pageName === 'kaleidoscope') { kldOnEnter(); }
 }
