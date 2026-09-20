@@ -332,7 +332,7 @@ opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s e
 .kld-send-btn.loading .kld-send-icon { animation:kldSpin .8s linear infinite; }
 
 /* --- kld sheet overlay (reuse pattern) --- */
-.kld-sheet { position:fixed; inset:0; background:rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity .25s; z-index:50; display:flex; align-items:flex-end; }
+.kld-sheet { position:absolute; inset:0; background:rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity .25s; z-index:10; display:flex; align-items:flex-end; }
 .kld-sheet.show { opacity:1; pointer-events:auto; }
 .kld-sheet-panel { background:var(--kld-bg-card); width:100%; border-radius:16px 16px 0 0; padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 20px); transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); max-height:70vh; overflow-y:auto; }
 .kld-sheet.show .kld-sheet-panel { transform:translateY(0); }
