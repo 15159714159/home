@@ -251,142 +251,6 @@ opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s e
 .page.active { opacity: 1; visibility: visible; pointer-events: auto; }
 #page-chat { overflow-x: hidden; }
 #page-diary, #page-space, #page-subchat, #page-log { background: var(--bg-app); }
-#page-kaleidoscope:not(.active) { display:none !important; }
-#page-kaleidoscope { background:var(--bg-app); color:var(--text-primary); font-size:14px; line-height:1.6; overflow:hidden; }
-.kld-view { position:absolute; inset:0; overflow-y:auto; -webkit-overflow-scrolling:touch; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s; }
-.kld-view.kld-active { opacity:1; visibility:visible; pointer-events:auto; }
-#kld-room.kld-active { display:flex; flex-direction:column; }
-.kld-hdr { display:flex; align-items:center; padding:calc(env(safe-area-inset-top,0px)+14px) 20px 0; }
-.kld-hdr-back,.kld-hdr-plus { background:none; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer; padding:4px; }
-.kld-hdr-plus { margin-left:auto; }
-.kld-title { font-size:24px; font-weight:700; margin:6px 20px 0; }
-.kld-subtitle { font-size:13px; color:var(--text-secondary); margin:2px 20px 14px; }
-/* tabs */
-.kld-tabs { display:flex; gap:20px; padding:0 20px; border-bottom:1px solid var(--border-color); }
-.kld-tab { padding:8px 0 10px; font-size:14px; color:var(--text-faint); cursor:pointer; border-bottom:2px solid transparent; transition:color .15s; }
-.kld-tab.active { color:var(--text-primary); border-bottom-color:var(--text-primary); }
-.kld-tab-body { display:none; }
-.kld-tab-body.active { display:block; }
-/* filter chips */
-.kld-chips { display:flex; gap:8px; padding:14px 20px 8px; }
-.kld-chip { padding:5px 14px; border-radius:16px; font-size:12px; background:var(--bg-subtle); color:var(--text-secondary); cursor:pointer; border:none; transition:all .15s; }
-.kld-chip.active { background:var(--accent); color:var(--accent-text); }
-/* world cards */
-.kld-cards { padding:6px 20px 20px; }
-.kld-card { background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:16px; margin-bottom:10px; cursor:pointer; display:flex; gap:12px; transition:background .12s; }
-.kld-card:active { background:var(--bg-hover); }
-.kld-card-body { flex:1; min-width:0; }
-.kld-card-name { font-size:15px; font-weight:600; margin-bottom:4px; }
-.kld-card-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.kld-card-foot { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
-.kld-card-tag { font-size:11px; padding:2px 8px; border-radius:10px; background:var(--bg-subtle); color:var(--text-secondary); }
-.kld-card-right { display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; flex-shrink:0; }
-.kld-hue-dot { width:10px; height:10px; border-radius:50%; }
-.kld-card-visits { font-size:11px; color:var(--text-faint); white-space:nowrap; }
-.kld-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px; gap:14px; color:var(--text-faint); }
-/* slots grid */
-.kld-tone-bar { display:flex; gap:8px; padding:14px 20px 6px; align-items:center; }
-.kld-tone-btn { padding:4px 14px; border-radius:14px; font-size:12px; border:none; cursor:pointer; background:var(--bg-subtle); color:var(--text-secondary); }
-.kld-tone-btn.active { background:var(--accent); color:var(--accent-text); }
-.kld-tone-hint { font-size:11px; color:var(--text-faint); padding:0 20px 10px; }
-.kld-slot-grid { padding:10px 20px; }
-.kld-slot-row { display:flex; gap:8px; margin-bottom:10px; }
-.kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,60,60,0.08); }
-html.dark .kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,80,80,0.12); }
-.kld-slot-box { flex:1; min-width:0; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:10px; padding:10px 8px; text-align:center; cursor:pointer; position:relative; transition:border-color .15s; }
-.kld-slot-box.locked { border-color:var(--text-faint); }
-.kld-slot-cat { font-size:10px; color:var(--text-faint); margin-bottom:4px; display:flex; align-items:center; justify-content:center; gap:4px; }
-.kld-slot-lock { font-size:9px; opacity:0.5; }
-.kld-slot-word { font-size:13px; color:var(--text-primary); min-height:20px; overflow:hidden; position:relative; }
-.kld-slot-word span { display:block; transition:transform .1s,opacity .1s; }
-.kld-roll-bar { padding:16px 20px; }
-.kld-btn-full { display:block; width:100%; padding:13px; border-radius:12px; font-size:14px; font-weight:500; border:none; cursor:pointer; background:var(--accent); color:var(--accent-text); transition:transform .1s; }
-.kld-btn-full:active { transform:scale(0.98); }
-.kld-btn-full:disabled { opacity:0.4; }
-.kld-btn-outline { background:transparent; border:1px solid var(--border-color); color:var(--text-primary); }
-.kld-roll-preview { padding:10px 20px; font-size:13px; color:var(--text-secondary); line-height:1.6; }
-.kld-roll-actions { display:flex; gap:10px; padding:0 20px 20px; }
-.kld-roll-actions .kld-btn-full { flex:1; }
-.kld-roll-hint { font-size:11px; color:var(--text-faint); padding:0 20px 16px; text-align:center; }
-/* room */
-.kld-room-hdr { display:flex; align-items:center; padding:calc(env(safe-area-inset-top,0px)+10px) 16px 8px; gap:8px; flex-shrink:0; }
-.kld-room-back { background:none; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer; padding:4px; }
-.kld-room-info { flex:1; text-align:center; }
-.kld-room-title { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kld-room-meta { font-size:11px; color:var(--text-faint); }
-.kld-room-gear { background:none; border:none; color:var(--text-faint); font-size:16px; cursor:pointer; padding:4px; }
-.kld-msgs { flex:1; overflow-y:auto; padding:8px 16px 16px; -webkit-overflow-scrolling:touch; }
-.kld-msg { margin-bottom:12px; }
-@keyframes kldIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-.kld-msg.anim { animation:kldIn .3s ease; }
-.kld-msg-narration { text-align:center; font-size:12px; color:var(--text-faint); padding:6px 24px; line-height:1.6; }
-.kld-msg-npc { text-align:center; font-size:12px; color:var(--text-faint); padding:4px 24px; }
-.kld-npc-name { display:inline-block; font-size:10px; color:var(--text-secondary); background:var(--bg-subtle); padding:1px 8px; border-radius:8px; margin-bottom:2px; }
-.kld-msg-system { text-align:center; font-size:11px; color:var(--text-faint); }
-.kld-msg-char,.kld-msg-user { display:flex; }
-.kld-bubble { max-width:80%; padding:10px 14px; border-radius:14px; font-size:13.5px; line-height:1.7; word-break:break-word; }
-.kld-msg-char { justify-content:flex-start; }
-.kld-msg-char .kld-bubble { background:var(--bg-surface); border:1px solid var(--border-color); }
-.kld-msg-user { justify-content:flex-end; }
-.kld-msg-user .kld-bubble { background:var(--bg-subtle); }
-.kld-input-bar { display:flex; align-items:center; gap:8px; padding:8px 14px calc(env(safe-area-inset-bottom,0px)+10px); flex-shrink:0; border-top:1px solid var(--border-color); }
-.kld-narrate-btn { background:none; border:none; color:var(--text-faint); font-size:18px; cursor:pointer; padding:4px; }
-.kld-input { flex:1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:20px; padding:8px 14px; color:var(--text-primary); font-size:13px; outline:none; font-family:inherit; }
-.kld-input::placeholder { color:var(--text-faint); }
-.kld-send-btn { width:34px; height:34px; border-radius:50%; background:var(--accent); color:var(--accent-text); display:flex; align-items:center; justify-content:center; font-size:15px; border:none; cursor:pointer; }
-.kld-send-btn:disabled { opacity:0.35; }
-@keyframes kldSpin { to{transform:rotate(360deg)} }
-.kld-send-btn.loading .kld-send-icon { animation:kldSpin .7s linear infinite; }
-/* sheets & modal */
-.kld-sheet { position:absolute; inset:0; background:rgba(0,0,0,0.4); opacity:0; pointer-events:none; transition:opacity .2s; z-index:10; display:flex; align-items:flex-end; }
-.kld-sheet.show { opacity:1; pointer-events:auto; }
-.kld-sheet-panel { background:var(--bg-surface); width:100%; border-radius:16px 16px 0 0; padding:24px 20px calc(env(safe-area-inset-bottom,0px)+24px); transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); max-height:80vh; overflow-y:auto; }
-.kld-sheet.show .kld-sheet-panel { transform:translateY(0); }
-.kld-sheet-name { font-size:18px; font-weight:600; margin-bottom:2px; }
-.kld-sheet-tone { font-size:12px; color:var(--text-faint); margin-bottom:12px; }
-.kld-sheet-section { font-size:11px; color:var(--text-faint); margin:14px 0 4px; }
-.kld-sheet-text { font-size:13px; line-height:1.7; color:var(--text-secondary); }
-.kld-sheet-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
-.kld-sheet-tag { font-size:11px; padding:3px 10px; border-radius:10px; background:var(--bg-subtle); color:var(--text-secondary); }
-.kld-sheet-btns { display:flex; gap:10px; margin-top:18px; }
-.kld-sheet-btns button { flex:1; padding:12px; border-radius:10px; font-size:13px; cursor:pointer; border:1px solid var(--border-color); background:var(--bg-surface); color:var(--text-secondary); }
-.kld-sheet-primary { display:block; width:100%; padding:14px; border-radius:12px; font-size:15px; font-weight:500; border:none; cursor:pointer; margin-top:12px; background:var(--accent); color:var(--accent-text); }
-/* config panel */
-.kld-config-title { font-size:18px; font-weight:600; margin-bottom:16px; }
-.kld-config-label { font-size:12px; color:var(--text-faint); margin-bottom:6px; }
-.kld-config-opts { display:flex; gap:10px; margin-bottom:16px; }
-.kld-config-opt { flex:1; padding:14px 10px; border-radius:10px; border:1px solid var(--border-color); background:var(--bg-surface); cursor:pointer; text-align:center; transition:border-color .15s; }
-.kld-config-opt.active { border-color:var(--text-primary); }
-.kld-config-opt-main { font-size:14px; font-weight:500; }
-.kld-config-opt-sub { font-size:11px; color:var(--text-faint); margin-top:2px; }
-/* editor modal */
-.kld-modal { position:absolute; inset:0; background:var(--bg-app); z-index:20; overflow-y:auto; -webkit-overflow-scrolling:touch; opacity:0; pointer-events:none; transition:opacity .2s; }
-.kld-modal.show { opacity:1; pointer-events:auto; }
-.kld-modal-hdr { display:flex; align-items:center; padding:calc(env(safe-area-inset-top,0px)+12px) 16px 10px; }
-.kld-modal-close { background:none; border:none; font-size:22px; color:var(--text-secondary); cursor:pointer; padding:4px 8px; }
-.kld-modal-title { flex:1; text-align:center; font-size:15px; font-weight:600; }
-.kld-form { padding:0 20px 40px; }
-.kld-form label { display:block; font-size:12px; color:var(--text-faint); margin:14px 0 4px; }
-.kld-form input,.kld-form textarea { display:block; width:100%; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:10px; padding:10px 12px; color:var(--text-primary); font-size:13px; font-family:inherit; outline:none; resize:vertical; }
-.kld-form textarea { min-height:80px; }
-.kld-form input::placeholder,.kld-form textarea::placeholder { color:var(--text-faint); }
-.kld-hue-grid { display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; }
-.kld-hue-dot-pick { width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:border-color .12s; }
-.kld-hue-dot-pick.active { border-color:var(--text-primary); }
-/* run card (航迹) */
-.kld-run-card { background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:background .12s; }
-.kld-run-card:active { background:var(--bg-hover); }
-.kld-run-top { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.kld-run-name { font-size:14px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kld-run-badge { font-size:11px; color:var(--text-faint); }
-.kld-run-line { font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kld-run-date { font-size:11px; color:var(--text-faint); margin-top:4px; }
-/* summary */
-.kld-sum-hdr { padding:calc(env(safe-area-inset-top,0px)+14px) 20px 0; display:flex; align-items:center; gap:8px; }
-.kld-sum-title { font-size:18px; font-weight:600; margin:10px 20px 2px; }
-.kld-sum-meta { font-size:12px; color:var(--text-faint); margin:0 20px 16px; }
-.kld-sum-card { background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; margin:0 20px 14px; padding:16px; font-size:13px; line-height:1.7; color:var(--text-secondary); }
-.kld-sum-setting { padding:0 20px; font-size:13px; line-height:1.7; color:var(--text-secondary); margin-bottom:20px; }
 .page-placeholder {
 height: 100%; display: flex; align-items: center; justify-content: center;
 color: var(--text-faint); font-size: 14px;
@@ -1596,39 +1460,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   #page-vocab .vocab-preview-item input[type=checkbox] { width:16px; height:16px; accent-color: var(--mint); }
   #page-vocab .vocab-preview-word { font-family:var(--serif); font-size:14px; color:var(--ink); }
   #page-vocab .vocab-empty { text-align:center; padding:40px 20px; font-family:var(--serif); font-style:italic; color:var(--faint); font-size:13.5px; }
-
-  /* ── Artifact 卡片 + Overlay ── */
-  .artifact-card { cursor:pointer; margin:8px 0; border-radius:12px; overflow:hidden; border:1px solid rgba(var(--shadow),.15); background:rgba(var(--shadow),.04); transition:transform .15s ease, box-shadow .15s ease; animation:artifactSlideUp .35s cubic-bezier(.32,.72,.37,1.02) both; }
-  .artifact-card:hover { box-shadow:0 2px 12px rgba(var(--shadow),.1); }
-  .artifact-card:active { transform:scale(.97); }
-  .artifact-card-inner { display:flex; align-items:center; gap:12px; padding:12px 14px; }
-  .artifact-card-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; background:rgba(var(--shadow),.08); }
-  .artifact-card-info { flex:1; min-width:0; }
-  .artifact-card-title { font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .artifact-card-meta { font-size:11.5px; color:var(--faint); margin-top:2px; }
-  .artifact-card-preview { height:120px; border-top:1px solid rgba(var(--shadow),.1); overflow:hidden; position:relative; pointer-events:none; }
-  .artifact-card-preview iframe { width:100%; height:300px; border:none; transform:scale(.4); transform-origin:top left; width:250%; }
-  .artifact-card.generating .artifact-card-preview { display:none; }
-  .artifact-card.generating .artifact-card-meta::after { content:''; display:inline-block; width:4px; height:4px; border-radius:50%; background:var(--faint); margin-left:6px; animation:artifactDot 1.2s infinite; }
-  @keyframes artifactDot { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
-  @keyframes artifactSlideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-
-  .artifact-overlay { position:fixed; inset:0; z-index:9999; background:var(--bg,#fff); display:flex; flex-direction:column; transform:translateY(100%); transition:transform .32s cubic-bezier(.32,.72,.37,1.02); will-change:transform; }
-  .artifact-overlay.open { transform:translateY(0); }
-  .artifact-overlay-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(var(--shadow),.12); flex-shrink:0; }
-  .artifact-overlay-title { flex:1; font-size:14px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .artifact-overlay-btn { background:none; border:1px solid rgba(var(--shadow),.15); border-radius:8px; padding:5px 10px; font-size:12px; color:var(--ink); cursor:pointer; }
-  .artifact-overlay-btn:active { opacity:.6; }
-  .artifact-overlay-close { background:none; border:none; font-size:22px; color:var(--faint); cursor:pointer; padding:0 4px; }
-  .artifact-overlay-body { flex:1; overflow:hidden; }
-  .artifact-overlay-body iframe { width:100%; height:100%; border:none; }
-  .artifact-version-bar { display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--faint); }
-  .artifact-version-bar button { background:none; border:none; font-size:16px; color:var(--faint); cursor:pointer; padding:0 2px; }
-  .artifact-version-bar button:disabled { opacity:.3; }
-
-  html.dark .artifact-card { border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.05); }
-  html.dark .artifact-card-icon { background:rgba(255,255,255,.1); }
-  html.dark .artifact-overlay { background:var(--bg,#1a1a1a); }
 </style>
 </head>
 <body>
@@ -1671,7 +1502,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
   <div class="side-nav-item" data-nav="diary">日记</div>
   <div class="side-nav-item" id="chatThemeLink">聊天主题</div>
   <div class="side-nav-item" data-nav="space">Space</div>
-  <div class="side-nav-item" data-nav="kaleidoscope">万花筒</div>
   <div class="side-nav-item" data-nav="vocab">背单词</div>
   <div class="side-divider"></div>
   <div class="side-nav-item" id="ombreBrainLink">Ombre Brain</div>
@@ -1854,31 +1684,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint">主聊天已改为由后端 garden-agent 统一处理，这里的密钥用于向它发起请求的身份验证，只保存在本机浏览器里。</div>
 
       <div class="space-divider"></div>
-      <div class="space-section-title">万花筒模型</div>
-      <div class="space-label">主角（protagonist）</div>
-      <div class="model-row">
-        <input class="space-input" id="cfgKldProtagonist" type="text" placeholder="输入或从列表选择">
-        <button class="load-model-btn" id="loadKldProtagonistBtn">获取列表</button>
-      </div>
-      <div id="kldProtagonistDropdown"></div>
-      <div class="space-label">配角（supporting）</div>
-      <div class="model-row">
-        <input class="space-input" id="cfgKldSupporting" type="text" placeholder="输入或从列表选择">
-        <button class="load-model-btn" id="loadKldSupportingBtn">获取列表</button>
-      </div>
-      <div id="kldSupportingDropdown"></div>
-      <div class="space-label">世界生成（worldgen）</div>
-      <div class="model-row">
-        <input class="space-input" id="cfgKldWorldgen" type="text" placeholder="输入或从列表选择">
-        <button class="load-model-btn" id="loadKldWorldgenBtn">获取列表</button>
-      </div>
-      <div id="kldWorldgenDropdown"></div>
-      <div class="space-btn-row">
-        <button class="space-save-btn" id="cfgKldSaveBtn">同步到后端</button>
-      </div>
-      <div class="space-hint" id="cfgKldHint">端点和 Key 复用主聊天的。获取列表→选模型→点同步，后端立即生效。</div>
-
-      <div class="space-divider"></div>
       <div class="space-section-title">书房</div>
       <input class="space-input" id="cfgStudyWorkerUrl" type="text" placeholder="书房 Worker 网址（用于连接检测）">
       <input class="space-input" id="cfgStudyPagesUrl" type="text" placeholder="书房入口网址（点击前往会打开这个）">
@@ -2007,76 +1812,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
         <div id="vocabNotebookList"></div>
       </div>
     </div>
-  </div>
-  <div class="page" id="page-kaleidoscope">
-    <div class="kld-view kld-active" id="kld-hub">
-      <div class="kld-hdr"><button class="kld-hdr-back" id="kldBack">&lt;</button><button class="kld-hdr-plus" id="kldPlusBtn">+</button></div>
-      <div class="kld-title">万花筒</div>
-      <div class="kld-subtitle">转一下，就是另一个我们</div>
-      <div class="kld-tabs" id="kldTabs">
-        <div class="kld-tab active" data-tab="worlds">我的世界 <span id="kldWorldCount"></span></div>
-        <div class="kld-tab" data-tab="slots">随机世界</div>
-        <div class="kld-tab" data-tab="history">航迹</div>
-      </div>
-      <div class="kld-tab-body active" id="kld-tab-worlds">
-        <div class="kld-chips" id="kldFilterChips">
-          <button class="kld-chip active" data-tone="">全部</button>
-          <button class="kld-chip" data-tone="nsfw">黄</button>
-          <button class="kld-chip" data-tone="sfw">清水</button>
-        </div>
-        <div class="kld-cards" id="kldWorldCards"></div>
-        <div class="kld-empty" id="kldWorldEmpty" style="display:none">
-          <div style="font-size:13px">还没有世界</div>
-          <button class="kld-btn-full" style="width:auto;padding:10px 28px" onclick="kldSwitchTab('slots')">摇一个</button>
-        </div>
-      </div>
-      <div class="kld-tab-body" id="kld-tab-slots">
-        <div class="kld-tone-bar">
-          <button class="kld-tone-btn active" data-tone="sfw">清水</button>
-          <button class="kld-tone-btn" data-tone="nsfw">黄</button>
-        </div>
-        <div class="kld-tone-hint" id="kldToneHint"></div>
-        <div class="kld-slot-grid" id="kldSlotGrid"></div>
-        <div class="kld-roll-hint">点格子重摇该列；点上面的锁把它钉住</div>
-        <div class="kld-roll-bar"><button class="kld-btn-full" id="kldRollBtn">再摇一次</button></div>
-        <div id="kldRollResult" style="display:none">
-          <div class="kld-roll-preview" id="kldRollPreview"></div>
-          <div class="kld-roll-actions">
-            <button class="kld-btn-full" id="kldWriteBtn">把它写出来</button>
-            <button class="kld-btn-full kld-btn-outline" id="kldSaveWordsBtn">只存这几个词</button>
-          </div>
-        </div>
-      </div>
-      <div class="kld-tab-body" id="kld-tab-history">
-        <div class="kld-cards" id="kldRunCards" style="padding-top:14px"></div>
-        <div class="kld-empty" id="kldRunEmpty" style="display:none"><div style="font-size:13px">还没走过</div></div>
-      </div>
-    </div>
-    <div class="kld-view" id="kld-room">
-      <div class="kld-room-hdr">
-        <button class="kld-room-back" id="kldRoomBack">&lt;</button>
-        <div class="kld-room-info"><div class="kld-room-title" id="kldRoomTitle"></div><div class="kld-room-meta" id="kldRoomMeta"></div></div>
-        <button class="kld-room-gear" id="kldRoomGear" style="font-size:14px">&#9881;</button>
-      </div>
-      <div class="kld-msgs" id="kldMsgs"></div>
-      <div class="kld-input-bar">
-        <button class="kld-narrate-btn" id="kldNarBtn" title="旁白">&#x1F514;</button>
-        <input class="kld-input" id="kldInput" placeholder="说点什么…（打【停】出戏）">
-        <button class="kld-send-btn" id="kldSendBtn"><span class="kld-send-icon">&#8593;</span></button>
-      </div>
-    </div>
-    <div class="kld-view" id="kld-summary">
-      <div class="kld-sum-hdr"><button class="kld-room-back" id="kldSumBack">&lt;</button></div>
-      <div class="kld-sum-title" id="kldSumTitle"></div>
-      <div class="kld-sum-meta" id="kldSumMeta"></div>
-      <div class="kld-sum-card" id="kldSumDigest"></div>
-      <div class="kld-sum-setting" id="kldSumSetting"></div>
-      <div style="padding:0 20px 40px"><button class="kld-btn-full" id="kldSumContinue">继续这一趟</button></div>
-    </div>
-    <div class="kld-sheet" id="kldDetailSheet" onclick="if(event.target===this)this.classList.remove('show')"><div class="kld-sheet-panel" id="kldDetailPanel"></div></div>
-    <div class="kld-sheet" id="kldConfigSheet" onclick="if(event.target===this)this.classList.remove('show')"><div class="kld-sheet-panel" id="kldConfigPanel"></div></div>
-    <div class="kld-sheet" id="kldRoomSheet" onclick="if(event.target===this)this.classList.remove('show')"><div class="kld-sheet-panel" id="kldRoomPanel"></div></div>
-    <div class="kld-modal" id="kldEditorModal"><div id="kldEditorContent"></div></div>
   </div>
 </div>
 
@@ -2333,189 +2068,6 @@ window.addEventListener('message', (e) => {
   if (frame) frame.style.height = Math.min(Math.max(e.data.__htmlEmbedHeight + 4, 60), 600) + 'px';
 });
 marked.setOptions({ breaks: true, renderer: chatRenderer });
-
-/* ============================================================
-   Artifact 系统：解析、存储、卡片渲染、全屏 overlay、版本管理
-   ============================================================ */
-const ARTIFACT_RE = /<artifact\s+([^>]*)>([\s\S]*?)<\/artifact>/gi;
-const ARTIFACT_EDIT_RE = /<artifact-edit\s+([^>]*)>([\s\S]*?)<\/artifact-edit>/gi;
-const ARTIFACT_ATTR_RE = /(\w[\w-]*)="([^"]*)"/g;
-
-const artifactCache = {};  // identifier -> { title, type, versions:[], currentVersion }
-
-function parseArtifactAttrs(attrStr) {
-  const attrs = {};
-  let m; while ((m = ARTIFACT_ATTR_RE.exec(attrStr))) attrs[m[1]] = m[2];
-  ARTIFACT_ATTR_RE.lastIndex = 0;
-  return attrs;
-}
-
-function parseArtifactEdits(body) {
-  const edits = [];
-  const searchRe = /<search>([\s\S]*?)<\/search>/gi;
-  const replaceRe = /<replace>([\s\S]*?)<\/replace>/gi;
-  let s, r;
-  while ((s = searchRe.exec(body)) && (r = replaceRe.exec(body))) {
-    edits.push({ search: s[1], replace: r[1] });
-  }
-  return edits;
-}
-
-async function artifactApiCall(action, body) {
-  try {
-    const base = typeof CHAT_MAIN_BASE !== 'undefined' ? CHAT_MAIN_BASE : 'https://47-107-161-135.sslip.io/chat-main';
-    const key = (getConfig() || {}).chatServiceKey || '';
-    const resp = await fetch(base + '/artifact/' + action, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify(body)
-    });
-    return await resp.json();
-  } catch (e) { console.warn('[artifact]', action, 'failed:', e); return { ok: false, error: e.message }; }
-}
-
-async function processArtifactCreate(attrs, content) {
-  const id = attrs.identifier;
-  if (!id) return;
-  const result = await artifactApiCall('create', { identifier: id, title: attrs.title || '', type: attrs.type || 'text/html', content });
-  if (result.ok || result.version) {
-    if (!artifactCache[id]) artifactCache[id] = { title: attrs.title || id, type: attrs.type || 'text/html', versions: [], currentVersion: 0 };
-    artifactCache[id].currentVersion = result.version;
-    artifactCache[id].title = attrs.title || artifactCache[id].title;
-    artifactCache[id].versions[result.version] = content;
-  }
-  return result;
-}
-
-async function processArtifactEdit(attrs, edits) {
-  const id = attrs.identifier;
-  if (!id || !edits.length) return;
-  return await artifactApiCall('edit', { identifier: id, edits });
-}
-
-function extractArtifacts(text) {
-  const parts = [];
-  let lastIdx = 0;
-  const allMatches = [];
-  let m;
-  ARTIFACT_RE.lastIndex = 0;
-  while ((m = ARTIFACT_RE.exec(text))) allMatches.push({ idx: m.index, end: m.index + m[0].length, type: 'create', attrs: parseArtifactAttrs(m[1]), content: m[2].trim(), raw: m[0] });
-  ARTIFACT_EDIT_RE.lastIndex = 0;
-  while ((m = ARTIFACT_EDIT_RE.exec(text))) allMatches.push({ idx: m.index, end: m.index + m[0].length, type: 'edit', attrs: parseArtifactAttrs(m[1]), edits: parseArtifactEdits(m[2]), raw: m[0] });
-  allMatches.sort((a, b) => a.idx - b.idx);
-  for (const match of allMatches) {
-    if (match.idx > lastIdx) parts.push({ type: 'text', content: text.slice(lastIdx, match.idx) });
-    parts.push(match);
-    lastIdx = match.end;
-  }
-  if (lastIdx < text.length) parts.push({ type: 'text', content: text.slice(lastIdx) });
-  return parts;
-}
-
-function buildArtifactCard(identifier, generating) {
-  const cached = artifactCache[identifier] || { title: identifier, type: 'text/html', currentVersion: 0 };
-  const card = document.createElement('div');
-  card.className = 'artifact-card' + (generating ? ' generating' : '');
-  card.dataset.artifactId = identifier;
-  const typeIcon = cached.type === 'image/svg+xml' ? '🎨' : cached.type === 'text/markdown' ? '📄' : '🌐';
-  const vLabel = cached.currentVersion ? 'v' + cached.currentVersion : '';
-  card.innerHTML = '<div class="artifact-card-inner">'
-    + '<div class="artifact-card-icon">' + typeIcon + '</div>'
-    + '<div class="artifact-card-info">'
-    + '<div class="artifact-card-title">' + escapeCodeHtml(cached.title) + '</div>'
-    + '<div class="artifact-card-meta">' + escapeCodeHtml(identifier) + (vLabel ? ' · ' + vLabel : '') + (generating ? ' · 生成中' : '') + '</div>'
-    + '</div></div>';
-  if (!generating && cached.versions && cached.versions[cached.currentVersion]) {
-    const preview = document.createElement('div');
-    preview.className = 'artifact-card-preview';
-    const iframe = document.createElement('iframe');
-    iframe.sandbox = 'allow-scripts';
-    iframe.srcdoc = cached.versions[cached.currentVersion];
-    preview.appendChild(iframe);
-    card.appendChild(preview);
-  }
-  if (!generating) card.addEventListener('click', () => openArtifactOverlay(identifier));
-  return card;
-}
-
-/* ── Artifact Overlay ── */
-let currentOverlayArtifact = null;
-let overlayShowingCode = false;
-
-function openArtifactOverlay(identifier) {
-  currentOverlayArtifact = identifier;
-  overlayShowingCode = false;
-  const overlay = document.getElementById('artifactOverlay');
-  const cached = artifactCache[identifier];
-  if (!cached) return;
-  document.getElementById('artifactOverlayTitle').textContent = cached.title || identifier;
-  updateArtifactVersionBar();
-  renderArtifactOverlayContent();
-  requestAnimationFrame(() => overlay.classList.add('open'));
-}
-
-function closeArtifactOverlay() {
-  const overlay = document.getElementById('artifactOverlay');
-  overlay.classList.remove('open');
-  setTimeout(() => { document.getElementById('artifactOverlayBody').innerHTML = ''; currentOverlayArtifact = null; }, 350);
-}
-
-function renderArtifactOverlayContent() {
-  const body = document.getElementById('artifactOverlayBody');
-  const cached = artifactCache[currentOverlayArtifact];
-  if (!cached) return;
-  const content = cached.versions[cached.currentVersion] || '';
-  body.innerHTML = '';
-  if (overlayShowingCode) {
-    const pre = document.createElement('pre');
-    pre.style.cssText = 'padding:16px;overflow:auto;height:100%;margin:0;font-size:12px;';
-    const code = document.createElement('code');
-    code.textContent = content;
-    pre.appendChild(code);
-    body.appendChild(pre);
-  } else {
-    const iframe = document.createElement('iframe');
-    iframe.sandbox = 'allow-scripts';
-    iframe.srcdoc = content;
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    body.appendChild(iframe);
-  }
-}
-
-function updateArtifactVersionBar() {
-  const cached = artifactCache[currentOverlayArtifact];
-  if (!cached) return;
-  const v = cached.currentVersion;
-  const maxV = cached.versions.length - 1;
-  document.getElementById('artifactVersionLabel').textContent = 'v' + v;
-  document.getElementById('artifactPrevBtn').disabled = v <= 1;
-  document.getElementById('artifactNextBtn').disabled = v >= maxV;
-}
-
-async function artifactVersionNav(delta) {
-  const cached = artifactCache[currentOverlayArtifact];
-  if (!cached) return;
-  const target = cached.currentVersion + delta;
-  if (target < 1) return;
-  if (!cached.versions[target]) {
-    const data = await artifactApiCall('get', { identifier: currentOverlayArtifact, version: target });
-    if (data && data.content) cached.versions[target] = data.content;
-    else return;
-  }
-  cached.currentVersion = target;
-  updateArtifactVersionBar();
-  renderArtifactOverlayContent();
-  const card = document.querySelector('.artifact-card[data-artifact-id="' + currentOverlayArtifact + '"]');
-  if (card) {
-    const meta = card.querySelector('.artifact-card-meta');
-    if (meta) meta.textContent = currentOverlayArtifact + ' · v' + target;
-  }
-}
-
-function toggleArtifactCode() {
-  overlayShowingCode = !overlayShowingCode;
-  document.getElementById('artifactCodeToggle').textContent = overlayShowingCode ? '预览' : '源码';
-  renderArtifactOverlayContent();
-}
 
 let messages = [];
 let pendingAttachments = [];
@@ -2994,7 +2546,6 @@ function loadChatSettings() {
   cedarToyStatusHintEl.textContent = cedarToyToolCount
     ? `已获取 ${cedarToyToolCount} 个4399工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
     : '开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。';
-  loadKldModelConfig();
 }
 // 拖动过程中就同步后端——scheduleAiConfigSync 是 800ms 防抖的，松手前那一串 input 会合并成一次请求，
 // 不会把服务端打出一串写。label 的即时反馈照旧，不受影响。
@@ -3038,79 +2589,6 @@ cfgStudyPagesUrlEl.addEventListener('change', () => patchConfig('studyPagesUrl',
 testStudyConnBtn.addEventListener('click', () => testStudyConnection());
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 fetchCedarToyToolsBtn.addEventListener('click', () => fetchCedarToyTools());
-
-// 万花筒模型设置（与 Ombre/Judge 同构：fetchModelsInto 拉列表 + 独立 save 按钮同步后端）
-const cfgKldProtagonistInput = document.getElementById('cfgKldProtagonist');
-const cfgKldSupportingInput = document.getElementById('cfgKldSupporting');
-const cfgKldWorldgenInput = document.getElementById('cfgKldWorldgen');
-const cfgKldSaveBtn = document.getElementById('cfgKldSaveBtn');
-const cfgKldHint = document.getElementById('cfgKldHint');
-
-function kldModelBase() {
-  return (typeof CHAT_MAIN_BASE !== 'undefined' ? CHAT_MAIN_BASE : 'https://47-107-161-135.sslip.io/chat-main').replace('/chat-main', '/rp');
-}
-function kldModelToken() { return localStorage.getItem('kld_token') || '120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6'; }
-
-async function kldModelApi(path, body) {
-  const url = kldModelBase() + path;
-  const token = kldModelToken();
-  if (!body) {
-    const res = await fetch(url + '?token=' + encodeURIComponent(token));
-    const j = await res.json();
-    if (!res.ok) throw new Error(j.message || res.status);
-    return j;
-  }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, token })
-  });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j.message || res.status);
-  return j;
-}
-
-async function loadKldModelConfig() {
-  try {
-    const r = await kldModelApi('/api/models');
-    if (r.protagonist) cfgKldProtagonistInput.value = r.protagonist;
-    if (r.supporting) cfgKldSupportingInput.value = r.supporting;
-    if (r.worldgen) cfgKldWorldgenInput.value = r.worldgen;
-  } catch (e) { /* 静默：打开设置页时后端不可达不阻塞 */ }
-}
-window._loadKldModels = loadKldModelConfig;
-
-document.getElementById('loadKldProtagonistBtn').addEventListener('click', () => {
-  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-  const key = document.getElementById('cfgKey').value.trim();
-  fetchModelsInto(endpoint, key, cfgKldProtagonistInput, document.getElementById('kldProtagonistDropdown'), document.getElementById('loadKldProtagonistBtn'));
-});
-document.getElementById('loadKldSupportingBtn').addEventListener('click', () => {
-  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-  const key = document.getElementById('cfgKey').value.trim();
-  fetchModelsInto(endpoint, key, cfgKldSupportingInput, document.getElementById('kldSupportingDropdown'), document.getElementById('loadKldSupportingBtn'));
-});
-document.getElementById('loadKldWorldgenBtn').addEventListener('click', () => {
-  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-  const key = document.getElementById('cfgKey').value.trim();
-  fetchModelsInto(endpoint, key, cfgKldWorldgenInput, document.getElementById('kldWorldgenDropdown'), document.getElementById('loadKldWorldgenBtn'));
-});
-
-cfgKldSaveBtn.addEventListener('click', async () => {
-  const protagonist = cfgKldProtagonistInput.value.trim();
-  const supporting = cfgKldSupportingInput.value.trim();
-  const worldgen = cfgKldWorldgenInput.value.trim();
-  cfgKldSaveBtn.disabled = true; cfgKldSaveBtn.textContent = '同步中…';
-  try {
-    await kldModelApi('/api/models', { protagonist, supporting, worldgen });
-    cfgKldSaveBtn.textContent = '同步到后端';
-    showToast('万花筒模型已同步');
-  } catch (e) {
-    cfgKldSaveBtn.textContent = '同步到后端';
-    showToast('同步失败：' + e.message, 4000);
-  }
-  cfgKldSaveBtn.disabled = false;
-});
 
 /* ============================================================
 引用回复
@@ -4097,8 +3575,6 @@ function getConfig() {
   if (!c.studyPagesUrl) c.studyPagesUrl = STUDY_PAGES_URL_DEFAULT;
   if (c.spicyEnabled == null) c.spicyEnabled = false;
   if (c.bookclubEnabled == null) c.bookclubEnabled = false;
-  if (!c.chatServiceKey) c.chatServiceKey = '8a1d110930927d9df8d23b1e8e918e8df7ba0dfce3e7c2c5';
-  if (!c.galateaMcpToken) c.galateaMcpToken = 'gg_H5pvg4yyN6HoHLlwpNoEzdrCfoAz2_MoY7H_uxqveHE';
   return c;
 }
 document.getElementById('cfgSaveBtn').addEventListener('click', saveConfig);
@@ -5965,38 +5441,6 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
       try { bubble.innerHTML = marked.parse(displayText).trim(); } catch(e) { bubble.textContent = displayText; }
       wrap.appendChild(bubble);
     } else {
-    // artifact 标签检测——如果消息里有 <artifact> 或 <artifact-edit>，走专用渲染
-    const hasArtifactTag = msg.role !== 'user' && displayText && (/<artifact[\s>]/.test(displayText) || /<artifact-edit[\s>]/.test(displayText));
-    if (hasArtifactTag) {
-      const artParts = extractArtifacts(displayText);
-      const stack = document.createElement('div'); stack.className = 'msg-bubble-stack';
-      artParts.forEach(part => {
-        if (part.type === 'create') {
-          const id = part.attrs.identifier;
-          if (id) {
-            if (!artifactCache[id]) artifactCache[id] = { title: part.attrs.title || id, type: part.attrs.type || 'text/html', versions: [], currentVersion: 0 };
-            artifactCache[id].title = part.attrs.title || artifactCache[id].title;
-            artifactCache[id].currentVersion = (artifactCache[id].currentVersion || 0) + 1;
-            artifactCache[id].versions[artifactCache[id].currentVersion] = part.content;
-            processArtifactCreate(part.attrs, part.content);
-          }
-          stack.appendChild(buildArtifactCard(id || 'unknown', false));
-        } else if (part.type === 'edit') {
-          const id = part.attrs.identifier;
-          if (id) processArtifactEdit(part.attrs, part.edits);
-          const card = buildArtifactCard(id || 'unknown', false);
-          const meta = card.querySelector('.artifact-card-meta');
-          if (meta) meta.textContent = (id || '') + ' · 已更新';
-          stack.appendChild(card);
-        } else if (part.content && part.content.trim()) {
-          const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
-          try { bubble.innerHTML = marked.parse(part.content).trim(); } catch(e) { bubble.textContent = part.content; }
-          addCopyButtons(bubble);
-          stack.appendChild(bubble);
-        }
-      });
-      wrap.appendChild(stack);
-    } else {
     // 兼容历史消息：正文里如果混了 ```html 代码块（旧数据、后端拆分上线前生成的），
     // 视觉上按段落拆成多个独立气泡（文字/html交替），但整条 msg 数据不变
     const segments = (msg.role !== 'user' && displayText) ? splitHtmlFences(displayText) : [];
@@ -6024,7 +5468,6 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
       }
       wrap.appendChild(bubble);
     }
-  }
   }
   }
   if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
@@ -6395,7 +5838,7 @@ document.getElementById('emojiClearBtn').addEventListener('click', () => {
 胶囊 / 侧边栏 / 页面切换
 ============================================================ */
 const pageCapsule = document.getElementById('pageCapsule');
-const pageTitles  = { chat: localStorage.getItem(LS_NICKNAME) || '然竣', diary:'日记', log:'记忆管理', space:'Space', subchat:'副聊天', vocab:'背单词', kaleidoscope:'万花筒' };
+const pageTitles  = { chat: localStorage.getItem(LS_NICKNAME) || '然竣', diary:'日记', log:'记忆管理', space:'Space', subchat:'副聊天', vocab:'背单词' };
 pageCapsule.textContent = pageTitles.chat;
 const nicknameOverlay = document.getElementById('nicknameOverlay');
 const nicknameInput = document.getElementById('nicknameInput');
@@ -6486,16 +5929,15 @@ function switchPage(pageName) {
   document.getElementById('quoteBar').style.display        = isChat ? '' : 'none';
   document.getElementById('subAttachPreview').style.display = isSubchat ? '' : 'none';
   document.getElementById('subQuoteBar').style.display     = isSubchat ? '' : 'none';
-  document.getElementById('topbar').style.display          = (pageName === 'log' || pageName === 'kaleidoscope') ? 'none' : 'block';
+  document.getElementById('topbar').style.display          = (pageName === 'log') ? 'none' : 'block';
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
-  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); loadKldModelConfig(); }
+  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); }
   if (pageName === 'vocab') { vocabOnEnterPage(); }
-  if (pageName === 'kaleidoscope') { kldOnEnter(); }
 }
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
-  if (item.dataset.nav === 'diary' || item.dataset.nav === 'space' || item.dataset.nav === 'vocab' || item.dataset.nav === 'kaleidoscope') {
+  if (item.dataset.nav === 'diary' || item.dataset.nav === 'space' || item.dataset.nav === 'vocab') {
     item.addEventListener('click', () => { switchPage(item.dataset.nav); closeSidebar(); });
   }
 });
@@ -7083,67 +6525,15 @@ dismissKeyboardOnBlankTap(subchatScroll, document.getElementById('subchatTextInp
 ============================================================ */
 function makeStreamRenderer(bubbleEl, scrollFn) {
   let renderedLen = 0, pendingRender = false, latestText = '';
-  let artifactLoadingShown = false;
   function flush() {
     const thinkingEl = bubbleEl.querySelector('.thinking-text'); if (thinkingEl) thinkingEl.remove();
-    // 流式阶段检测：有 <artifact 开标签但还没收到闭合标签，显示 loading 卡片
-    const hasOpen = /<artifact[\s>]/.test(latestText);
-    const hasClosed = /<\/artifact>/.test(latestText);
-    if (hasOpen && !hasClosed && !artifactLoadingShown) {
-      artifactLoadingShown = true;
-      bubbleEl.innerHTML = '';
-      const attrs = parseArtifactAttrs(latestText);
-      const id = attrs.identifier || 'generating';
-      if (!artifactCache[id]) artifactCache[id] = { title: attrs.title || '生成中...', type: attrs.type || 'text/html', versions: [], currentVersion: 0 };
-      bubbleEl.appendChild(buildArtifactCard(id, true));
-      scrollFn(); pendingRender = false;
-      return;
-    }
-    if (artifactLoadingShown) { scrollFn(); pendingRender = false; return; }
     const newPart = latestText.slice(renderedLen);
     if (newPart) { const span = document.createElement('span'); span.className = 'stream-chunk'; span.textContent = newPart; bubbleEl.appendChild(span); renderedLen = latestText.length; }
     scrollFn(); pendingRender = false;
   }
   return {
     push(accumulated) { latestText = accumulated; if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); } },
-    finalize(text) {
-      bubbleEl.innerHTML = '';
-      const hasArt = /<artifact[\s>]/.test(text) || /<artifact-edit[\s>]/.test(text);
-      if (hasArt) {
-        const parts = extractArtifacts(text);
-        const stack = document.createElement('div'); stack.className = 'msg-bubble-stack';
-        parts.forEach(part => {
-          if (part.type === 'create') {
-            const id = part.attrs.identifier;
-            if (id) {
-              if (!artifactCache[id]) artifactCache[id] = { title: part.attrs.title || id, type: part.attrs.type || 'text/html', versions: [], currentVersion: 0 };
-              artifactCache[id].title = part.attrs.title || artifactCache[id].title;
-              artifactCache[id].currentVersion = (artifactCache[id].currentVersion || 0) + 1;
-              artifactCache[id].versions[artifactCache[id].currentVersion] = part.content;
-              processArtifactCreate(part.attrs, part.content);
-            }
-            stack.appendChild(buildArtifactCard(id || 'unknown', false));
-          } else if (part.type === 'edit') {
-            const id = part.attrs.identifier;
-            if (id) processArtifactEdit(part.attrs, part.edits);
-            const card = buildArtifactCard(id || 'unknown', false);
-            const meta = card.querySelector('.artifact-card-meta');
-            if (meta) meta.textContent = (id || '') + ' · 已更新';
-            stack.appendChild(card);
-          } else if (part.content && part.content.trim()) {
-            const bubble = document.createElement('div'); bubble.className = 'msg-bubble';
-            try { bubble.innerHTML = marked.parse(part.content).trim(); } catch(e) { bubble.textContent = part.content; }
-            addCopyButtons(bubble);
-            stack.appendChild(bubble);
-          }
-        });
-        bubbleEl.appendChild(stack);
-      } else {
-        try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; }
-        addCopyButtons(bubbleEl);
-      }
-      scrollFn();
-    }
+    finalize(text) { bubbleEl.innerHTML = ''; try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; } addCopyButtons(bubbleEl); scrollFn(); }
   };
 }
 /* ============================================================
@@ -9342,344 +8732,9 @@ function vocabParseForms(exchange) {
   });
   return out;
 }
-
-/* ============================================================
-万花筒 (Kaleidoscope) RP 引擎 — 重写版
-============================================================ */
-const KLD_BASE = () => (typeof CHAT_MAIN_BASE !== 'undefined' ? CHAT_MAIN_BASE.replace('/chat-main', '/rp') : 'https://47-107-161-135.sslip.io/rp');
-const KLD_TOKEN = () => localStorage.getItem('kld_token') || '120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6';
-let kldWorlds = [], kldRuns = [], kldKeywords = [], kldCategories = [], kldRedCats = [];
-let kldConfig = null, kldCurrentRun = null, kldCurrentWorld = null;
-let kldSlotTone = 'sfw', kldChosenWords = {}, kldLockedCols = new Set(), kldCurrentDraft = null;
-let kldFilterTone = '';
-const KLD_MARK_RE = /\[(?:cue|npc)\b[^\]]*\]?/g;
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-async function kldApi(path,body){
-  const isGet=!body, url=new URL(KLD_BASE()+path);
-  if(isGet&&KLD_TOKEN())url.searchParams.set('token',KLD_TOKEN());
-  const opts={method:isGet?'GET':'POST',headers:{}};
-  if(!isGet){opts.headers['Content-Type']='application/json';const p={...(body||{})};if(KLD_TOKEN())p.token=KLD_TOKEN();opts.body=JSON.stringify(p)}
-  const r=await fetch(url.toString(),opts),j=await r.json();
-  if(j.error)throw new Error(j.message||j.error);return j;
-}
-function kldRelTime(iso){if(!iso)return '';const d=Date.now()-new Date(iso).getTime();if(d<60000)return'刚刚';if(d<3600000)return Math.floor(d/60000)+'分钟前';if(d<86400000)return Math.floor(d/3600000)+'小时前';return Math.floor(d/86400000)+'天前'}
-function kldFmtDate(iso){if(!iso)return '';const d=new Date(iso);return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()}
-function kldSwitchView(id){document.querySelectorAll('#page-kaleidoscope .kld-view').forEach(v=>v.classList.remove('kld-active'));document.getElementById(id).classList.add('kld-active')}
-
-/* === Hub === */
-function kldSwitchTab(tabId){
-  document.querySelectorAll('#kldTabs .kld-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tabId));
-  document.querySelectorAll('#page-kaleidoscope .kld-tab-body').forEach(b=>b.classList.remove('active'));
-  document.getElementById('kld-tab-'+tabId).classList.add('active');
-  if(tabId==='slots')kldInitSlots();
-  if(tabId==='history')kldRenderHistory();
-}
-async function kldOnEnter(){
-  kldSwitchView('kld-hub');
-  if(!KLD_TOKEN()){showToast('万花筒 token 未配置');return}
-  try{
-    const[wr,rr,cr]=await Promise.all([kldApi('/api/worlds'),kldApi('/api/runs'),kldApi('/api/config')]);
-    kldWorlds=wr.worlds||[];kldRuns=rr.runs||[];kldConfig=cr;
-    kldCategories=cr.categories||[];kldRedCats=cr.redCats||[];
-    document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';
-    kldRenderWorlds();
-  }catch(e){document.getElementById('kldWorldCards').innerHTML='<div class="kld-empty" style="display:flex"><div>连接失败: '+esc(e.message)+'</div></div>'}
-}
-function kldRenderWorlds(){
-  const filtered=kldFilterTone?kldWorlds.filter(w=>w.tone===kldFilterTone):kldWorlds;
-  const cards=document.getElementById('kldWorldCards'),empty=document.getElementById('kldWorldEmpty');
-  if(!filtered.length){cards.innerHTML='';empty.style.display='flex';return}
-  empty.style.display='none';
-  cards.innerHTML=filtered.map(w=>`<div class="kld-card" data-wid="${w.id}">
-    <div class="kld-card-body"><div class="kld-card-name">${esc(w.name)}</div>
-    <div class="kld-card-desc">${esc(w.setting)}</div>
-    <div class="kld-card-foot">${(w.tags||[]).map(t=>'<span class="kld-card-tag">'+esc(t)+'</span>').join('')}</div></div>
-    <div class="kld-card-right"><div class="kld-hue-dot" style="background:hsl(${w.hue||0},50%,60%)"></div>
-    <div class="kld-card-visits">${w.runs?'走过'+w.runs+'趟':'还没去过'}</div></div></div>`).join('');
-  cards.querySelectorAll('.kld-card').forEach(c=>c.addEventListener('click',()=>kldShowDetail(c.dataset.wid)));
-}
-/* === Detail sheet === */
-function kldShowDetail(wid){
-  const w=kldWorlds.find(x=>x.id===wid);if(!w)return;
-  kldCurrentWorld=w;
-  const p=document.getElementById('kldDetailPanel');
-  p.innerHTML=`<div class="kld-sheet-name">${esc(w.name)}</div>
-    <div class="kld-sheet-tone">${w.tone==='nsfw'?'黄':'清水'}·${w.runs?'走过'+w.runs+'趟':'还没去过'}</div>
-    <div class="kld-sheet-section">世界背景</div><div class="kld-sheet-text">${esc(w.setting)}</div>
-    <div class="kld-sheet-section">我在这里是谁</div><div class="kld-sheet-text">${esc(w.charRole)}</div>
-    <div class="kld-sheet-section">你在这里是谁</div><div class="kld-sheet-text">${esc(w.userRole)}</div>
-    <div class="kld-sheet-tags">${(w.tags||[]).map(t=>'<span class="kld-sheet-tag">'+esc(t)+'</span>').join('')}</div>
-    <div class="kld-sheet-btns"><button onclick="kldOpenEditor(kldCurrentWorld)">&#9998; 改</button><button onclick="kldDeleteWorld()">&#128465; 删</button></div>
-    <button class="kld-sheet-primary" onclick="kldShowConfig()">开始穿梭</button>`;
-  document.getElementById('kldDetailSheet').classList.add('show');
-}
-async function kldDeleteWorld(){
-  if(!kldCurrentWorld||!confirm('删除「'+kldCurrentWorld.name+'」？'))return;
-  try{await kldApi('/api/worlds/delete',{id:kldCurrentWorld.id})}catch(e){showToast(e.message);return}
-  kldWorlds=kldWorlds.filter(w=>w.id!==kldCurrentWorld.id);
-  document.getElementById('kldDetailSheet').classList.remove('show');
-  document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';
-  kldRenderWorlds();
-}
-/* === Config panel === */
-let kldCfgSpeed='slow',kldCfgIntimate=false;
-function kldShowConfig(){
-  document.getElementById('kldDetailSheet').classList.remove('show');
-  const p=document.getElementById('kldConfigPanel');
-  kldCfgSpeed='slow';kldCfgIntimate=false;
-  p.innerHTML=`<div class="kld-config-title">这一趟怎么走</div>
-    <div class="kld-config-label">节奏</div>
-    <div class="kld-config-opts" id="kldCfgSpeed">
-      <div class="kld-config-opt active" data-v="slow"><div class="kld-config-opt-main">慢</div><div class="kld-config-opt-sub">停在当下细写</div></div>
-      <div class="kld-config-opt" data-v="fast"><div class="kld-config-opt-main">快</div><div class="kld-config-opt-sub">一次推一步</div></div>
-    </div>
-    <div class="kld-config-label">亲密</div>
-    <div class="kld-config-opts" id="kldCfgIntimate">
-      <div class="kld-config-opt active" data-v="0"><div class="kld-config-opt-main">先不开</div><div class="kld-config-opt-sub">有张力，不进场</div></div>
-      <div class="kld-config-opt" data-v="1"><div class="kld-config-opt-main">开</div><div class="kld-config-opt-sub">开了旁白只写环境</div></div>
-    </div>
-    <button class="kld-sheet-primary" id="kldCfgGo">进去</button>`;
-  document.querySelectorAll('#kldCfgSpeed .kld-config-opt').forEach(o=>o.addEventListener('click',()=>{
-    document.querySelectorAll('#kldCfgSpeed .kld-config-opt').forEach(x=>x.classList.remove('active'));o.classList.add('active');kldCfgSpeed=o.dataset.v}));
-  document.querySelectorAll('#kldCfgIntimate .kld-config-opt').forEach(o=>o.addEventListener('click',()=>{
-    document.querySelectorAll('#kldCfgIntimate .kld-config-opt').forEach(x=>x.classList.remove('active'));o.classList.add('active');kldCfgIntimate=o.dataset.v==='1'}));
-  document.getElementById('kldCfgGo').addEventListener('click',async()=>{
-    if(!kldCurrentWorld)return;
-    try{const r=await kldApi('/api/runs/start',{worldId:kldCurrentWorld.id,speed:kldCfgSpeed,intimate:kldCfgIntimate});
-      kldCurrentRun=r.run;document.getElementById('kldConfigSheet').classList.remove('show');kldEnterRoom(kldCurrentRun.id);
-    }catch(e){showToast(e.message)}
-  });
-  document.getElementById('kldConfigSheet').classList.add('show');
-}
-/* === Editor === */
-const KLD_HUES=[0,30,50,80,120,160,200,240,280,320];
-function kldOpenEditor(w){
-  document.getElementById('kldDetailSheet').classList.remove('show');
-  const isNew=!w;const d=w||{name:'',setting:'',charRole:'',userRole:'',tone:'sfw',tags:[],hue:0};
-  const c=document.getElementById('kldEditorContent');
-  c.innerHTML=`<div class="kld-modal-hdr"><button class="kld-modal-close" id="kldEdClose">&times;</button><div class="kld-modal-title">${isNew?'写一个世界':'改'}</div><div style="width:36px"></div></div>
-    <div class="kld-form"><label>世界名</label><input id="kldEdName" value="${esc(d.name)}" placeholder="4-10字">
-    <label>世界背景</label><textarea id="kldEdSetting" placeholder="什么年代、什么地方、我们怎么遇上的">${esc(d.setting)}</textarea>
-    <label>我在这里是谁</label><textarea id="kldEdChar" placeholder="角色在这个世界的身份、性格、跟你的关系">${esc(d.charRole)}</textarea>
-    <label>你在这里是谁</label><textarea id="kldEdUser" placeholder="你的身份和处境（留空我就按平常的你来写）">${esc(d.userRole)}</textarea>
-    <label>尺度</label><div class="kld-tone-bar" style="padding:0"><button class="kld-tone-btn ${d.tone==='sfw'?'active':''}" data-tone="sfw">清水</button><button class="kld-tone-btn ${d.tone==='nsfw'?'active':''}" data-tone="nsfw">黄</button></div>
-    <label>标签（空格分隔）</label><input id="kldEdTags" value="${(d.tags||[]).join(' ')}" placeholder="民国 谍战 追妻">
-    <label>这个世界的颜色</label><div class="kld-hue-grid" id="kldEdHueGrid">${KLD_HUES.map(h=>'<div class="kld-hue-dot-pick'+(h===d.hue?' active':'')+'" data-hue="'+h+'" style="background:hsl('+h+',50%,60%)"></div>').join('')}</div>
-    <button class="kld-btn-full" style="margin-top:20px" id="kldEdSave">${isNew?'保存':'保存修改'}</button></div>`;
-  c.querySelector('#kldEdClose').addEventListener('click',()=>document.getElementById('kldEditorModal').classList.remove('show'));
-  let edTone=d.tone||'sfw',edHue=d.hue||0;
-  c.querySelectorAll('.kld-tone-btn').forEach(b=>b.addEventListener('click',()=>{c.querySelectorAll('.kld-tone-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');edTone=b.dataset.tone}));
-  c.querySelectorAll('.kld-hue-dot-pick').forEach(b=>b.addEventListener('click',()=>{c.querySelectorAll('.kld-hue-dot-pick').forEach(x=>x.classList.remove('active'));b.classList.add('active');edHue=+b.dataset.hue}));
-  c.querySelector('#kldEdSave').addEventListener('click',async()=>{
-    const data={name:c.querySelector('#kldEdName').value.trim(),setting:c.querySelector('#kldEdSetting').value.trim(),charRole:c.querySelector('#kldEdChar').value.trim(),userRole:c.querySelector('#kldEdUser').value.trim(),tone:edTone,tags:c.querySelector('#kldEdTags').value.trim().split(/\s+/).filter(Boolean),hue:edHue};
-    if(w&&w.id)data.id=w.id;if(!isNew)data.origin=w.origin;else data.origin='hand';
-    try{const r=await kldApi('/api/worlds/save',data);
-      if(w&&w.id){const i=kldWorlds.findIndex(x=>x.id===w.id);if(i>=0)kldWorlds[i]=r.world}else kldWorlds.unshift(r.world);
-      document.getElementById('kldEditorModal').classList.remove('show');document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';kldRenderWorlds();
-    }catch(e){showToast(e.message)}
-  });
-  document.getElementById('kldEditorModal').classList.add('show');
-}
-/* === Slots (老虎机) === */
-async function kldInitSlots(){
-  try{
-    if(!kldConfig){const c=await kldApi('/api/config');kldConfig=c;kldCategories=c.categories||[];kldRedCats=c.redCats||[]}
-    const kw=await kldApi('/api/keywords');kldKeywords=kw.keywords||[];
-    kldBuildGrid();kldDoSpin();
-  }catch(e){showToast(e.message)}
-}
-function kldBuildGrid(){
-  const cats=kldCategories.filter(c=>kldSlotTone==='nsfw'||!kldRedCats.includes(c.key));
-  const rows={};cats.forEach(c=>{const r=c.row||1;(rows[r]=rows[r]||[]).push(c)});
-  const grid=document.getElementById('kldSlotGrid');grid.innerHTML='';
-  Object.keys(rows).sort().forEach(rk=>{
-    const isRed=rows[rk].some(c=>kldRedCats.includes(c.key));
-    const div=document.createElement('div');div.className='kld-slot-row'+(isRed?' nsfw-row':'');
-    rows[rk].forEach(cat=>{
-      const box=document.createElement('div');box.className='kld-slot-box';box.dataset.cat=cat.key;
-      const locked=kldLockedCols.has(cat.key);if(locked)box.classList.add('locked');
-      box.innerHTML=`<div class="kld-slot-cat">${esc(cat.label)} <span class="kld-slot-lock">${locked?'&#128274;':'&#128275;'}</span></div><div class="kld-slot-word"><span>${kldChosenWords[cat.key]?esc(kldChosenWords[cat.key]):'—'}</span></div>`;
-      box.addEventListener('click',e=>{
-        if(e.target.closest('.kld-slot-lock')){
-          if(kldLockedCols.has(cat.key))kldLockedCols.delete(cat.key);else kldLockedCols.add(cat.key);
-          kldBuildGrid();return;
-        }
-        const words=kldKeywords.filter(k=>k.cat===cat.key&&(kldSlotTone==='nsfw'||k.tone!=='red'));
-        if(!words.length)return;
-        kldChosenWords[cat.key]=words[Math.floor(Math.random()*words.length)].word;
-        box.querySelector('.kld-slot-word span').textContent=kldChosenWords[cat.key];
-      });
-      div.appendChild(box);
-    });
-    grid.appendChild(div);
-  });
-}
-function kldDoSpin(){
-  const cats=kldCategories.filter(c=>kldSlotTone==='nsfw'||!kldRedCats.includes(c.key));
-  cats.forEach(cat=>{
-    if(kldLockedCols.has(cat.key))return;
-    const words=kldKeywords.filter(k=>k.cat===cat.key&&(kldSlotTone==='nsfw'||k.tone!=='red'));
-    if(!words.length)return;
-    kldChosenWords[cat.key]=words[Math.floor(Math.random()*words.length)].word;
-  });
-  kldBuildGrid();kldUpdateRollPreview();
-}
-function kldUpdateRollPreview(){
-  const cats=kldCategories.filter(c=>kldSlotTone==='nsfw'||!kldRedCats.includes(c.key));
-  const parts=cats.filter(c=>kldChosenWords[c.key]).map(c=>c.label+'：'+kldChosenWords[c.key]);
-  document.getElementById('kldRollPreview').textContent=parts.join('。')+'。';
-  document.getElementById('kldRollResult').style.display=parts.length?'block':'none';
-}
-async function kldWriteWorld(){
-  const btn=document.getElementById('kldWriteBtn');btn.disabled=true;btn.textContent='写出来中…';
-  try{
-    const r=await kldApi('/api/roll',{tone:kldSlotTone,words:kldChosenWords});
-    kldCurrentDraft=r.draft;
-    const w=await kldApi('/api/worlds/save',{...r.draft,origin:'roll'});
-    kldWorlds.unshift(w.world);document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';
-    kldOpenEditor(w.world);
-  }catch(e){showToast(e.message)}
-  btn.disabled=false;btn.textContent='把它写出来';
-}
-async function kldSaveWords(){
-  const data={name:Object.values(kldChosenWords).slice(0,3).join('·'),setting:'',charRole:'',userRole:'',tags:Object.values(kldChosenWords),tone:kldSlotTone,origin:'roll'};
-  try{const r=await kldApi('/api/worlds/save',data);kldWorlds.unshift(r.world);document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';showToast('已存');kldSwitchTab('worlds');kldRenderWorlds()}catch(e){showToast(e.message)}
-}
-/* === Room === */
-let kldMsgRows=[];
-async function kldEnterRoom(runId){
-  kldSwitchView('kld-room');
-  const msgs=document.getElementById('kldMsgs');msgs.innerHTML='<div style="text-align:center;color:var(--text-faint);padding:40px">加载中…</div>';
-  try{
-    let run=kldRuns.find(r=>r.id===runId);
-    if(!run){const rr=await kldApi('/api/runs');kldRuns=rr.runs||[];run=kldRuns.find(r=>r.id===runId)}
-    kldCurrentRun=run;
-    document.getElementById('kldRoomTitle').textContent=run?.worldName||'';
-    document.getElementById('kldRoomMeta').textContent=(run?.speed==='fast'?'快':'慢')+'·'+(run?.tone==='nsfw'?'黄':'清水')+'·第'+(run?.turns||0)+'轮';
-    const rr=await kldApi('/api/room?run='+runId);kldMsgRows=rr.rows||[];
-    kldRenderMsgs(false);
-    if(!kldMsgRows.length&&kldCurrentRun&&!kldCurrentRun.endedAt){await kldDoNudge()}
-  }catch(e){msgs.innerHTML='<div style="text-align:center;color:var(--danger);padding:40px">'+esc(e.message)+'</div>'}
-}
-function kldRenderMsgs(animated){
-  const el=document.getElementById('kldMsgs');
-  el.innerHTML=kldMsgRows.map((r,i)=>kldRenderRow(r,animated&&i>=kldMsgRows.length-3)).join('');
-  requestAnimationFrame(()=>el.scrollTop=el.scrollHeight);
-}
-function kldRenderRow(row,anim){
-  const cls=anim?' anim':'';const text=esc(row.text.replace(KLD_MARK_RE,'').trim());
-  switch(row.kind){
-    case 'user':return`<div class="kld-msg kld-msg-user${cls}"><div class="kld-bubble">${text}</div></div>`;
-    case 'char':return`<div class="kld-msg kld-msg-char${cls}"><div class="kld-bubble">${text}</div></div>`;
-    case 'narration':return`<div class="kld-msg kld-msg-narration${cls}">${text}</div>`;
-    case 'npc':return`<div class="kld-msg kld-msg-npc${cls}"><span class="kld-npc-name">${esc(row.name)}</span><br>${text}</div>`;
-    case 'system':return`<div class="kld-msg kld-msg-system${cls}">${text}</div>`;
-    default:return`<div class="kld-msg kld-msg-char${cls}"><div class="kld-bubble">${text}</div></div>`;
-  }
-}
-function kldAppendRows(rows){
-  const el=document.getElementById('kldMsgs');
-  rows.forEach((row,i)=>{kldMsgRows.push(row);setTimeout(()=>{const d=document.createElement('div');d.innerHTML=kldRenderRow(row,true);el.appendChild(d.firstChild);el.scrollTop=el.scrollHeight},i*150)});
-}
-async function kldDoSend(){
-  if(!kldCurrentRun||kldCurrentRun.endedAt)return;
-  const input=document.getElementById('kldInput'),text=input.value.trim();
-  const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');input.disabled=true;
-  try{let result;
-    if(text){kldAppendRows([{kind:'user',text,name:'',ts:new Date().toISOString()}]);input.value='';result=await kldApi('/api/room/say',{run:kldCurrentRun.id,text})}
-    else{result=await kldApi('/api/room/nudge',{run:kldCurrentRun.id})}
-    if(result.rows?.length)kldAppendRows(result.rows);
-  }catch(e){showToast(e.message)}
-  btn.disabled=false;btn.classList.remove('loading');input.disabled=false;input.focus();
-}
-async function kldDoNudge(){
-  const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');
-  try{const r=await kldApi('/api/room/nudge',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
-  btn.disabled=false;btn.classList.remove('loading');
-}
-async function kldDoNarrate(){
-  const btn=document.getElementById('kldNarBtn');btn.disabled=true;
-  try{const r=await kldApi('/api/room/narrate',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
-  btn.disabled=false;
-}
-function kldOpenRoomSettings(){
-  const p=document.getElementById('kldRoomPanel');const run=kldCurrentRun;
-  p.innerHTML=`<div style="font-size:16px;font-weight:600;margin-bottom:12px">${esc(run?.worldName)}</div>
-    <div style="font-size:12px;color:var(--text-faint);margin-bottom:16px">${(run?.speed==='fast'?'快':'慢')}·${run?.tone==='nsfw'?'黄':'清水'}·第${run?.turns||0}轮</div>
-    <button class="kld-btn-full" style="background:var(--bg-subtle);color:var(--text-secondary);margin-bottom:8px" onclick="kldEndRun()">结束本局</button>`;
-  document.getElementById('kldRoomSheet').classList.add('show');
-}
-async function kldEndRun(){
-  if(!kldCurrentRun||!confirm('结束本局？'))return;
-  try{await kldApi('/api/runs/end',{id:kldCurrentRun.id});document.getElementById('kldRoomSheet').classList.remove('show');kldCurrentRun=null;kldOnEnter()}catch(e){showToast(e.message)}
-}
-/* === History (航迹) === */
-function kldRenderHistory(){
-  const cards=document.getElementById('kldRunCards'),empty=document.getElementById('kldRunEmpty');
-  if(!kldRuns.length){cards.innerHTML='';empty.style.display='flex';return}
-  empty.style.display='none';
-  cards.innerHTML=kldRuns.map(r=>`<div class="kld-run-card" data-rid="${r.id}">
-    <div class="kld-run-top"><div class="kld-hue-dot" style="background:hsl(${r.hue||0},50%,60%);width:8px;height:8px"></div>
-    <div class="kld-run-name">${esc(r.worldName||'未命名')}</div>
-    <div class="kld-run-badge">${r.endedAt?'END':'T'+(r.turns||0)}</div></div>
-    <div class="kld-run-line">${esc(r.lastLine||'(空)')}</div>
-    <div class="kld-run-date">${kldFmtDate(r.startedAt)}${r.turns?' · '+r.turns+'轮':''}</div></div>`).join('');
-  cards.querySelectorAll('.kld-run-card').forEach(c=>{
-    c.addEventListener('click',()=>kldShowSummary(c.dataset.rid));
-    let tm;c.addEventListener('touchstart',()=>{tm=setTimeout(()=>{if(confirm('删除这一局？'))kldApi('/api/runs/delete',{id:c.dataset.rid}).then(()=>{kldRuns=kldRuns.filter(r=>r.id!==c.dataset.rid);kldRenderHistory()}).catch(e=>showToast(e.message))},600)},{passive:true});
-    c.addEventListener('touchend',()=>clearTimeout(tm));c.addEventListener('touchmove',()=>clearTimeout(tm));
-  });
-}
-/* === Summary (前情) === */
-function kldShowSummary(runId){
-  const run=kldRuns.find(r=>r.id===runId);if(!run)return;
-  kldCurrentRun=run;kldSwitchView('kld-summary');
-  document.getElementById('kldSumTitle').textContent=run.worldName||'未命名';
-  document.getElementById('kldSumMeta').textContent='走过'+run.turns+'轮·'+kldFmtDate(run.startedAt);
-  document.getElementById('kldSumDigest').innerHTML=run.digest?'<div style="font-size:11px;color:var(--text-faint);margin-bottom:6px">前情</div>'+esc(run.digest).replace(/\n/g,'<br>'):'<div style="color:var(--text-faint)">没有前情摘要</div>';
-  const w=kldWorlds.find(x=>x.id===run.worldId);
-  document.getElementById('kldSumSetting').textContent=w?w.setting:'';
-  document.getElementById('kldSumContinue').textContent=run.endedAt?'重新翻开':'继续这一趟';
-  document.getElementById('kldSumContinue').onclick=()=>{if(run.endedAt){showToast('这一局已经结束了')}else kldEnterRoom(run.id)};
-}
-/* === Event bindings === */
-document.getElementById('kldBack').addEventListener('click',()=>switchPage('chat'));
-document.getElementById('kldPlusBtn').addEventListener('click',()=>kldOpenEditor(null));
-document.querySelectorAll('#kldTabs .kld-tab').forEach(t=>t.addEventListener('click',()=>kldSwitchTab(t.dataset.tab)));
-document.querySelectorAll('#kldFilterChips .kld-chip').forEach(c=>c.addEventListener('click',()=>{
-  document.querySelectorAll('#kldFilterChips .kld-chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');
-  kldFilterTone=c.dataset.tone;kldRenderWorlds();
-}));
-document.querySelectorAll('#kld-tab-slots .kld-tone-btn').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('#kld-tab-slots .kld-tone-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
-  kldSlotTone=b.dataset.tone;document.getElementById('kldToneHint').textContent=kldSlotTone==='nsfw'?'多出蠢蠢欲动：状态·场所·要你怎样':'';
-  kldLockedCols.clear();kldChosenWords={};kldInitSlots();
-}));
-document.getElementById('kldRollBtn').addEventListener('click',()=>kldDoSpin());
-document.getElementById('kldWriteBtn').addEventListener('click',()=>kldWriteWorld());
-document.getElementById('kldSaveWordsBtn').addEventListener('click',()=>kldSaveWords());
-document.getElementById('kldRoomBack').addEventListener('click',()=>{kldCurrentRun=null;kldOnEnter()});
-document.getElementById('kldRoomGear').addEventListener('click',()=>kldOpenRoomSettings());
-document.getElementById('kldSendBtn').addEventListener('click',()=>kldDoSend());
-document.getElementById('kldInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();kldDoSend()}});
-document.getElementById('kldNarBtn').addEventListener('click',()=>kldDoNarrate());
-document.getElementById('kldSumBack').addEventListener('click',()=>{kldSwitchView('kld-hub');kldSwitchTab('history')});
 </script>
 
 <script type="module" src="supabase.js"></script>
 <script defer src="ombre-backend.js"></script>
-<div id="artifactOverlay" class="artifact-overlay">
-  <div class="artifact-overlay-bar">
-    <button class="artifact-overlay-close" onclick="closeArtifactOverlay()">&times;</button>
-    <div class="artifact-overlay-title" id="artifactOverlayTitle"></div>
-    <div class="artifact-version-bar" id="artifactVersionBar">
-      <button id="artifactPrevBtn" onclick="artifactVersionNav(-1)">‹</button>
-      <span id="artifactVersionLabel"></span>
-      <button id="artifactNextBtn" onclick="artifactVersionNav(1)">›</button>
-    </div>
-    <button class="artifact-overlay-btn" id="artifactCodeToggle" onclick="toggleArtifactCode()">源码</button>
-  </div>
-  <div class="artifact-overlay-body" id="artifactOverlayBody"></div>
-</div>
 </body>
 </html>
