@@ -252,96 +252,141 @@ opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s e
 #page-chat { overflow-x: hidden; }
 #page-diary, #page-space, #page-subchat, #page-log { background: var(--bg-app); }
 #page-kaleidoscope:not(.active) { display:none !important; }
-#page-kaleidoscope {
-  --kld-bg: #12121a; --kld-bg-card: #1a1a28; --kld-bg-input: #22222e;
-  --kld-text: #d8d8dc; --kld-text-dim: #78788a; --kld-text-faint: #4a4a58;
-  --kld-accent: #7b6fde; --kld-accent-glow: rgba(123,111,222,0.25);
-  --kld-border: #2a2a38; --kld-narration: #6a6a7a; --kld-gold: #c8a96e;
-  background: var(--kld-bg); color: var(--kld-text);
-  font-size: 13.5px; line-height: 1.65;
-  overflow: hidden;
-}
-.kld-view { position:absolute; inset:0; overflow-y:auto; -webkit-overflow-scrolling:touch; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .25s ease; }
+#page-kaleidoscope { background:var(--bg-app); color:var(--text-primary); font-size:14px; line-height:1.6; overflow:hidden; }
+.kld-view { position:absolute; inset:0; overflow-y:auto; -webkit-overflow-scrolling:touch; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s; }
 .kld-view.kld-active { opacity:1; visibility:visible; pointer-events:auto; }
-#kld-theater { display:flex; flex-direction:column; }
-#kld-theater.kld-active { display:flex; }
-.kld-header { display:flex; align-items:center; padding:calc(env(safe-area-inset-top, 0px) + 14px) 16px 10px; gap:10px; }
-.kld-header-title { font-size:18px; font-weight:600; flex:1; }
-.kld-header-btn { width:32px; height:32px; border-radius:50%; background:var(--kld-bg-card); border:1px solid var(--kld-border); color:var(--kld-text-dim); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition:background .15s; }
-.kld-header-btn:active { background:var(--kld-bg-input); }
-.kld-back-btn { background:none; border:none; color:var(--kld-text-dim); font-size:18px; cursor:pointer; padding:4px; }
-.kld-run-card { background:var(--kld-bg-card); border:1px solid var(--kld-border); border-radius:12px; padding:14px 16px; margin:0 16px 10px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:background .15s, transform .15s; }
-.kld-run-card:active { background:#22222e; transform:scale(0.98); }
-.kld-run-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.kld-run-body { flex:1; min-width:0; }
-.kld-run-name { font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kld-run-preview { font-size:12px; color:var(--kld-text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px; }
-.kld-run-meta { text-align:right; flex-shrink:0; }
-.kld-run-turns { font-size:11px; color:var(--kld-accent); font-weight:500; }
-.kld-run-time { font-size:10px; color:var(--kld-text-faint); margin-top:2px; }
-.kld-run-end { font-size:9px; color:var(--kld-text-faint); border:1px solid var(--kld-border); border-radius:4px; padding:1px 5px; margin-top:3px; letter-spacing:0.5px; }
-.kld-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:60%; gap:16px; color:var(--kld-text-dim); }
-.kld-empty-text { font-size:13px; }
-.kld-btn { padding:10px 24px; border-radius:20px; background:var(--kld-accent); color:#fff; border:none; font-size:13px; cursor:pointer; transition:transform .12s; }
-.kld-btn:active { transform:scale(0.96); }
-.kld-btn-ghost { background:transparent; border:1px solid var(--kld-border); color:var(--kld-text-dim); }
-
-/* --- slots --- */
-.kld-slots-wrap { padding:0 16px; }
-.kld-slots-rows { display:flex; flex-direction:column; gap:14px; margin-top:16px; }
-.kld-slots-row { display:flex; gap:6px; justify-content:center; }
-.kld-slot-col { width:56px; text-align:center; flex-shrink:0; }
-.kld-slot-label { font-size:10px; color:var(--kld-text-faint); margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.kld-slot-cell { height:30px; overflow:hidden; position:relative; border-radius:6px; background:var(--kld-bg-card); border:1px solid var(--kld-border); }
-.kld-slot-word { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; transition:transform .12s ease-out, opacity .12s ease-out; white-space:nowrap; }
-.kld-slot-word.exit { transform:translateY(-100%); opacity:0; }
-.kld-slot-word.enter { transform:translateY(100%); opacity:0; }
-.kld-slot-word.active { transform:translateY(0); opacity:1; }
-.kld-slot-word.highlight { color:var(--kld-accent); text-shadow:0 0 8px var(--kld-accent-glow); transform:scale(1.05); }
-.kld-roll-btn-wrap { text-align:center; margin-top:20px; }
-.kld-world-draft { background:var(--kld-bg-card); border:1px solid var(--kld-border); border-radius:14px; padding:18px 16px; margin:20px 0; opacity:0; transform:translateY(12px); transition:opacity .4s, transform .4s; }
-.kld-world-draft.show { opacity:1; transform:translateY(0); }
-.kld-world-name { font-size:15px; font-weight:600; margin-bottom:6px; }
-.kld-world-setting { font-size:12.5px; color:var(--kld-text-dim); line-height:1.6; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-.kld-world-roles { font-size:11.5px; color:var(--kld-text-faint); margin-top:8px; }
-.kld-world-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
-.kld-world-tag { font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(123,111,222,0.12); color:var(--kld-accent); }
-.kld-draft-actions { display:flex; gap:10px; margin-top:14px; justify-content:center; }
-
-/* --- theater --- */
-.kld-theater-top { display:flex; align-items:center; padding:calc(env(safe-area-inset-top, 0px) + 10px) 16px 6px; gap:10px; opacity:0.4; transition:opacity .3s; }
-.kld-theater-top:hover, .kld-theater-top.visible { opacity:1; }
-.kld-theater-world { flex:1; font-size:12.5px; color:var(--kld-text-dim); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kld-theater-gear { background:none; border:none; color:var(--kld-text-faint); font-size:15px; cursor:pointer; padding:4px; }
-.kld-narrative { flex:1; overflow-y:auto; padding:4px 18px 20px; -webkit-overflow-scrolling:touch; }
-.kld-msg { margin-bottom:12px; animation:kldFadeIn .3s ease; }
-@keyframes kldFadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
-.kld-msg-user { text-align:right; color:var(--kld-accent); font-size:13px; }
-.kld-msg-user::before { content:'▸ '; font-size:10px; }
-.kld-msg-char { font-size:13.5px; line-height:1.7; }
-.kld-msg-narration { text-align:center; font-style:italic; color:var(--kld-narration); font-size:12.5px; padding:4px 0; }
-.kld-msg-npc { font-size:13.5px; line-height:1.7; }
-.kld-npc-tag { display:inline-block; font-size:10px; color:var(--kld-gold); background:rgba(200,169,110,0.12); padding:1px 7px; border-radius:8px; margin-right:6px; font-style:normal; }
-.kld-msg-system { text-align:center; color:var(--kld-text-faint); font-size:10px; }
-.kld-input-bar { display:flex; align-items:center; gap:8px; padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px); background:linear-gradient(transparent, var(--kld-bg) 30%); }
-.kld-input { flex:1; background:var(--kld-bg-input); border:1px solid var(--kld-border); border-radius:20px; padding:8px 14px; color:var(--kld-text); font-size:13px; outline:none; resize:none; font-family:inherit; }
-.kld-input::placeholder { color:var(--kld-text-faint); }
-.kld-send-btn { width:34px; height:34px; border-radius:50%; background:var(--kld-accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; border:none; cursor:pointer; transition:transform .12s, opacity .15s; }
-.kld-send-btn:active { transform:scale(0.9); }
-.kld-send-btn:disabled { opacity:0.4; }
-@keyframes kldSpin { to { transform:rotate(360deg); } }
-.kld-send-btn.loading .kld-send-icon { animation:kldSpin .8s linear infinite; }
-
-/* --- kld sheet overlay (reuse pattern) --- */
-.kld-sheet { position:absolute; inset:0; background:rgba(0,0,0,0.5); opacity:0; pointer-events:none; transition:opacity .25s; z-index:10; display:flex; align-items:flex-end; }
+#kld-room.kld-active { display:flex; flex-direction:column; }
+.kld-hdr { display:flex; align-items:center; padding:calc(env(safe-area-inset-top,0px)+14px) 20px 0; }
+.kld-hdr-back,.kld-hdr-plus { background:none; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer; padding:4px; }
+.kld-hdr-plus { margin-left:auto; }
+.kld-title { font-size:24px; font-weight:700; margin:6px 20px 0; }
+.kld-subtitle { font-size:13px; color:var(--text-secondary); margin:2px 20px 14px; }
+/* tabs */
+.kld-tabs { display:flex; gap:20px; padding:0 20px; border-bottom:1px solid var(--border-color); }
+.kld-tab { padding:8px 0 10px; font-size:14px; color:var(--text-faint); cursor:pointer; border-bottom:2px solid transparent; transition:color .15s; }
+.kld-tab.active { color:var(--text-primary); border-bottom-color:var(--text-primary); }
+.kld-tab-body { display:none; }
+.kld-tab-body.active { display:block; }
+/* filter chips */
+.kld-chips { display:flex; gap:8px; padding:14px 20px 8px; }
+.kld-chip { padding:5px 14px; border-radius:16px; font-size:12px; background:var(--bg-subtle); color:var(--text-secondary); cursor:pointer; border:none; transition:all .15s; }
+.kld-chip.active { background:var(--accent); color:var(--accent-text); }
+/* world cards */
+.kld-cards { padding:6px 20px 20px; }
+.kld-card { background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:16px; margin-bottom:10px; cursor:pointer; display:flex; gap:12px; transition:background .12s; }
+.kld-card:active { background:var(--bg-hover); }
+.kld-card-body { flex:1; min-width:0; }
+.kld-card-name { font-size:15px; font-weight:600; margin-bottom:4px; }
+.kld-card-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.kld-card-foot { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.kld-card-tag { font-size:11px; padding:2px 8px; border-radius:10px; background:var(--bg-subtle); color:var(--text-secondary); }
+.kld-card-right { display:flex; flex-direction:column; align-items:flex-end; justify-content:space-between; flex-shrink:0; }
+.kld-hue-dot { width:10px; height:10px; border-radius:50%; }
+.kld-card-visits { font-size:11px; color:var(--text-faint); white-space:nowrap; }
+.kld-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px; gap:14px; color:var(--text-faint); }
+/* slots grid */
+.kld-tone-bar { display:flex; gap:8px; padding:14px 20px 6px; align-items:center; }
+.kld-tone-btn { padding:4px 14px; border-radius:14px; font-size:12px; border:none; cursor:pointer; background:var(--bg-subtle); color:var(--text-secondary); }
+.kld-tone-btn.active { background:var(--accent); color:var(--accent-text); }
+.kld-tone-hint { font-size:11px; color:var(--text-faint); padding:0 20px 10px; }
+.kld-slot-grid { padding:10px 20px; }
+.kld-slot-row { display:flex; gap:8px; margin-bottom:10px; }
+.kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,60,60,0.08); }
+html.dark .kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,80,80,0.12); }
+.kld-slot-box { flex:1; min-width:0; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:10px; padding:10px 8px; text-align:center; cursor:pointer; position:relative; transition:border-color .15s; }
+.kld-slot-box.locked { border-color:var(--text-faint); }
+.kld-slot-cat { font-size:10px; color:var(--text-faint); margin-bottom:4px; display:flex; align-items:center; justify-content:center; gap:4px; }
+.kld-slot-lock { font-size:9px; opacity:0.5; }
+.kld-slot-word { font-size:13px; color:var(--text-primary); min-height:20px; overflow:hidden; position:relative; }
+.kld-slot-word span { display:block; transition:transform .1s,opacity .1s; }
+.kld-roll-bar { padding:16px 20px; }
+.kld-btn-full { display:block; width:100%; padding:13px; border-radius:12px; font-size:14px; font-weight:500; border:none; cursor:pointer; background:var(--accent); color:var(--accent-text); transition:transform .1s; }
+.kld-btn-full:active { transform:scale(0.98); }
+.kld-btn-full:disabled { opacity:0.4; }
+.kld-btn-outline { background:transparent; border:1px solid var(--border-color); color:var(--text-primary); }
+.kld-roll-preview { padding:10px 20px; font-size:13px; color:var(--text-secondary); line-height:1.6; }
+.kld-roll-actions { display:flex; gap:10px; padding:0 20px 20px; }
+.kld-roll-actions .kld-btn-full { flex:1; }
+.kld-roll-hint { font-size:11px; color:var(--text-faint); padding:0 20px 16px; text-align:center; }
+/* room */
+.kld-room-hdr { display:flex; align-items:center; padding:calc(env(safe-area-inset-top,0px)+10px) 16px 8px; gap:8px; flex-shrink:0; }
+.kld-room-back { background:none; border:none; color:var(--text-secondary); font-size:20px; cursor:pointer; padding:4px; }
+.kld-room-info { flex:1; text-align:center; }
+.kld-room-title { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kld-room-meta { font-size:11px; color:var(--text-faint); }
+.kld-room-gear { background:none; border:none; color:var(--text-faint); font-size:16px; cursor:pointer; padding:4px; }
+.kld-msgs { flex:1; overflow-y:auto; padding:8px 16px 16px; -webkit-overflow-scrolling:touch; }
+.kld-msg { margin-bottom:12px; }
+@keyframes kldIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.kld-msg.anim { animation:kldIn .3s ease; }
+.kld-msg-narration { text-align:center; font-size:12px; color:var(--text-faint); padding:6px 24px; line-height:1.6; }
+.kld-msg-npc { text-align:center; font-size:12px; color:var(--text-faint); padding:4px 24px; }
+.kld-npc-name { display:inline-block; font-size:10px; color:var(--text-secondary); background:var(--bg-subtle); padding:1px 8px; border-radius:8px; margin-bottom:2px; }
+.kld-msg-system { text-align:center; font-size:11px; color:var(--text-faint); }
+.kld-msg-char,.kld-msg-user { display:flex; }
+.kld-bubble { max-width:80%; padding:10px 14px; border-radius:14px; font-size:13.5px; line-height:1.7; word-break:break-word; }
+.kld-msg-char { justify-content:flex-start; }
+.kld-msg-char .kld-bubble { background:var(--bg-surface); border:1px solid var(--border-color); }
+.kld-msg-user { justify-content:flex-end; }
+.kld-msg-user .kld-bubble { background:var(--bg-subtle); }
+.kld-input-bar { display:flex; align-items:center; gap:8px; padding:8px 14px calc(env(safe-area-inset-bottom,0px)+10px); flex-shrink:0; border-top:1px solid var(--border-color); }
+.kld-narrate-btn { background:none; border:none; color:var(--text-faint); font-size:18px; cursor:pointer; padding:4px; }
+.kld-input { flex:1; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:20px; padding:8px 14px; color:var(--text-primary); font-size:13px; outline:none; font-family:inherit; }
+.kld-input::placeholder { color:var(--text-faint); }
+.kld-send-btn { width:34px; height:34px; border-radius:50%; background:var(--accent); color:var(--accent-text); display:flex; align-items:center; justify-content:center; font-size:15px; border:none; cursor:pointer; }
+.kld-send-btn:disabled { opacity:0.35; }
+@keyframes kldSpin { to{transform:rotate(360deg)} }
+.kld-send-btn.loading .kld-send-icon { animation:kldSpin .7s linear infinite; }
+/* sheets & modal */
+.kld-sheet { position:absolute; inset:0; background:rgba(0,0,0,0.4); opacity:0; pointer-events:none; transition:opacity .2s; z-index:10; display:flex; align-items:flex-end; }
 .kld-sheet.show { opacity:1; pointer-events:auto; }
-.kld-sheet-panel { background:var(--kld-bg-card); width:100%; border-radius:16px 16px 0 0; padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 20px); transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); max-height:70vh; overflow-y:auto; }
+.kld-sheet-panel { background:var(--bg-surface); width:100%; border-radius:16px 16px 0 0; padding:24px 20px calc(env(safe-area-inset-bottom,0px)+24px); transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); max-height:80vh; overflow-y:auto; }
 .kld-sheet.show .kld-sheet-panel { transform:translateY(0); }
-.kld-sheet-title { font-size:14px; font-weight:600; margin-bottom:14px; }
-.kld-sheet-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; font-size:13px; border-bottom:1px solid var(--kld-border); }
-.kld-sheet-row:last-child { border-bottom:none; }
-.kld-sheet-val { color:var(--kld-text-dim); }
-.kld-sheet-danger { color:#e05555; cursor:pointer; padding:12px 0; font-size:13px; text-align:center; margin-top:8px; }
+.kld-sheet-name { font-size:18px; font-weight:600; margin-bottom:2px; }
+.kld-sheet-tone { font-size:12px; color:var(--text-faint); margin-bottom:12px; }
+.kld-sheet-section { font-size:11px; color:var(--text-faint); margin:14px 0 4px; }
+.kld-sheet-text { font-size:13px; line-height:1.7; color:var(--text-secondary); }
+.kld-sheet-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.kld-sheet-tag { font-size:11px; padding:3px 10px; border-radius:10px; background:var(--bg-subtle); color:var(--text-secondary); }
+.kld-sheet-btns { display:flex; gap:10px; margin-top:18px; }
+.kld-sheet-btns button { flex:1; padding:12px; border-radius:10px; font-size:13px; cursor:pointer; border:1px solid var(--border-color); background:var(--bg-surface); color:var(--text-secondary); }
+.kld-sheet-primary { display:block; width:100%; padding:14px; border-radius:12px; font-size:15px; font-weight:500; border:none; cursor:pointer; margin-top:12px; background:var(--accent); color:var(--accent-text); }
+/* config panel */
+.kld-config-title { font-size:18px; font-weight:600; margin-bottom:16px; }
+.kld-config-label { font-size:12px; color:var(--text-faint); margin-bottom:6px; }
+.kld-config-opts { display:flex; gap:10px; margin-bottom:16px; }
+.kld-config-opt { flex:1; padding:14px 10px; border-radius:10px; border:1px solid var(--border-color); background:var(--bg-surface); cursor:pointer; text-align:center; transition:border-color .15s; }
+.kld-config-opt.active { border-color:var(--text-primary); }
+.kld-config-opt-main { font-size:14px; font-weight:500; }
+.kld-config-opt-sub { font-size:11px; color:var(--text-faint); margin-top:2px; }
+/* editor modal */
+.kld-modal { position:absolute; inset:0; background:var(--bg-app); z-index:20; overflow-y:auto; -webkit-overflow-scrolling:touch; opacity:0; pointer-events:none; transition:opacity .2s; }
+.kld-modal.show { opacity:1; pointer-events:auto; }
+.kld-modal-hdr { display:flex; align-items:center; padding:calc(env(safe-area-inset-top,0px)+12px) 16px 10px; }
+.kld-modal-close { background:none; border:none; font-size:22px; color:var(--text-secondary); cursor:pointer; padding:4px 8px; }
+.kld-modal-title { flex:1; text-align:center; font-size:15px; font-weight:600; }
+.kld-form { padding:0 20px 40px; }
+.kld-form label { display:block; font-size:12px; color:var(--text-faint); margin:14px 0 4px; }
+.kld-form input,.kld-form textarea { display:block; width:100%; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:10px; padding:10px 12px; color:var(--text-primary); font-size:13px; font-family:inherit; outline:none; resize:vertical; }
+.kld-form textarea { min-height:80px; }
+.kld-form input::placeholder,.kld-form textarea::placeholder { color:var(--text-faint); }
+.kld-hue-grid { display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; }
+.kld-hue-dot-pick { width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:border-color .12s; }
+.kld-hue-dot-pick.active { border-color:var(--text-primary); }
+/* run card (航迹) */
+.kld-run-card { background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:background .12s; }
+.kld-run-card:active { background:var(--bg-hover); }
+.kld-run-top { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.kld-run-name { font-size:14px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kld-run-badge { font-size:11px; color:var(--text-faint); }
+.kld-run-line { font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kld-run-date { font-size:11px; color:var(--text-faint); margin-top:4px; }
+/* summary */
+.kld-sum-hdr { padding:calc(env(safe-area-inset-top,0px)+14px) 20px 0; display:flex; align-items:center; gap:8px; }
+.kld-sum-title { font-size:18px; font-weight:600; margin:10px 20px 2px; }
+.kld-sum-meta { font-size:12px; color:var(--text-faint); margin:0 20px 16px; }
+.kld-sum-card { background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; margin:0 20px 14px; padding:16px; font-size:13px; line-height:1.7; color:var(--text-secondary); }
+.kld-sum-setting { padding:0 20px; font-size:13px; line-height:1.7; color:var(--text-secondary); margin-bottom:20px; }
 .page-placeholder {
 height: 100%; display: flex; align-items: center; justify-content: center;
 color: var(--text-faint); font-size: 14px;
@@ -1939,60 +1984,74 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
     </div>
   </div>
   <div class="page" id="page-kaleidoscope">
-    <div class="kld-view kld-active" id="kld-lobby">
-      <div class="kld-header">
-        <button class="kld-back-btn" id="kldLobbyBack">←</button>
-        <span class="kld-header-title">万花筒</span>
-        <button class="kld-header-btn" id="kldNewBtn" title="新世界">＋</button>
+    <div class="kld-view kld-active" id="kld-hub">
+      <div class="kld-hdr"><button class="kld-hdr-back" id="kldBack">&lt;</button><button class="kld-hdr-plus" id="kldPlusBtn">+</button></div>
+      <div class="kld-title">万花筒</div>
+      <div class="kld-subtitle">转一下，就是另一个我们</div>
+      <div class="kld-tabs" id="kldTabs">
+        <div class="kld-tab active" data-tab="worlds">我的世界 <span id="kldWorldCount"></span></div>
+        <div class="kld-tab" data-tab="slots">随机世界</div>
+        <div class="kld-tab" data-tab="history">航迹</div>
       </div>
-      <div id="kldRunList"></div>
-      <div class="kld-empty" id="kldEmptyState">
-        <div class="kld-empty-text">摇一个世界开始冒险</div>
-        <button class="kld-btn" id="kldEmptyNewBtn">摇一摇</button>
-      </div>
-    </div>
-    <div class="kld-view" id="kld-slots">
-      <div class="kld-header">
-        <button class="kld-back-btn" id="kldSlotsBack">←</button>
-        <span class="kld-header-title">新世界</span>
-      </div>
-      <div class="kld-slots-wrap">
-        <div class="kld-slots-rows" id="kldSlotsRows"></div>
-        <div class="kld-roll-btn-wrap"><button class="kld-btn" id="kldRollBtn">摇</button></div>
-        <div class="kld-world-draft" id="kldDraft"></div>
-      </div>
-    </div>
-    <div class="kld-view" id="kld-theater">
-      <div class="kld-theater-top" id="kldTheaterTop">
-        <button class="kld-back-btn" id="kldTheaterBack">←</button>
-        <span class="kld-theater-world" id="kldTheaterWorld"></span>
-        <button class="kld-theater-gear" id="kldTheaterGear">⚙</button>
-      </div>
-      <div class="kld-narrative" id="kldNarrative"></div>
-      <div class="kld-input-bar">
-        <input class="kld-input" id="kldInput" placeholder="你的行动…">
-        <button class="kld-send-btn" id="kldSendBtn"><span class="kld-send-icon">↓</span></button>
-      </div>
-    </div>
-    <div class="kld-sheet" id="kldSettingsSheet" onclick="if(event.target===this)this.classList.remove('show')">
-      <div class="kld-sheet-panel">
-        <div class="kld-sheet-title">当前冒险</div>
-        <div class="kld-sheet-row"><span>世界</span><span class="kld-sheet-val" id="kldSettingsWorld"></span></div>
-        <div class="kld-sheet-row"><span>节奏</span><span class="kld-sheet-val" id="kldSettingsSpeed"></span></div>
-        <div class="kld-sheet-row"><span>轮次</span><span class="kld-sheet-val" id="kldSettingsTurns"></span></div>
-        <div class="kld-sheet-danger" onclick="kldEndRun()">结束本局</div>
-      </div>
-    </div>
-    <div class="kld-sheet" id="kldKeywordSheet" onclick="if(event.target===this)this.classList.remove('show')">
-      <div class="kld-sheet-panel">
-        <div class="kld-sheet-title" id="kldKwSheetTitle"></div>
-        <div id="kldKwList"></div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <input class="kld-input" id="kldKwInput" placeholder="添加新词…" style="flex:1">
-          <button class="kld-btn" onclick="kldAddKeyword()" style="padding:8px 16px">加</button>
+      <div class="kld-tab-body active" id="kld-tab-worlds">
+        <div class="kld-chips" id="kldFilterChips">
+          <button class="kld-chip active" data-tone="">全部</button>
+          <button class="kld-chip" data-tone="nsfw">黄</button>
+          <button class="kld-chip" data-tone="sfw">清水</button>
+        </div>
+        <div class="kld-cards" id="kldWorldCards"></div>
+        <div class="kld-empty" id="kldWorldEmpty" style="display:none">
+          <div style="font-size:13px">还没有世界</div>
+          <button class="kld-btn-full" style="width:auto;padding:10px 28px" onclick="kldSwitchTab('slots')">摇一个</button>
         </div>
       </div>
+      <div class="kld-tab-body" id="kld-tab-slots">
+        <div class="kld-tone-bar">
+          <button class="kld-tone-btn active" data-tone="sfw">清水</button>
+          <button class="kld-tone-btn" data-tone="nsfw">黄</button>
+        </div>
+        <div class="kld-tone-hint" id="kldToneHint"></div>
+        <div class="kld-slot-grid" id="kldSlotGrid"></div>
+        <div class="kld-roll-hint">点格子重摇该列；点上面的锁把它钉住</div>
+        <div class="kld-roll-bar"><button class="kld-btn-full" id="kldRollBtn">再摇一次</button></div>
+        <div id="kldRollResult" style="display:none">
+          <div class="kld-roll-preview" id="kldRollPreview"></div>
+          <div class="kld-roll-actions">
+            <button class="kld-btn-full" id="kldWriteBtn">把它写出来</button>
+            <button class="kld-btn-full kld-btn-outline" id="kldSaveWordsBtn">只存这几个词</button>
+          </div>
+        </div>
+      </div>
+      <div class="kld-tab-body" id="kld-tab-history">
+        <div class="kld-cards" id="kldRunCards" style="padding-top:14px"></div>
+        <div class="kld-empty" id="kldRunEmpty" style="display:none"><div style="font-size:13px">还没走过</div></div>
+      </div>
     </div>
+    <div class="kld-view" id="kld-room">
+      <div class="kld-room-hdr">
+        <button class="kld-room-back" id="kldRoomBack">&lt;</button>
+        <div class="kld-room-info"><div class="kld-room-title" id="kldRoomTitle"></div><div class="kld-room-meta" id="kldRoomMeta"></div></div>
+        <button class="kld-room-gear" id="kldRoomGear" style="font-size:14px">&#9881;</button>
+      </div>
+      <div class="kld-msgs" id="kldMsgs"></div>
+      <div class="kld-input-bar">
+        <button class="kld-narrate-btn" id="kldNarBtn" title="旁白">&#x1F514;</button>
+        <input class="kld-input" id="kldInput" placeholder="说点什么…（打【停】出戏）">
+        <button class="kld-send-btn" id="kldSendBtn"><span class="kld-send-icon">&#8593;</span></button>
+      </div>
+    </div>
+    <div class="kld-view" id="kld-summary">
+      <div class="kld-sum-hdr"><button class="kld-room-back" id="kldSumBack">&lt;</button></div>
+      <div class="kld-sum-title" id="kldSumTitle"></div>
+      <div class="kld-sum-meta" id="kldSumMeta"></div>
+      <div class="kld-sum-card" id="kldSumDigest"></div>
+      <div class="kld-sum-setting" id="kldSumSetting"></div>
+      <div style="padding:0 20px 40px"><button class="kld-btn-full" id="kldSumContinue">继续这一趟</button></div>
+    </div>
+    <div class="kld-sheet" id="kldDetailSheet" onclick="if(event.target===this)this.classList.remove('show')"><div class="kld-sheet-panel" id="kldDetailPanel"></div></div>
+    <div class="kld-sheet" id="kldConfigSheet" onclick="if(event.target===this)this.classList.remove('show')"><div class="kld-sheet-panel" id="kldConfigPanel"></div></div>
+    <div class="kld-sheet" id="kldRoomSheet" onclick="if(event.target===this)this.classList.remove('show')"><div class="kld-sheet-panel" id="kldRoomPanel"></div></div>
+    <div class="kld-modal" id="kldEditorModal"><div id="kldEditorContent"></div></div>
   </div>
 </div>
 
@@ -9184,362 +9243,326 @@ function vocabParseForms(exchange) {
 }
 
 /* ============================================================
-万花筒 (Kaleidoscope) RP 引擎
+万花筒 (Kaleidoscope) RP 引擎 — 重写版
 ============================================================ */
 const KLD_BASE = () => (typeof CHAT_MAIN_BASE !== 'undefined' ? CHAT_MAIN_BASE.replace('/chat-main', '/rp') : 'https://47-107-161-135.sslip.io/rp');
 const KLD_TOKEN = () => localStorage.getItem('kld_token') || '';
-let kldCurrentRun = null;
-let kldWorlds = [];
-let kldRuns = [];
-let kldKeywords = [];
-let kldCategories = [];
-let kldConfig = null;
-
-async function kldApi(path, body) {
-  const isGet = !body;
-  const url = new URL(KLD_BASE() + path);
-  if (isGet && KLD_TOKEN()) url.searchParams.set('token', KLD_TOKEN());
-  const opts = { method: isGet ? 'GET' : 'POST', headers: {} };
-  if (!isGet) {
-    opts.headers['Content-Type'] = 'application/json';
-    const payload = { ...(body || {}) };
-    if (KLD_TOKEN()) payload.token = KLD_TOKEN();
-    opts.body = JSON.stringify(payload);
-  }
-  const r = await fetch(url.toString(), opts);
-  const j = await r.json();
-  if (j.error) throw new Error(j.message || j.error);
-  return j;
-}
-
-function kldSwitchView(viewId) {
-  document.querySelectorAll('#page-kaleidoscope .kld-view').forEach(v => v.classList.remove('kld-active'));
-  document.getElementById(viewId).classList.add('kld-active');
-}
-
-function kldRelTime(iso) {
-  if (!iso) return '';
-  const d = Date.now() - new Date(iso).getTime();
-  if (d < 60000) return '刚刚';
-  if (d < 3600000) return Math.floor(d / 60000) + '分钟前';
-  if (d < 86400000) return Math.floor(d / 3600000) + '小时前';
-  return Math.floor(d / 86400000) + '天前';
-}
-
-/* --- Lobby --- */
-async function kldOnEnter() {
-  kldSwitchView('kld-lobby');
-  if (!KLD_TOKEN()) {
-    const t = prompt('万花筒 token：');
-    if (t) localStorage.setItem('kld_token', t.trim());
-    else return;
-  }
-  try {
-    const [runsR, worldsR] = await Promise.all([kldApi('/api/runs'), kldApi('/api/worlds')]);
-    kldRuns = runsR.runs || [];
-    kldWorlds = worldsR.worlds || [];
-    kldRenderLobby();
-  } catch (e) {
-    document.getElementById('kldRunList').innerHTML = '';
-    document.getElementById('kldEmptyState').style.display = 'flex';
-    document.getElementById('kldEmptyState').querySelector('.kld-empty-text').textContent = '连接失败: ' + e.message;
-  }
-}
-
-function kldRenderLobby() {
-  const list = document.getElementById('kldRunList');
-  const empty = document.getElementById('kldEmptyState');
-  if (!kldRuns.length) { list.innerHTML = ''; empty.style.display = 'flex'; return; }
-  empty.style.display = 'none';
-  list.innerHTML = kldRuns.map(r => `<div class="kld-run-card" data-run="${r.id}">
-    <div class="kld-run-dot" style="background:hsl(${r.hue||0},50%,55%)"></div>
-    <div class="kld-run-body">
-      <div class="kld-run-name">${esc(r.worldName||'未命名')}</div>
-      <div class="kld-run-preview">${esc(r.lastLine||'(空)')}</div>
-    </div>
-    <div class="kld-run-meta">
-      <div class="kld-run-turns">T${r.turns||0}</div>
-      <div class="kld-run-time">${kldRelTime(r.updatedAt)}</div>
-      ${r.endedAt ? '<div class="kld-run-end">END</div>' : ''}
-    </div>
-  </div>`).join('');
-  list.querySelectorAll('.kld-run-card').forEach(card => {
-    card.addEventListener('click', () => kldEnterTheater(card.dataset.run));
-    let timer;
-    card.addEventListener('touchstart', () => { timer = setTimeout(() => kldConfirmDeleteRun(card.dataset.run), 600); }, { passive: true });
-    card.addEventListener('touchend', () => clearTimeout(timer));
-    card.addEventListener('touchmove', () => clearTimeout(timer));
-  });
-}
-function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-async function kldConfirmDeleteRun(runId) {
-  if (!confirm('删除这一局？不可恢复')) return;
-  try { await kldApi('/api/runs/delete', { id: runId }); } catch(e) { showToast('删除失败: '+e.message); return; }
-  kldRuns = kldRuns.filter(r => r.id !== runId);
-  kldRenderLobby();
-}
-
-/* --- Slots (老虎机) --- */
-let kldSlotIntervals = [];
-let kldChosenWords = {};
-let kldCurrentDraft = null;
-
-async function kldGoSlots() {
-  kldSwitchView('kld-slots');
-  document.getElementById('kldDraft').classList.remove('show');
-  document.getElementById('kldDraft').innerHTML = '';
-  kldCurrentDraft = null;
-  try {
-    if (!kldConfig) kldConfig = await kldApi('/api/config');
-    kldCategories = (kldConfig.categories || []).filter(c => !(kldConfig.redCats || []).includes(c.key));
-    const kwR = await kldApi('/api/keywords');
-    kldKeywords = (kwR.keywords || []).filter(k => k.tone !== 'red');
-    kldBuildSlotColumns();
-  } catch(e) { showToast('加载失败: '+e.message); }
-}
-
-function kldBuildSlotColumns() {
-  const rows = {};
-  kldCategories.forEach(c => { const r = c.row || 1; (rows[r] = rows[r] || []).push(c); });
-  const container = document.getElementById('kldSlotsRows');
-  container.innerHTML = '';
-  Object.keys(rows).sort().forEach(rk => {
-    const rowDiv = document.createElement('div');
-    rowDiv.className = 'kld-slots-row';
-    rows[rk].forEach(cat => {
-      const words = kldKeywords.filter(k => k.cat === cat.key);
-      const col = document.createElement('div');
-      col.className = 'kld-slot-col';
-      col.dataset.cat = cat.key;
-      col.innerHTML = `<div class="kld-slot-label">${esc(cat.label)}</div><div class="kld-slot-cell"><div class="kld-slot-word active">${words.length ? esc(words[0].word) : '—'}</div></div>`;
-      col.addEventListener('click', () => kldOpenKeywordSheet(cat.key, cat.label));
-      rowDiv.appendChild(col);
-    });
-    container.appendChild(rowDiv);
-  });
-}
-
-async function kldDoRoll() {
-  const btn = document.getElementById('kldRollBtn');
-  btn.disabled = true; btn.textContent = '…';
-  document.getElementById('kldDraft').classList.remove('show');
-  kldChosenWords = {};
-  const cols = document.querySelectorAll('.kld-slot-col');
-  kldSlotIntervals.forEach(clearInterval);
-  kldSlotIntervals = [];
-  cols.forEach((col, i) => {
-    const words = kldKeywords.filter(k => k.cat === col.dataset.cat);
-    if (!words.length) return;
-    const cell = col.querySelector('.kld-slot-cell');
-    const intv = setInterval(() => {
-      const w = words[Math.floor(Math.random() * words.length)];
-      const prev = cell.querySelector('.kld-slot-word.active');
-      if (prev) { prev.classList.remove('active'); prev.classList.add('exit'); setTimeout(() => prev.remove(), 120); }
-      const el = document.createElement('div');
-      el.className = 'kld-slot-word enter';
-      el.textContent = w.word;
-      cell.appendChild(el);
-      requestAnimationFrame(() => requestAnimationFrame(() => { el.classList.remove('enter'); el.classList.add('active'); }));
-    }, 80 + Math.random() * 40);
-    kldSlotIntervals.push(intv);
-    setTimeout(() => {
-      clearInterval(intv);
-      const final = words[Math.floor(Math.random() * words.length)];
-      kldChosenWords[col.dataset.cat] = final.word;
-      cell.querySelectorAll('.kld-slot-word').forEach(el => el.remove());
-      const el = document.createElement('div');
-      el.className = 'kld-slot-word active highlight';
-      el.textContent = final.word;
-      cell.appendChild(el);
-      setTimeout(() => el.classList.remove('highlight'), 400);
-    }, 800 + i * 150);
-  });
-  const totalDelay = 800 + cols.length * 150 + 200;
-  setTimeout(async () => {
-    try {
-      const r = await kldApi('/api/roll', { tone: 'sfw', words: kldChosenWords });
-      kldCurrentDraft = r.draft;
-      kldShowDraft(r.draft);
-    } catch(e) { showToast('生成失败: '+e.message); }
-    btn.disabled = false; btn.textContent = '摇';
-  }, totalDelay);
-}
-
-function kldShowDraft(d) {
-  const el = document.getElementById('kldDraft');
-  el.innerHTML = `<div class="kld-world-name">${esc(d.name)}</div>
-    <div class="kld-world-setting">${esc(d.setting)}</div>
-    <div class="kld-world-roles">${esc(d.charRole)} · ${esc(d.userRole)}</div>
-    <div class="kld-world-tags">${(d.tags||[]).map(t=>'<span class="kld-world-tag">'+esc(t)+'</span>').join('')}</div>
-    <div class="kld-draft-actions">
-      <button class="kld-btn" onclick="kldSaveAndStart()">开局</button>
-      <button class="kld-btn kld-btn-ghost" onclick="kldDoRoll()">再摇</button>
-    </div>`;
-  requestAnimationFrame(() => el.classList.add('show'));
-}
-
-async function kldSaveAndStart() {
-  if (!kldCurrentDraft) return;
-  try {
-    const wR = await kldApi('/api/worlds/save', kldCurrentDraft);
-    const world = wR.world;
-    const rR = await kldApi('/api/runs/start', { worldId: world.id, speed: 'slow' });
-    kldCurrentRun = rR.run;
-    await kldEnterTheater(kldCurrentRun.id);
-  } catch(e) { showToast('开局失败: '+e.message); }
-}
-
-function kldOpenKeywordSheet(catKey, catLabel) {
-  const words = kldKeywords.filter(k => k.cat === catKey);
-  const sheet = document.getElementById('kldKeywordSheet');
-  if (!sheet) return;
-  document.getElementById('kldKwSheetTitle').textContent = catLabel;
-  const list = document.getElementById('kldKwList');
-  list.innerHTML = words.map(w => `<div class="kld-sheet-row"><span>${esc(w.word)}</span><button class="kld-kw-del" data-id="${w.id}" style="background:none;border:none;color:var(--kld-text-faint);cursor:pointer;font-size:14px">×</button></div>`).join('');
-  list.querySelectorAll('.kld-kw-del').forEach(b => b.addEventListener('click', async () => {
-    try { await kldApi('/api/keywords/delete', { id: b.dataset.id }); kldKeywords = kldKeywords.filter(k=>k.id!==b.dataset.id); b.closest('.kld-sheet-row').remove(); kldBuildSlotColumns(); } catch(e) { showToast(e.message); }
-  }));
-  sheet.classList.add('show');
-  sheet._catKey = catKey;
-}
-/* --- Theater (剧场) --- */
-let kldTheaterRows = [];
+let kldWorlds = [], kldRuns = [], kldKeywords = [], kldCategories = [], kldRedCats = [];
+let kldConfig = null, kldCurrentRun = null, kldCurrentWorld = null;
+let kldSlotTone = 'sfw', kldChosenWords = {}, kldLockedCols = new Set(), kldCurrentDraft = null;
+let kldFilterTone = '';
 const KLD_MARK_RE = /\[(?:cue|npc)\b[^\]]*\]?/g;
-
-async function kldEnterTheater(runId) {
-  kldSwitchView('kld-theater');
-  const narrative = document.getElementById('kldNarrative');
-  narrative.innerHTML = '<div style="text-align:center;color:var(--kld-text-faint);padding:40px">加载中…</div>';
-  try {
-    const run = kldRuns.find(r => r.id === runId);
-    if (run) kldCurrentRun = run;
-    else { const runsR = await kldApi('/api/runs'); kldRuns = runsR.runs||[]; kldCurrentRun = kldRuns.find(r=>r.id===runId); }
-    document.getElementById('kldTheaterWorld').textContent = kldCurrentRun?.worldName || '';
-    const roomR = await kldApi('/api/room?run=' + runId);
-    kldTheaterRows = roomR.rows || [];
-    kldRenderNarrative(false);
-    if (!kldTheaterRows.length && kldCurrentRun && !kldCurrentRun.endedAt) {
-      await kldDoNudge();
-    }
-  } catch(e) { narrative.innerHTML = '<div style="text-align:center;color:#e05555;padding:40px">'+esc(e.message)+'</div>'; }
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+async function kldApi(path,body){
+  const isGet=!body, url=new URL(KLD_BASE()+path);
+  if(isGet&&KLD_TOKEN())url.searchParams.set('token',KLD_TOKEN());
+  const opts={method:isGet?'GET':'POST',headers:{}};
+  if(!isGet){opts.headers['Content-Type']='application/json';const p={...(body||{})};if(KLD_TOKEN())p.token=KLD_TOKEN();opts.body=JSON.stringify(p)}
+  const r=await fetch(url.toString(),opts),j=await r.json();
+  if(j.error)throw new Error(j.message||j.error);return j;
 }
+function kldRelTime(iso){if(!iso)return '';const d=Date.now()-new Date(iso).getTime();if(d<60000)return'刚刚';if(d<3600000)return Math.floor(d/60000)+'分钟前';if(d<86400000)return Math.floor(d/3600000)+'小时前';return Math.floor(d/86400000)+'天前'}
+function kldFmtDate(iso){if(!iso)return '';const d=new Date(iso);return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()}
+function kldSwitchView(id){document.querySelectorAll('#page-kaleidoscope .kld-view').forEach(v=>v.classList.remove('kld-active'));document.getElementById(id).classList.add('kld-active')}
 
-function kldRenderNarrative(animated) {
-  const narrative = document.getElementById('kldNarrative');
-  narrative.innerHTML = kldTheaterRows.map((r, i) => kldRenderRow(r, animated && i >= kldTheaterRows.length - 3)).join('');
-  requestAnimationFrame(() => narrative.scrollTop = narrative.scrollHeight);
+/* === Hub === */
+function kldSwitchTab(tabId){
+  document.querySelectorAll('#kldTabs .kld-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tabId));
+  document.querySelectorAll('#page-kaleidoscope .kld-tab-body').forEach(b=>b.classList.remove('active'));
+  document.getElementById('kld-tab-'+tabId).classList.add('active');
+  if(tabId==='slots')kldInitSlots();
+  if(tabId==='history')kldRenderHistory();
 }
-
-function kldRenderRow(row, animate) {
-  const cls = animate ? ' style="animation:kldFadeIn .4s ease"' : '';
-  const text = esc(row.text.replace(KLD_MARK_RE, '').trim());
-  switch(row.kind) {
-    case 'user': return `<div class="kld-msg kld-msg-user"${cls}>${text}</div>`;
-    case 'char': return `<div class="kld-msg kld-msg-char"${cls}>${text}</div>`;
-    case 'narration': return `<div class="kld-msg kld-msg-narration"${cls}>${text}</div>`;
-    case 'npc': return `<div class="kld-msg kld-msg-npc"${cls}><span class="kld-npc-tag">${esc(row.name)}</span>${text}</div>`;
-    case 'system': return `<div class="kld-msg kld-msg-system"${cls}>${text}</div>`;
-    default: return `<div class="kld-msg kld-msg-char"${cls}>${text}</div>`;
-  }
+async function kldOnEnter(){
+  kldSwitchView('kld-hub');
+  if(!KLD_TOKEN()){const t=prompt('万花筒 token：');if(t)localStorage.setItem('kld_token',t.trim());else return}
+  try{
+    const[wr,rr,cr]=await Promise.all([kldApi('/api/worlds'),kldApi('/api/runs'),kldApi('/api/config')]);
+    kldWorlds=wr.worlds||[];kldRuns=rr.runs||[];kldConfig=cr;
+    kldCategories=cr.categories||[];kldRedCats=cr.redCats||[];
+    document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';
+    kldRenderWorlds();
+  }catch(e){document.getElementById('kldWorldCards').innerHTML='<div class="kld-empty" style="display:flex"><div>连接失败: '+esc(e.message)+'</div></div>'}
 }
-
-function kldAppendRows(rows) {
-  const narrative = document.getElementById('kldNarrative');
-  rows.forEach((row, i) => {
-    kldTheaterRows.push(row);
-    setTimeout(() => {
-      const div = document.createElement('div');
-      div.innerHTML = kldRenderRow(row, true);
-      narrative.appendChild(div.firstChild);
-      narrative.scrollTop = narrative.scrollHeight;
-    }, i * 150);
+function kldRenderWorlds(){
+  const filtered=kldFilterTone?kldWorlds.filter(w=>w.tone===kldFilterTone):kldWorlds;
+  const cards=document.getElementById('kldWorldCards'),empty=document.getElementById('kldWorldEmpty');
+  if(!filtered.length){cards.innerHTML='';empty.style.display='flex';return}
+  empty.style.display='none';
+  cards.innerHTML=filtered.map(w=>`<div class="kld-card" data-wid="${w.id}">
+    <div class="kld-card-body"><div class="kld-card-name">${esc(w.name)}</div>
+    <div class="kld-card-desc">${esc(w.setting)}</div>
+    <div class="kld-card-foot">${(w.tags||[]).map(t=>'<span class="kld-card-tag">'+esc(t)+'</span>').join('')}</div></div>
+    <div class="kld-card-right"><div class="kld-hue-dot" style="background:hsl(${w.hue||0},50%,60%)"></div>
+    <div class="kld-card-visits">${w.runs?'走过'+w.runs+'趟':'还没去过'}</div></div></div>`).join('');
+  cards.querySelectorAll('.kld-card').forEach(c=>c.addEventListener('click',()=>kldShowDetail(c.dataset.wid)));
+}
+/* === Detail sheet === */
+function kldShowDetail(wid){
+  const w=kldWorlds.find(x=>x.id===wid);if(!w)return;
+  kldCurrentWorld=w;
+  const p=document.getElementById('kldDetailPanel');
+  p.innerHTML=`<div class="kld-sheet-name">${esc(w.name)}</div>
+    <div class="kld-sheet-tone">${w.tone==='nsfw'?'黄':'清水'}·${w.runs?'走过'+w.runs+'趟':'还没去过'}</div>
+    <div class="kld-sheet-section">世界背景</div><div class="kld-sheet-text">${esc(w.setting)}</div>
+    <div class="kld-sheet-section">我在这里是谁</div><div class="kld-sheet-text">${esc(w.charRole)}</div>
+    <div class="kld-sheet-section">你在这里是谁</div><div class="kld-sheet-text">${esc(w.userRole)}</div>
+    <div class="kld-sheet-tags">${(w.tags||[]).map(t=>'<span class="kld-sheet-tag">'+esc(t)+'</span>').join('')}</div>
+    <div class="kld-sheet-btns"><button onclick="kldOpenEditor(kldCurrentWorld)">&#9998; 改</button><button onclick="kldDeleteWorld()">&#128465; 删</button></div>
+    <button class="kld-sheet-primary" onclick="kldShowConfig()">开始穿梭</button>`;
+  document.getElementById('kldDetailSheet').classList.add('show');
+}
+async function kldDeleteWorld(){
+  if(!kldCurrentWorld||!confirm('删除「'+kldCurrentWorld.name+'」？'))return;
+  try{await kldApi('/api/worlds/delete',{id:kldCurrentWorld.id})}catch(e){showToast(e.message);return}
+  kldWorlds=kldWorlds.filter(w=>w.id!==kldCurrentWorld.id);
+  document.getElementById('kldDetailSheet').classList.remove('show');
+  document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';
+  kldRenderWorlds();
+}
+/* === Config panel === */
+let kldCfgSpeed='slow',kldCfgIntimate=false;
+function kldShowConfig(){
+  document.getElementById('kldDetailSheet').classList.remove('show');
+  const p=document.getElementById('kldConfigPanel');
+  kldCfgSpeed='slow';kldCfgIntimate=false;
+  p.innerHTML=`<div class="kld-config-title">这一趟怎么走</div>
+    <div class="kld-config-label">节奏</div>
+    <div class="kld-config-opts" id="kldCfgSpeed">
+      <div class="kld-config-opt active" data-v="slow"><div class="kld-config-opt-main">慢</div><div class="kld-config-opt-sub">停在当下细写</div></div>
+      <div class="kld-config-opt" data-v="fast"><div class="kld-config-opt-main">快</div><div class="kld-config-opt-sub">一次推一步</div></div>
+    </div>
+    <div class="kld-config-label">亲密</div>
+    <div class="kld-config-opts" id="kldCfgIntimate">
+      <div class="kld-config-opt active" data-v="0"><div class="kld-config-opt-main">先不开</div><div class="kld-config-opt-sub">有张力，不进场</div></div>
+      <div class="kld-config-opt" data-v="1"><div class="kld-config-opt-main">开</div><div class="kld-config-opt-sub">开了旁白只写环境</div></div>
+    </div>
+    <button class="kld-sheet-primary" id="kldCfgGo">进去</button>`;
+  document.querySelectorAll('#kldCfgSpeed .kld-config-opt').forEach(o=>o.addEventListener('click',()=>{
+    document.querySelectorAll('#kldCfgSpeed .kld-config-opt').forEach(x=>x.classList.remove('active'));o.classList.add('active');kldCfgSpeed=o.dataset.v}));
+  document.querySelectorAll('#kldCfgIntimate .kld-config-opt').forEach(o=>o.addEventListener('click',()=>{
+    document.querySelectorAll('#kldCfgIntimate .kld-config-opt').forEach(x=>x.classList.remove('active'));o.classList.add('active');kldCfgIntimate=o.dataset.v==='1'}));
+  document.getElementById('kldCfgGo').addEventListener('click',async()=>{
+    if(!kldCurrentWorld)return;
+    try{const r=await kldApi('/api/runs/start',{worldId:kldCurrentWorld.id,speed:kldCfgSpeed,intimate:kldCfgIntimate});
+      kldCurrentRun=r.run;document.getElementById('kldConfigSheet').classList.remove('show');kldEnterRoom(kldCurrentRun.id);
+    }catch(e){showToast(e.message)}
+  });
+  document.getElementById('kldConfigSheet').classList.add('show');
+}
+/* === Editor === */
+const KLD_HUES=[0,30,50,80,120,160,200,240,280,320];
+function kldOpenEditor(w){
+  document.getElementById('kldDetailSheet').classList.remove('show');
+  const isNew=!w;const d=w||{name:'',setting:'',charRole:'',userRole:'',tone:'sfw',tags:[],hue:0};
+  const c=document.getElementById('kldEditorContent');
+  c.innerHTML=`<div class="kld-modal-hdr"><button class="kld-modal-close" id="kldEdClose">&times;</button><div class="kld-modal-title">${isNew?'写一个世界':'改'}</div><div style="width:36px"></div></div>
+    <div class="kld-form"><label>世界名</label><input id="kldEdName" value="${esc(d.name)}" placeholder="4-10字">
+    <label>世界背景</label><textarea id="kldEdSetting" placeholder="什么年代、什么地方、我们怎么遇上的">${esc(d.setting)}</textarea>
+    <label>我在这里是谁</label><textarea id="kldEdChar" placeholder="角色在这个世界的身份、性格、跟你的关系">${esc(d.charRole)}</textarea>
+    <label>你在这里是谁</label><textarea id="kldEdUser" placeholder="你的身份和处境（留空我就按平常的你来写）">${esc(d.userRole)}</textarea>
+    <label>尺度</label><div class="kld-tone-bar" style="padding:0"><button class="kld-tone-btn ${d.tone==='sfw'?'active':''}" data-tone="sfw">清水</button><button class="kld-tone-btn ${d.tone==='nsfw'?'active':''}" data-tone="nsfw">黄</button></div>
+    <label>标签（空格分隔）</label><input id="kldEdTags" value="${(d.tags||[]).join(' ')}" placeholder="民国 谍战 追妻">
+    <label>这个世界的颜色</label><div class="kld-hue-grid" id="kldEdHueGrid">${KLD_HUES.map(h=>'<div class="kld-hue-dot-pick'+(h===d.hue?' active':'')+'" data-hue="'+h+'" style="background:hsl('+h+',50%,60%)"></div>').join('')}</div>
+    <button class="kld-btn-full" style="margin-top:20px" id="kldEdSave">${isNew?'保存':'保存修改'}</button></div>`;
+  c.querySelector('#kldEdClose').addEventListener('click',()=>document.getElementById('kldEditorModal').classList.remove('show'));
+  let edTone=d.tone||'sfw',edHue=d.hue||0;
+  c.querySelectorAll('.kld-tone-btn').forEach(b=>b.addEventListener('click',()=>{c.querySelectorAll('.kld-tone-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');edTone=b.dataset.tone}));
+  c.querySelectorAll('.kld-hue-dot-pick').forEach(b=>b.addEventListener('click',()=>{c.querySelectorAll('.kld-hue-dot-pick').forEach(x=>x.classList.remove('active'));b.classList.add('active');edHue=+b.dataset.hue}));
+  c.querySelector('#kldEdSave').addEventListener('click',async()=>{
+    const data={name:c.querySelector('#kldEdName').value.trim(),setting:c.querySelector('#kldEdSetting').value.trim(),charRole:c.querySelector('#kldEdChar').value.trim(),userRole:c.querySelector('#kldEdUser').value.trim(),tone:edTone,tags:c.querySelector('#kldEdTags').value.trim().split(/\s+/).filter(Boolean),hue:edHue};
+    if(w&&w.id)data.id=w.id;if(!isNew)data.origin=w.origin;else data.origin='hand';
+    try{const r=await kldApi('/api/worlds/save',data);
+      if(w&&w.id){const i=kldWorlds.findIndex(x=>x.id===w.id);if(i>=0)kldWorlds[i]=r.world}else kldWorlds.unshift(r.world);
+      document.getElementById('kldEditorModal').classList.remove('show');document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';kldRenderWorlds();
+    }catch(e){showToast(e.message)}
+  });
+  document.getElementById('kldEditorModal').classList.add('show');
+}
+/* === Slots (老虎机) === */
+async function kldInitSlots(){
+  try{
+    if(!kldConfig){const c=await kldApi('/api/config');kldConfig=c;kldCategories=c.categories||[];kldRedCats=c.redCats||[]}
+    const kw=await kldApi('/api/keywords');kldKeywords=kw.keywords||[];
+    kldBuildGrid();kldDoSpin();
+  }catch(e){showToast(e.message)}
+}
+function kldBuildGrid(){
+  const cats=kldCategories.filter(c=>kldSlotTone==='nsfw'||!kldRedCats.includes(c.key));
+  const rows={};cats.forEach(c=>{const r=c.row||1;(rows[r]=rows[r]||[]).push(c)});
+  const grid=document.getElementById('kldSlotGrid');grid.innerHTML='';
+  Object.keys(rows).sort().forEach(rk=>{
+    const isRed=rows[rk].some(c=>kldRedCats.includes(c.key));
+    const div=document.createElement('div');div.className='kld-slot-row'+(isRed?' nsfw-row':'');
+    rows[rk].forEach(cat=>{
+      const box=document.createElement('div');box.className='kld-slot-box';box.dataset.cat=cat.key;
+      const locked=kldLockedCols.has(cat.key);if(locked)box.classList.add('locked');
+      box.innerHTML=`<div class="kld-slot-cat">${esc(cat.label)} <span class="kld-slot-lock">${locked?'&#128274;':'&#128275;'}</span></div><div class="kld-slot-word"><span>${kldChosenWords[cat.key]?esc(kldChosenWords[cat.key]):'—'}</span></div>`;
+      box.addEventListener('click',e=>{
+        if(e.target.closest('.kld-slot-lock')){
+          if(kldLockedCols.has(cat.key))kldLockedCols.delete(cat.key);else kldLockedCols.add(cat.key);
+          kldBuildGrid();return;
+        }
+        const words=kldKeywords.filter(k=>k.cat===cat.key&&(kldSlotTone==='nsfw'||k.tone!=='red'));
+        if(!words.length)return;
+        kldChosenWords[cat.key]=words[Math.floor(Math.random()*words.length)].word;
+        box.querySelector('.kld-slot-word span').textContent=kldChosenWords[cat.key];
+      });
+      div.appendChild(box);
+    });
+    grid.appendChild(div);
   });
 }
-
-async function kldDoSend() {
-  if (!kldCurrentRun || kldCurrentRun.endedAt) return;
-  const input = document.getElementById('kldInput');
-  const text = input.value.trim();
-  const btn = document.getElementById('kldSendBtn');
-  btn.disabled = true; btn.classList.add('loading');
-  input.disabled = true;
-  try {
-    let result;
-    if (text) {
-      kldAppendRows([{ kind:'user', text, name:'', ts:new Date().toISOString() }]);
-      input.value = '';
-      document.querySelector('#kldSendBtn .kld-send-icon').textContent = '↓';
-      result = await kldApi('/api/room/say', { run: kldCurrentRun.id, text });
-    } else {
-      result = await kldApi('/api/room/nudge', { run: kldCurrentRun.id });
-    }
-    if (result.rows?.length) kldAppendRows(result.rows);
-  } catch(e) { showToast('失败: '+e.message); }
-  btn.disabled = false; btn.classList.remove('loading');
-  input.disabled = false; input.focus();
+function kldDoSpin(){
+  const cats=kldCategories.filter(c=>kldSlotTone==='nsfw'||!kldRedCats.includes(c.key));
+  cats.forEach(cat=>{
+    if(kldLockedCols.has(cat.key))return;
+    const words=kldKeywords.filter(k=>k.cat===cat.key&&(kldSlotTone==='nsfw'||k.tone!=='red'));
+    if(!words.length)return;
+    kldChosenWords[cat.key]=words[Math.floor(Math.random()*words.length)].word;
+  });
+  kldBuildGrid();kldUpdateRollPreview();
 }
-
-async function kldDoNudge() {
-  const btn = document.getElementById('kldSendBtn');
-  btn.disabled = true; btn.classList.add('loading');
-  try {
-    const result = await kldApi('/api/room/nudge', { run: kldCurrentRun.id });
-    if (result.rows?.length) kldAppendRows(result.rows);
-  } catch(e) { showToast('失败: '+e.message); }
-  btn.disabled = false; btn.classList.remove('loading');
+function kldUpdateRollPreview(){
+  const cats=kldCategories.filter(c=>kldSlotTone==='nsfw'||!kldRedCats.includes(c.key));
+  const parts=cats.filter(c=>kldChosenWords[c.key]).map(c=>c.label+'：'+kldChosenWords[c.key]);
+  document.getElementById('kldRollPreview').textContent=parts.join('。')+'。';
+  document.getElementById('kldRollResult').style.display=parts.length?'block':'none';
 }
-
-/* --- Settings sheet --- */
-function kldOpenSettings() {
-  const sheet = document.getElementById('kldSettingsSheet');
-  if (!sheet) return;
-  const run = kldCurrentRun;
-  document.getElementById('kldSettingsWorld').textContent = run?.worldName || '';
-  document.getElementById('kldSettingsSpeed').textContent = run?.speed === 'fast' ? '快' : '慢';
-  document.getElementById('kldSettingsTurns').textContent = 'T' + (run?.turns || 0);
-  sheet.classList.add('show');
+async function kldWriteWorld(){
+  const btn=document.getElementById('kldWriteBtn');btn.disabled=true;btn.textContent='写出来中…';
+  try{
+    const r=await kldApi('/api/roll',{tone:kldSlotTone,words:kldChosenWords});
+    kldCurrentDraft=r.draft;
+    const w=await kldApi('/api/worlds/save',{...r.draft,origin:'roll'});
+    kldWorlds.unshift(w.world);document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';
+    kldOpenEditor(w.world);
+  }catch(e){showToast(e.message)}
+  btn.disabled=false;btn.textContent='把它写出来';
 }
-
-async function kldEndRun() {
-  if (!kldCurrentRun) return;
-  if (!confirm('结束本局？')) return;
-  try {
-    await kldApi('/api/runs/end', { id: kldCurrentRun.id });
-    document.getElementById('kldSettingsSheet').classList.remove('show');
-    kldCurrentRun = null;
-    kldOnEnter();
-  } catch(e) { showToast('结束失败: '+e.message); }
+async function kldSaveWords(){
+  const data={name:Object.values(kldChosenWords).slice(0,3).join('·'),setting:'',charRole:'',userRole:'',tags:Object.values(kldChosenWords),tone:kldSlotTone,origin:'roll'};
+  try{const r=await kldApi('/api/worlds/save',data);kldWorlds.unshift(r.world);document.getElementById('kldWorldCount').textContent=kldWorlds.length||'';showToast('已存');kldSwitchTab('worlds');kldRenderWorlds()}catch(e){showToast(e.message)}
 }
-
-async function kldAddKeyword() {
-  const sheet = document.getElementById('kldKeywordSheet');
-  const input = document.getElementById('kldKwInput');
-  const word = input.value.trim();
-  if (!word || !sheet._catKey) return;
-  try {
-    const r = await kldApi('/api/keywords/add', { word, cat: sheet._catKey });
-    kldKeywords.push(r.keyword);
-    input.value = '';
-    kldOpenKeywordSheet(sheet._catKey, document.getElementById('kldKwSheetTitle').textContent);
-    kldBuildSlotColumns();
-  } catch(e) { showToast(e.message); }
+/* === Room === */
+let kldMsgRows=[];
+async function kldEnterRoom(runId){
+  kldSwitchView('kld-room');
+  const msgs=document.getElementById('kldMsgs');msgs.innerHTML='<div style="text-align:center;color:var(--text-faint);padding:40px">加载中…</div>';
+  try{
+    let run=kldRuns.find(r=>r.id===runId);
+    if(!run){const rr=await kldApi('/api/runs');kldRuns=rr.runs||[];run=kldRuns.find(r=>r.id===runId)}
+    kldCurrentRun=run;
+    document.getElementById('kldRoomTitle').textContent=run?.worldName||'';
+    document.getElementById('kldRoomMeta').textContent=(run?.speed==='fast'?'快':'慢')+'·'+(run?.tone==='nsfw'?'黄':'清水')+'·第'+(run?.turns||0)+'轮';
+    const rr=await kldApi('/api/room?run='+runId);kldMsgRows=rr.rows||[];
+    kldRenderMsgs(false);
+    if(!kldMsgRows.length&&kldCurrentRun&&!kldCurrentRun.endedAt){await kldDoNudge()}
+  }catch(e){msgs.innerHTML='<div style="text-align:center;color:var(--danger);padding:40px">'+esc(e.message)+'</div>'}
 }
-
-/* --- Event bindings --- */
-document.getElementById('kldLobbyBack').addEventListener('click', () => switchPage('chat'));
-document.getElementById('kldNewBtn').addEventListener('click', () => kldGoSlots());
-document.getElementById('kldEmptyNewBtn').addEventListener('click', () => kldGoSlots());
-document.getElementById('kldSlotsBack').addEventListener('click', () => kldSwitchView('kld-lobby'));
-document.getElementById('kldTheaterBack').addEventListener('click', () => { kldCurrentRun = null; kldOnEnter(); });
-document.getElementById('kldRollBtn').addEventListener('click', () => kldDoRoll());
-document.getElementById('kldSendBtn').addEventListener('click', () => kldDoSend());
-document.getElementById('kldInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); kldDoSend(); } });
-document.getElementById('kldInput').addEventListener('input', () => {
-  const hasText = document.getElementById('kldInput').value.trim().length > 0;
-  document.querySelector('#kldSendBtn .kld-send-icon').textContent = hasText ? '↑' : '↓';
-});
-document.getElementById('kldTheaterGear').addEventListener('click', () => kldOpenSettings());
+function kldRenderMsgs(animated){
+  const el=document.getElementById('kldMsgs');
+  el.innerHTML=kldMsgRows.map((r,i)=>kldRenderRow(r,animated&&i>=kldMsgRows.length-3)).join('');
+  requestAnimationFrame(()=>el.scrollTop=el.scrollHeight);
+}
+function kldRenderRow(row,anim){
+  const cls=anim?' anim':'';const text=esc(row.text.replace(KLD_MARK_RE,'').trim());
+  switch(row.kind){
+    case 'user':return`<div class="kld-msg kld-msg-user${cls}"><div class="kld-bubble">${text}</div></div>`;
+    case 'char':return`<div class="kld-msg kld-msg-char${cls}"><div class="kld-bubble">${text}</div></div>`;
+    case 'narration':return`<div class="kld-msg kld-msg-narration${cls}">${text}</div>`;
+    case 'npc':return`<div class="kld-msg kld-msg-npc${cls}"><span class="kld-npc-name">${esc(row.name)}</span><br>${text}</div>`;
+    case 'system':return`<div class="kld-msg kld-msg-system${cls}">${text}</div>`;
+    default:return`<div class="kld-msg kld-msg-char${cls}"><div class="kld-bubble">${text}</div></div>`;
+  }
+}
+function kldAppendRows(rows){
+  const el=document.getElementById('kldMsgs');
+  rows.forEach((row,i)=>{kldMsgRows.push(row);setTimeout(()=>{const d=document.createElement('div');d.innerHTML=kldRenderRow(row,true);el.appendChild(d.firstChild);el.scrollTop=el.scrollHeight},i*150)});
+}
+async function kldDoSend(){
+  if(!kldCurrentRun||kldCurrentRun.endedAt)return;
+  const input=document.getElementById('kldInput'),text=input.value.trim();
+  const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');input.disabled=true;
+  try{let result;
+    if(text){kldAppendRows([{kind:'user',text,name:'',ts:new Date().toISOString()}]);input.value='';result=await kldApi('/api/room/say',{run:kldCurrentRun.id,text})}
+    else{result=await kldApi('/api/room/nudge',{run:kldCurrentRun.id})}
+    if(result.rows?.length)kldAppendRows(result.rows);
+  }catch(e){showToast(e.message)}
+  btn.disabled=false;btn.classList.remove('loading');input.disabled=false;input.focus();
+}
+async function kldDoNudge(){
+  const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');
+  try{const r=await kldApi('/api/room/nudge',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
+  btn.disabled=false;btn.classList.remove('loading');
+}
+async function kldDoNarrate(){
+  const btn=document.getElementById('kldNarBtn');btn.disabled=true;
+  try{const r=await kldApi('/api/room/narrate',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
+  btn.disabled=false;
+}
+function kldOpenRoomSettings(){
+  const p=document.getElementById('kldRoomPanel');const run=kldCurrentRun;
+  p.innerHTML=`<div style="font-size:16px;font-weight:600;margin-bottom:12px">${esc(run?.worldName)}</div>
+    <div style="font-size:12px;color:var(--text-faint);margin-bottom:16px">${(run?.speed==='fast'?'快':'慢')}·${run?.tone==='nsfw'?'黄':'清水'}·第${run?.turns||0}轮</div>
+    <button class="kld-btn-full" style="background:var(--bg-subtle);color:var(--text-secondary);margin-bottom:8px" onclick="kldEndRun()">结束本局</button>`;
+  document.getElementById('kldRoomSheet').classList.add('show');
+}
+async function kldEndRun(){
+  if(!kldCurrentRun||!confirm('结束本局？'))return;
+  try{await kldApi('/api/runs/end',{id:kldCurrentRun.id});document.getElementById('kldRoomSheet').classList.remove('show');kldCurrentRun=null;kldOnEnter()}catch(e){showToast(e.message)}
+}
+/* === History (航迹) === */
+function kldRenderHistory(){
+  const cards=document.getElementById('kldRunCards'),empty=document.getElementById('kldRunEmpty');
+  if(!kldRuns.length){cards.innerHTML='';empty.style.display='flex';return}
+  empty.style.display='none';
+  cards.innerHTML=kldRuns.map(r=>`<div class="kld-run-card" data-rid="${r.id}">
+    <div class="kld-run-top"><div class="kld-hue-dot" style="background:hsl(${r.hue||0},50%,60%);width:8px;height:8px"></div>
+    <div class="kld-run-name">${esc(r.worldName||'未命名')}</div>
+    <div class="kld-run-badge">${r.endedAt?'END':'T'+(r.turns||0)}</div></div>
+    <div class="kld-run-line">${esc(r.lastLine||'(空)')}</div>
+    <div class="kld-run-date">${kldFmtDate(r.startedAt)}${r.turns?' · '+r.turns+'轮':''}</div></div>`).join('');
+  cards.querySelectorAll('.kld-run-card').forEach(c=>{
+    c.addEventListener('click',()=>kldShowSummary(c.dataset.rid));
+    let tm;c.addEventListener('touchstart',()=>{tm=setTimeout(()=>{if(confirm('删除这一局？'))kldApi('/api/runs/delete',{id:c.dataset.rid}).then(()=>{kldRuns=kldRuns.filter(r=>r.id!==c.dataset.rid);kldRenderHistory()}).catch(e=>showToast(e.message))},600)},{passive:true});
+    c.addEventListener('touchend',()=>clearTimeout(tm));c.addEventListener('touchmove',()=>clearTimeout(tm));
+  });
+}
+/* === Summary (前情) === */
+function kldShowSummary(runId){
+  const run=kldRuns.find(r=>r.id===runId);if(!run)return;
+  kldCurrentRun=run;kldSwitchView('kld-summary');
+  document.getElementById('kldSumTitle').textContent=run.worldName||'未命名';
+  document.getElementById('kldSumMeta').textContent='走过'+run.turns+'轮·'+kldFmtDate(run.startedAt);
+  document.getElementById('kldSumDigest').innerHTML=run.digest?'<div style="font-size:11px;color:var(--text-faint);margin-bottom:6px">前情</div>'+esc(run.digest).replace(/\n/g,'<br>'):'<div style="color:var(--text-faint)">没有前情摘要</div>';
+  const w=kldWorlds.find(x=>x.id===run.worldId);
+  document.getElementById('kldSumSetting').textContent=w?w.setting:'';
+  document.getElementById('kldSumContinue').textContent=run.endedAt?'重新翻开':'继续这一趟';
+  document.getElementById('kldSumContinue').onclick=()=>{if(run.endedAt){showToast('这一局已经结束了')}else kldEnterRoom(run.id)};
+}
+/* === Event bindings === */
+document.getElementById('kldBack').addEventListener('click',()=>switchPage('chat'));
+document.getElementById('kldPlusBtn').addEventListener('click',()=>kldOpenEditor(null));
+document.querySelectorAll('#kldTabs .kld-tab').forEach(t=>t.addEventListener('click',()=>kldSwitchTab(t.dataset.tab)));
+document.querySelectorAll('#kldFilterChips .kld-chip').forEach(c=>c.addEventListener('click',()=>{
+  document.querySelectorAll('#kldFilterChips .kld-chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');
+  kldFilterTone=c.dataset.tone;kldRenderWorlds();
+}));
+document.querySelectorAll('#kld-tab-slots .kld-tone-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#kld-tab-slots .kld-tone-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  kldSlotTone=b.dataset.tone;document.getElementById('kldToneHint').textContent=kldSlotTone==='nsfw'?'多出蠢蠢欲动：状态·场所·要你怎样':'';
+  kldLockedCols.clear();kldChosenWords={};kldInitSlots();
+}));
+document.getElementById('kldRollBtn').addEventListener('click',()=>kldDoSpin());
+document.getElementById('kldWriteBtn').addEventListener('click',()=>kldWriteWorld());
+document.getElementById('kldSaveWordsBtn').addEventListener('click',()=>kldSaveWords());
+document.getElementById('kldRoomBack').addEventListener('click',()=>{kldCurrentRun=null;kldOnEnter()});
+document.getElementById('kldRoomGear').addEventListener('click',()=>kldOpenRoomSettings());
+document.getElementById('kldSendBtn').addEventListener('click',()=>kldDoSend());
+document.getElementById('kldInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();kldDoSend()}});
+document.getElementById('kldNarBtn').addEventListener('click',()=>kldDoNarrate());
+document.getElementById('kldSumBack').addEventListener('click',()=>{kldSwitchView('kld-hub');kldSwitchTab('history')});
 </script>
 
 <script type="module" src="supabase.js"></script>
