@@ -1855,19 +1855,28 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
       <div class="space-divider"></div>
       <div class="space-section-title">万花筒模型</div>
-      <div class="space-btn-row">
-        <button class="space-save-btn" id="cfgKldLoadModelsBtn">加载可用模型</button>
-      </div>
       <div class="space-label">主角（protagonist）</div>
-      <select class="space-input" id="cfgKldProtagonist"><option value="">未加载</option></select>
+      <div class="model-row">
+        <input class="space-input" id="cfgKldProtagonist" type="text" placeholder="输入或从列表选择">
+        <button class="load-model-btn" id="loadKldProtagonistBtn">获取列表</button>
+      </div>
+      <div id="kldProtagonistDropdown"></div>
       <div class="space-label">配角（supporting）</div>
-      <select class="space-input" id="cfgKldSupporting"><option value="">未加载</option></select>
+      <div class="model-row">
+        <input class="space-input" id="cfgKldSupporting" type="text" placeholder="输入或从列表选择">
+        <button class="load-model-btn" id="loadKldSupportingBtn">获取列表</button>
+      </div>
+      <div id="kldSupportingDropdown"></div>
       <div class="space-label">世界生成（worldgen）</div>
-      <select class="space-input" id="cfgKldWorldgen"><option value="">未加载</option></select>
+      <div class="model-row">
+        <input class="space-input" id="cfgKldWorldgen" type="text" placeholder="输入或从列表选择">
+        <button class="load-model-btn" id="loadKldWorldgenBtn">获取列表</button>
+      </div>
+      <div id="kldWorldgenDropdown"></div>
       <div class="space-btn-row">
         <button class="space-save-btn" id="cfgKldSaveBtn">同步到后端</button>
       </div>
-      <div class="space-hint" id="cfgKldHint">端点和 Key 复用主聊天的。先加载模型列表，选好后点同步。</div>
+      <div class="space-hint" id="cfgKldHint">端点和 Key 复用主聊天的。获取列表→选模型→点同步，后端立即生效。</div>
 
       <div class="space-divider"></div>
       <div class="space-section-title">书房</div>
@@ -3030,10 +3039,10 @@ testStudyConnBtn.addEventListener('click', () => testStudyConnection());
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 fetchCedarToyToolsBtn.addEventListener('click', () => fetchCedarToyTools());
 
-// 万花筒模型设置
+// 万花筒模型设置（复用 fetchModelsInto + 主聊天端点+Key）
 (function(){
   const pEl=document.getElementById('cfgKldProtagonist'),sEl=document.getElementById('cfgKldSupporting'),wEl=document.getElementById('cfgKldWorldgen');
-  const btn=document.getElementById('cfgKldSaveBtn'),hint=document.getElementById('cfgKldHint'),loadBtn=document.getElementById('cfgKldLoadModelsBtn');
+  const btn=document.getElementById('cfgKldSaveBtn'),hint=document.getElementById('cfgKldHint');
   function kldBase(){return (typeof CHAT_MAIN_BASE!=='undefined'?CHAT_MAIN_BASE.replace('/chat-main','/rp'):'https://47-107-161-135.sslip.io/rp')}
   function kldToken(){return localStorage.getItem('kld_token')||'120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6'}
   async function kldModelApi(path,body){
@@ -3043,30 +3052,22 @@ fetchCedarToyToolsBtn.addEventListener('click', () => fetchCedarToyTools());
     if(body){opts.headers['Content-Type']='application/json';const p={...body,token:kldToken()};opts.body=JSON.stringify(p)}
     const res=await fetch(url,opts);const j=await res.json();if(!res.ok)throw new Error(j.message||res.status);return j;
   }
-  function fillSelect(sel,models,current){
-    sel.innerHTML='';
-    models.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;if(m===current)o.selected=true;sel.appendChild(o)});
-    if(current&&!models.includes(current)){const o=document.createElement('option');o.value=current;o.textContent=current+' (当前)';o.selected=true;sel.prepend(o)}
-  }
   window._loadKldModels=async function(){
-    try{const r=await kldModelApi('/api/models');pEl.dataset.current=r.protagonist||'';sEl.dataset.current=r.supporting||'';wEl.dataset.current=r.worldgen||'';
-      [pEl,sEl,wEl].forEach(s=>{s.innerHTML='';const o=document.createElement('option');o.value=s.dataset.current;o.textContent=s.dataset.current||'未加载';s.appendChild(o)});
-    }catch(e){}
+    try{const r=await kldModelApi('/api/models');if(r.protagonist)pEl.value=r.protagonist;if(r.supporting)sEl.value=r.supporting;if(r.worldgen)wEl.value=r.worldgen}catch(e){}
   };
-  loadBtn.addEventListener('click',async()=>{
-    loadBtn.disabled=true;hint.textContent='正在从端点拉取模型列表…';
-    try{
-      const[cur,avail]=await Promise.all([kldModelApi('/api/models'),kldModelApi('/api/available-models')]);
-      const models=avail.models||[];
-      fillSelect(pEl,models,cur.protagonist||'');fillSelect(sEl,models,cur.supporting||'');fillSelect(wEl,models,cur.worldgen||'');
-      hint.textContent='已加载 '+models.length+' 个模型，选好后点同步。';
-    }catch(e){hint.textContent='加载失败：'+e.message}
-    loadBtn.disabled=false;
+  [[pEl,'loadKldProtagonistBtn','kldProtagonistDropdown'],
+   [sEl,'loadKldSupportingBtn','kldSupportingDropdown'],
+   [wEl,'loadKldWorldgenBtn','kldWorldgenDropdown']].forEach(([input,btnId,ddId])=>{
+    document.getElementById(btnId).addEventListener('click',()=>{
+      const endpoint=document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
+      const key=document.getElementById('cfgKey').value.trim();
+      fetchModelsInto(endpoint,key,input,document.getElementById(ddId),document.getElementById(btnId));
+    });
   });
   btn.addEventListener('click',async()=>{
     btn.disabled=true;hint.textContent='同步中…';
     try{
-      await kldModelApi('/api/models',{protagonist:pEl.value,supporting:sEl.value,worldgen:wEl.value});
+      await kldModelApi('/api/models',{protagonist:pEl.value.trim(),supporting:sEl.value.trim(),worldgen:wEl.value.trim()});
       hint.textContent='已同步，后端立即生效。';
     }catch(e){hint.textContent='同步失败：'+e.message}
     btn.disabled=false;
