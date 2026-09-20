@@ -3027,17 +3027,26 @@ testStudyConnBtn.addEventListener('click', () => testStudyConnection());
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 fetchCedarToyToolsBtn.addEventListener('click', () => fetchCedarToyTools());
 
-// 万花筒模型设置
+// 万花筒模型设置（不依赖 KLD_BASE/KLD_TOKEN，它们在 9000+ 行才定义）
 (function(){
   const pEl=document.getElementById('cfgKldProtagonist'),sEl=document.getElementById('cfgKldSupporting'),wEl=document.getElementById('cfgKldWorldgen');
   const btn=document.getElementById('cfgKldSaveBtn'),hint=document.getElementById('cfgKldHint');
+  function kldBase(){return (typeof CHAT_MAIN_BASE!=='undefined'?CHAT_MAIN_BASE.replace('/chat-main','/rp'):'https://47-107-161-135.sslip.io/rp')}
+  function kldToken(){return localStorage.getItem('kld_token')||'120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6'}
+  async function kldModelApi(body){
+    const url=new URL(kldBase()+'/api/models');
+    const opts={method:body?'POST':'GET',headers:{}};
+    if(!body)url.searchParams.set('token',kldToken());
+    if(body){opts.headers['Content-Type']='application/json';const p={...body,token:kldToken()};opts.body=JSON.stringify(p)}
+    const res=await fetch(url,opts);const j=await res.json();if(!res.ok)throw new Error(j.message||res.status);return j;
+  }
   window._loadKldModels=async function(){
-    try{const r=await kldApi('/api/models');if(r.protagonist)pEl.value=r.protagonist;if(r.supporting)sEl.value=r.supporting;if(r.worldgen)wEl.value=r.worldgen}catch(e){}
+    try{const r=await kldModelApi();if(r.protagonist)pEl.value=r.protagonist;if(r.supporting)sEl.value=r.supporting;if(r.worldgen)wEl.value=r.worldgen;hint.textContent='端点和 Key 复用主聊天的。改完点同步，后端立即生效。'}catch(e){hint.textContent='加载万花筒模型失败：'+e.message}
   };
   btn.addEventListener('click',async()=>{
     btn.disabled=true;hint.textContent='同步中…';
     try{
-      await kldApi('/api/models',{protagonist:pEl.value.trim(),supporting:sEl.value.trim(),worldgen:wEl.value.trim()});
+      await kldModelApi({protagonist:pEl.value.trim(),supporting:sEl.value.trim(),worldgen:wEl.value.trim()});
       hint.textContent='已同步，后端立即生效。';
     }catch(e){hint.textContent='同步失败：'+e.message}
     btn.disabled=false;
