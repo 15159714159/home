@@ -318,6 +318,15 @@ html.dark .kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,80,80,0.12)
 .kld-msgs { flex:1; overflow-y:auto; padding:8px 16px 16px; -webkit-overflow-scrolling:touch; }
 .kld-msg { margin-bottom:12px; }
 @keyframes kldIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+/* 等球：一轮要等主角 + 旁白 + 摘要串行跑完，几十秒是常事。
+   这几十秒里屏幕上必须有东西在动，否则看着就是「没出字」，然后人就去重发了。 */
+.kld-thinking { display:flex; align-items:center; gap:8px; padding:10px 14px; }
+.kld-dots { display:inline-flex; gap:4px; }
+.kld-dots i { width:6px; height:6px; border-radius:50%; background:var(--text-faint); animation:kldDot 1.2s infinite ease-in-out; }
+.kld-dots i:nth-child(2){ animation-delay:.15s }
+.kld-dots i:nth-child(3){ animation-delay:.3s }
+@keyframes kldDot { 0%,80%,100%{ opacity:.25; transform:translateY(0) } 40%{ opacity:1; transform:translateY(-3px) } }
+.kld-thinking-label { font-size:12px; color:var(--text-faint); }
 .kld-msg.anim { animation:kldIn .3s ease; }
 .kld-msg-narration { text-align:center; font-size:12px; color:var(--text-faint); padding:6px 24px; line-height:1.6; }
 .kld-msg-npc { text-align:center; font-size:12px; color:var(--text-faint); padding:4px 24px; }
@@ -9190,6 +9199,7 @@ async function kldEnterRoom(runId){
     document.getElementById('kldRoomTitle').textContent=run?.worldName||'';
     document.getElementById('kldRoomMeta').textContent=(run?.speed==='fast'?'快':'慢')+'·'+(run?.tone==='nsfw'?'黄':'清水')+'·第'+(run?.turns||0)+'轮';
     const rr=await kldApi('/api/room?run='+runId);kldMsgRows=rr.rows||[];
+    kldResetRows();
     kldRenderMsgs(false);
     if(!kldMsgRows.length&&kldCurrentRun&&!kldCurrentRun.endedAt){await kldDoNudge()}
   }catch(e){msgs.innerHTML='<div style="text-align:center;color:var(--danger);padding:40px">'+esc(e.message)+'</div>'}
@@ -9197,6 +9207,7 @@ async function kldEnterRoom(runId){
 function kldRenderMsgs(animated){
   const el=document.getElementById('kldMsgs');
   el.innerHTML=kldMsgRows.map((r,i)=>kldRenderRow(r,animated&&i>=kldMsgRows.length-3)).join('');
+  kldThinkingEl=null;   // 节点已经被 innerHTML 冲掉了，别留个悬空引用
   requestAnimationFrame(()=>el.scrollTop=el.scrollHeight);
 }
 function kldRenderRow(row,anim){
@@ -9210,29 +9221,85 @@ function kldRenderRow(row,anim){
     default:return`<div class="kld-msg kld-msg-char${cls}"><div class="kld-bubble">${text}</div></div>`;
   }
 }
-function kldAppendRows(rows){
+/* 等球：一轮要等模型（主角 + 旁白 + 摘要），几十秒是常事。
+   这段时间屏幕上必须有个在动的东西 + 走了几秒，否则看着就是「没出字」。 */
+let kldThinkingEl=null,kldThinkingT0=0,kldThinkingTimer=null;
+function kldThinkingOn(label){
   const el=document.getElementById('kldMsgs');
-  rows.forEach((row,i)=>{kldMsgRows.push(row);setTimeout(()=>{const d=document.createElement('div');d.innerHTML=kldRenderRow(row,true);el.appendChild(d.firstChild);el.scrollTop=el.scrollHeight},i*150)});
+  kldThinkingOff();
+  kldThinkingT0=Date.now();
+  kldThinkingEl=document.createElement('div');
+  kldThinkingEl.className='kld-msg kld-thinking';
+  kldThinkingEl.innerHTML='<span class="kld-dots"><i></i><i></i><i></i></span><span class="kld-thinking-label"></span>';
+  el.appendChild(kldThinkingEl);el.scrollTop=el.scrollHeight;
+  const tick=()=>{
+    const t=kldThinkingEl&&kldThinkingEl.querySelector('.kld-thinking-label');
+    if(!t)return;
+    const sec=Math.floor((Date.now()-kldThinkingT0)/1000);
+    t.textContent=(label||'正在回应')+(sec>=3?' · '+sec+'s':'');
+  };
+  tick();kldThinkingTimer=setInterval(tick,1000);
+}
+function kldThinkingOff(){
+  if(kldThinkingTimer){clearInterval(kldThinkingTimer);kldThinkingTimer=null}
+  if(kldThinkingEl){kldThinkingEl.remove();kldThinkingEl=null}
+}
+/* 上屏队列：一条一条来，每条间隔 150ms。
+   老写法是 rows.forEach((row,i)=>setTimeout(...,i*150))，每一批各开一串定时器 ——
+   旁白按钮和发送按钮各禁各的，两批可以同时在飞，两串定时器就会互相插队，
+   画出来的顺序和后端的顺序对不上。改成一条串行队列，先来先上屏。 */
+let kldStagger=0,kldRowQueue=[];
+function kldResetRows(){kldStagger=0;kldRowQueue=[];kldThinkingOff()}
+function kldAppendRows(rows){
+  (rows||[]).forEach(row=>{kldMsgRows.push(row);kldRowQueue.push(row)});
+  if(!kldStagger)kldPumpRows();
+}
+function kldPumpRows(){
+  const row=kldRowQueue.shift();
+  if(row===undefined){kldStagger=0;return}
+  kldStagger=1;kldThinkingOff();
+  const el=document.getElementById('kldMsgs');
+  const d=document.createElement('div');d.innerHTML=kldRenderRow(row,true);
+  if(d.firstChild){el.appendChild(d.firstChild);el.scrollTop=el.scrollHeight}
+  setTimeout(kldPumpRows,150);
+}
+/* 自己那句话立刻上屏，一个 tick 都不等 */
+function kldDrawUserNow(text){
+  const el=document.getElementById('kldMsgs');
+  const d=document.createElement('div');d.innerHTML=kldRenderRow({kind:'user',text},true);
+  if(d.firstChild){el.appendChild(d.firstChild);el.scrollTop=el.scrollHeight}
 }
 async function kldDoSend(){
   if(!kldCurrentRun||kldCurrentRun.endedAt)return;
   const input=document.getElementById('kldInput'),text=input.value.trim();
   const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');input.disabled=true;
   try{let result;
-    if(text){kldAppendRows([{kind:'user',text,name:'',ts:new Date().toISOString()}]);input.value='';result=await kldApi('/api/room/say',{run:kldCurrentRun.id,text})}
-    else{result=await kldApi('/api/room/nudge',{run:kldCurrentRun.id})}
+    if(text){
+      kldDrawUserNow(text);input.value='';
+      kldMsgRows.push({kind:'user',text,name:'',ts:new Date().toISOString()});
+      kldThinkingOn('正在回应');
+      result=await kldApi('/api/room/say',{run:kldCurrentRun.id,text});
+    }else{
+      kldThinkingOn('正在回应');
+      result=await kldApi('/api/room/nudge',{run:kldCurrentRun.id});
+    }
     if(result.rows?.length)kldAppendRows(result.rows);
   }catch(e){showToast(e.message)}
+  kldThinkingOff();
   btn.disabled=false;btn.classList.remove('loading');input.disabled=false;input.focus();
 }
 async function kldDoNudge(){
   const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');
+  kldThinkingOn('正在续写');
   try{const r=await kldApi('/api/room/nudge',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
+  kldThinkingOff();
   btn.disabled=false;btn.classList.remove('loading');
 }
 async function kldDoNarrate(){
   const btn=document.getElementById('kldNarBtn');btn.disabled=true;
+  kldThinkingOn('旁白正在写');
   try{const r=await kldApi('/api/room/narrate',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
+  kldThinkingOff();
   btn.disabled=false;
 }
 function kldOpenRoomSettings(){
