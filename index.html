@@ -1821,31 +1821,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
       <div class="space-hint">主聊天已改为由后端 garden-agent 统一处理，这里的密钥用于向它发起请求的身份验证，只保存在本机浏览器里。</div>
 
       <div class="space-divider"></div>
-      <div class="space-section-title">万花筒模型</div>
-      <div class="space-label">主角（protagonist）</div>
-      <div class="model-row">
-        <input class="space-input" id="cfgKldProtagonist" type="text" placeholder="输入或从列表选择">
-        <button class="load-model-btn" id="loadKldProtagonistBtn">获取列表</button>
-      </div>
-      <div id="kldProtagonistDropdown"></div>
-      <div class="space-label">配角（supporting）</div>
-      <div class="model-row">
-        <input class="space-input" id="cfgKldSupporting" type="text" placeholder="输入或从列表选择">
-        <button class="load-model-btn" id="loadKldSupportingBtn">获取列表</button>
-      </div>
-      <div id="kldSupportingDropdown"></div>
-      <div class="space-label">世界生成（worldgen）</div>
-      <div class="model-row">
-        <input class="space-input" id="cfgKldWorldgen" type="text" placeholder="输入或从列表选择">
-        <button class="load-model-btn" id="loadKldWorldgenBtn">获取列表</button>
-      </div>
-      <div id="kldWorldgenDropdown"></div>
-      <div class="space-btn-row">
-        <button class="space-save-btn" id="cfgKldSaveBtn">同步到后端</button>
-      </div>
-      <div class="space-hint" id="cfgKldHint">端点和 Key 复用主聊天的。获取列表→选模型→点同步，后端立即生效。</div>
-
-      <div class="space-divider"></div>
       <div class="space-section-title">书房</div>
       <input class="space-input" id="cfgStudyWorkerUrl" type="text" placeholder="书房 Worker 网址（用于连接检测）">
       <input class="space-input" id="cfgStudyPagesUrl" type="text" placeholder="书房入口网址（点击前往会打开这个）">
@@ -2783,7 +2758,6 @@ function loadChatSettings() {
   cedarToyStatusHintEl.textContent = cedarToyToolCount
     ? `已获取 ${cedarToyToolCount} 个4399工具，开关开启后AI可在聊天中调用。token 与工具集只保存在本机浏览器里。`
     : '开启后AI可在聊天中玩 CEDAR TOY 上的小游戏（先点"获取工具列表"）。token 选填，不填走游客身份，存档不跟账号绑定。token 与工具集只保存在本机浏览器里。';
-  loadKldModelConfig();
 }
 // 拖动过程中就同步后端——scheduleAiConfigSync 是 800ms 防抖的，松手前那一串 input 会合并成一次请求，
 // 不会把服务端打出一串写。label 的即时反馈照旧，不受影响。
@@ -2827,79 +2801,6 @@ cfgStudyPagesUrlEl.addEventListener('change', () => patchConfig('studyPagesUrl',
 testStudyConnBtn.addEventListener('click', () => testStudyConnection());
 fetchGalateaMcpToolsBtn.addEventListener('click', () => fetchGalateaMcpTools());
 fetchCedarToyToolsBtn.addEventListener('click', () => fetchCedarToyTools());
-
-// 万花筒模型设置（与 Ombre/Judge 同构：fetchModelsInto 拉列表 + 独立 save 按钮同步后端）
-const cfgKldProtagonistInput = document.getElementById('cfgKldProtagonist');
-const cfgKldSupportingInput = document.getElementById('cfgKldSupporting');
-const cfgKldWorldgenInput = document.getElementById('cfgKldWorldgen');
-const cfgKldSaveBtn = document.getElementById('cfgKldSaveBtn');
-const cfgKldHint = document.getElementById('cfgKldHint');
-
-function kldModelBase() {
-  return (typeof CHAT_MAIN_BASE !== 'undefined' ? CHAT_MAIN_BASE : 'https://47-107-161-135.sslip.io/chat-main').replace('/chat-main', '/rp');
-}
-function kldModelToken() { return localStorage.getItem('kld_token') || '120f907392c98ba1f03f7db83e0a782dd848cb8c17b0d0b6'; }
-
-async function kldModelApi(path, body) {
-  const url = kldModelBase() + path;
-  const token = kldModelToken();
-  if (!body) {
-    const res = await fetch(url + '?token=' + encodeURIComponent(token));
-    const j = await res.json();
-    if (!res.ok) throw new Error(j.message || res.status);
-    return j;
-  }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, token })
-  });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j.message || res.status);
-  return j;
-}
-
-async function loadKldModelConfig() {
-  try {
-    const r = await kldModelApi('/api/models');
-    if (r.protagonist) cfgKldProtagonistInput.value = r.protagonist;
-    if (r.supporting) cfgKldSupportingInput.value = r.supporting;
-    if (r.worldgen) cfgKldWorldgenInput.value = r.worldgen;
-  } catch (e) { /* 静默：打开设置页时后端不可达不阻塞 */ }
-}
-window._loadKldModels = loadKldModelConfig;
-
-document.getElementById('loadKldProtagonistBtn').addEventListener('click', () => {
-  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-  const key = document.getElementById('cfgKey').value.trim();
-  fetchModelsInto(endpoint, key, cfgKldProtagonistInput, document.getElementById('kldProtagonistDropdown'), document.getElementById('loadKldProtagonistBtn'));
-});
-document.getElementById('loadKldSupportingBtn').addEventListener('click', () => {
-  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-  const key = document.getElementById('cfgKey').value.trim();
-  fetchModelsInto(endpoint, key, cfgKldSupportingInput, document.getElementById('kldSupportingDropdown'), document.getElementById('loadKldSupportingBtn'));
-});
-document.getElementById('loadKldWorldgenBtn').addEventListener('click', () => {
-  const endpoint = document.getElementById('cfgEndpoint').value.trim().replace(/\/$/,'');
-  const key = document.getElementById('cfgKey').value.trim();
-  fetchModelsInto(endpoint, key, cfgKldWorldgenInput, document.getElementById('kldWorldgenDropdown'), document.getElementById('loadKldWorldgenBtn'));
-});
-
-cfgKldSaveBtn.addEventListener('click', async () => {
-  const protagonist = cfgKldProtagonistInput.value.trim();
-  const supporting = cfgKldSupportingInput.value.trim();
-  const worldgen = cfgKldWorldgenInput.value.trim();
-  cfgKldSaveBtn.disabled = true; cfgKldSaveBtn.textContent = '同步中…';
-  try {
-    await kldModelApi('/api/models', { protagonist, supporting, worldgen });
-    cfgKldSaveBtn.textContent = '同步到后端';
-    showToast('万花筒模型已同步');
-  } catch (e) {
-    cfgKldSaveBtn.textContent = '同步到后端';
-    showToast('同步失败：' + e.message, 4000);
-  }
-  cfgKldSaveBtn.disabled = false;
-});
 
 /* ============================================================
 引用回复
@@ -6255,7 +6156,7 @@ function switchPage(pageName) {
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
-  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); loadKldModelConfig(); }
+  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); }
   if (pageName === 'vocab') { vocabOnEnterPage(); }
   if (pageName === 'kaleidoscope') { kldOnEnter(); }
 }
