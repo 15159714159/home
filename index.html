@@ -328,26 +328,30 @@ html.dark .kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,80,80,0.12)
 @keyframes kldDot { 0%,80%,100%{ opacity:.25; transform:translateY(0) } 40%{ opacity:1; transform:translateY(-3px) } }
 .kld-thinking-label { font-size:12px; color:var(--text-faint); }
 /* 主聊天/副聊天等球：三点跳动复用上面的 kldDot，秒数见 chatWaitTick。
-   放在 .page 里、滚动容器之后：.page 自己就是滚动容器（overflow-y:auto），
-   所以 sticky bottom:0 会把它钉在可视区底部；下面那截 padding 是给悬浮的输入栏留的，
-   等球就站在这段留白里，输入栏够不着它。装饰元素不吃点击。
-   另外它不在滚动容器内，renderMessageWindow 的 innerHTML='' 清不掉它；
-   exportShot 另建 #shotStage 且只克隆消息行，也不会被长截图带上。 */
+   它挂在 #content 里、两条 .page 之外（结构说明见 chatWaitOnActivePage），所以：
+   - .page 自己的 innerHTML='' 重建清不掉它；
+   - 不进滚动容器，翻历史、整段重建都不受影响；
+   - 一页一份（主聊天/副聊天分开存），切页只显示当前那一页的。
+   position:absolute 的包含块是 #content（position:relative），left/right 跟 #app 同宽；
+   bottom 用 --composer-h —— 那正是 .page 给悬浮输入栏留白的高度，等球就站在这段留白里、
+   贴着输入栏上沿，不会被那块 z-index:40 的玻璃板压住（#inputBar 自己还有 6px 上边距）。 */
+#chatWaitLayer, #subchatWaitLayer {
+  position: absolute; left: 0; right: 0;
+  bottom: calc(var(--composer-h, 64px) + 4px);
+  z-index: 35; display: none; pointer-events: none;
+}
 .chat-wait {
-  display: none; align-items: center; gap: 8px; pointer-events: none;
-  position: sticky; bottom: 0; z-index: 30; width: fit-content; max-width: calc(100% - 20px);
-  margin: 0 10px 10px; padding: 8px 12px; border-radius: 16px;
+  display: flex; align-items: center; gap: 8px; width: fit-content; max-width: calc(100% - 20px);
+  margin: 0 10px; padding: 8px 12px; border-radius: 16px;
   background: var(--composer-glass-bg); border: 0.5px solid var(--composer-glass-border);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   backdrop-filter: blur(24px) saturate(180%);
   box-shadow: 0 4px 14px rgba(38,63,78,0.10);
 }
-.chat-wait.show { display: flex; animation: chatWaitIn 0.18s ease; }
 @supports not (backdrop-filter: blur(1px)) {
   .chat-wait { background: rgba(240,246,249,0.94); }
   html.dark .chat-wait { background: rgba(40,46,50,0.94); }
 }
-@keyframes chatWaitIn { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
 .chat-wait-dots { display:inline-flex; gap:4px; flex-shrink:0; }
 .chat-wait-dots i { width:6px; height:6px; border-radius:50%; background:var(--text-faint); animation:kldDot 1.2s infinite ease-in-out; }
 .chat-wait-dots i:nth-child(2){ animation-delay:.15s }
@@ -1694,9 +1698,14 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 </div>
 
 <div id="content">
+  <!-- 等球层：挂在 #content 里、两条 .page 之外。放这儿是因为 #composerStack / #subComposerStack
+       是 #app 的直接子元素、z-index:40 的悬浮玻璃板，正好压住 #content 的底部；等球要露在它
+       上面，就不能待在 .page 的底部留白里（上一版就栽在这儿）。放在 .page 外面还顺带免疫
+       renderMessageWindow 的 innerHTML='' 重建。 -->
+  <div id="chatWaitLayer"><div class="chat-wait" id="chatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在想</span></div></div>
+  <div id="subchatWaitLayer"><div class="chat-wait" id="subchatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在回应</span></div></div>
   <div class="page active" id="page-chat">
     <div id="chatScroll"></div>
-    <div class="chat-wait" id="chatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在想</span></div>
   </div>
 
   <div class="page" id="page-diary">
@@ -1941,7 +1950,6 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
   <div class="page" id="page-subchat">
     <div class="subchat-scroll" id="subchatScroll"></div>
-    <div class="chat-wait" id="subchatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在回应</span></div>
   </div>
 
   <div class="page" id="page-vocab">
@@ -6207,6 +6215,7 @@ function switchPage(pageName) {
   if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); }
   if (pageName === 'vocab') { vocabOnEnterPage(); }
   if (pageName === 'kaleidoscope') { kldOnEnter(); }
+  chatWaitOnActivePage();
 }
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
   if (item.dataset.nav === 'diary' || item.dataset.nav === 'space' || item.dataset.nav === 'vocab' || item.dataset.nav === 'kaleidoscope') {
@@ -6824,6 +6833,18 @@ const CHAT_WAIT = {
   'page-chat':    { timer: null, loop: null, t0: 0, pending: false },
   'page-subchat': { timer: null, loop: null, t0: 0, pending: false }
 };
+function chatWaitLayerOf(pageId) {
+  return document.getElementById(pageId === 'page-chat' ? 'chatWaitLayer' : 'subchatWaitLayer');
+}
+// 等球是 #content 里的独立层、不在任何 .page 内，所以「哪一页的等球该露出来」得自己管：
+// 只有当前页是主聊天/副聊天时才显示对应那个。切页时调一次，每回合开头再同步一次防漏。
+function chatWaitOnActivePage() {
+  const map = { 'page-chat': 'chatWaitLayer', 'page-subchat': 'subchatWaitLayer' };
+  Object.keys(map).forEach(pid => {
+    const el = document.getElementById(map[pid]);
+    if (el) el.style.display = (currentPage === pid.replace('page-', '')) ? 'block' : 'none';
+  });
+}
 function chatWaitEl(pageId) {
   return document.getElementById(pageId === 'page-chat' ? 'chatWaitBar' : 'subchatWaitBar');
 }
@@ -6840,7 +6861,8 @@ function chatWaitShowNow(pageId) {
   const el = chatWaitEl(pageId); if (!el) return;
   if (st.loop) return;   // 已经在计时了就别重开，秒数得接着数
   st.t0 = Date.now();
-  el.classList.add('show');
+  const layer = chatWaitLayerOf(pageId);   // 一页一份，两页各转各的
+  if (layer) layer.style.display = 'block';
   chatWaitTick(pageId);
   st.loop = setInterval(() => chatWaitTick(pageId), 1000);
 }
@@ -6861,8 +6883,10 @@ function chatWaitHide(pageId) {
   if (st.timer) { clearTimeout(st.timer); st.timer = null; }
   if (st.loop) { clearInterval(st.loop); st.loop = null; }
   st.pending = false;
-  const el = chatWaitEl(pageId);
-  if (el) el.classList.remove('show');
+  // 无条件收：切页时另一个页面那份本来就被 chatWaitOnActivePage 关着了，
+  // 这里再关一次无害；要是在本页还留着不收，等球就永远挂在屏幕上了。
+  const layer = chatWaitLayerOf(pageId);
+  if (layer) layer.style.display = 'none';
 }
 
 function createGenTracker(pageId) {
@@ -7519,7 +7543,11 @@ async function sendChatMain(userMsg) {
 
   const sendBtnEl = document.getElementById('sendBtn');
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
+  chatWaitOnActivePage();
   const gen = createGenTracker('page-chat');
+  // 从这一刻起屏幕上就该有东西在动：下面带图的路径要压图、等上传，几百毫秒到几秒，而服务端那根
+  // 3s 心跳这时候还没开始（请求都还没发出去），只能靠本地心跳把等球撑住。
+  gen.onWait();
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   activeStreamMsgId = aiMsg.id;
   // 必须在这里同步登记，不能等到 fetch 前再登记：下面带图的路径有 waitPendingUploads/fitImagesToBudget
@@ -7673,6 +7701,7 @@ async function callAPI(rerollTarget) {
   const sendBtnEl = document.getElementById('sendBtn');
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
   const gen = createGenTracker('page-chat');
+  chatWaitOnActivePage();
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   activeStreamMsgId = aiMsg.id;
   let accumulated = '';
@@ -7747,6 +7776,7 @@ async function callSubChatAPI(rerollTarget) {
   const sendBtnEl = document.getElementById('subchatSendBtn');
   const controller = new AbortController(); subAbortController = controller; subGenerating = true; updateSendBtnState(sendBtnEl, true, false);
   const gen = createGenTracker('page-subchat');
+  chatWaitOnActivePage();
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(subchatScroll, 'page-subchat'));
   let accumulated = '', accumulatedReasoning = '', toolCallLog = [];
 
@@ -7881,6 +7911,9 @@ subchatTextInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.sh
 ============================================================ */
 function setupViewportKeyboardHandling() {
   const composerStacks = [document.getElementById('composerStack'), document.getElementById('subComposerStack')];
+  // 键盘弹出时 composer 是 translateY(-offset) 抬上去的，等球层照旧钉在 #content 底部就会被
+  // 输入栏压住；给它同一个 offset，跟着一起抬，始终贴在输入栏上沿。
+  const waitLayers = [document.getElementById('chatWaitLayer'), document.getElementById('subchatWaitLayer')];
   const vv = window.visualViewport;
   const KEYBOARD_THRESHOLD = 120;
   function applyKeyboardOffset() {
@@ -7895,6 +7928,10 @@ function setupViewportKeyboardHandling() {
       if (!el) return;
       if (offset > 0) { el.style.transform = 'translateY(-' + offset + 'px)'; el.style.paddingBottom = '8px'; }
       else { el.style.transform = ''; el.style.paddingBottom = ''; }
+    });
+    waitLayers.forEach(el => {
+      if (!el) return;
+      el.style.transform = offset > 0 ? 'translateY(-' + offset + 'px)' : '';
     });
   }
   if (vv) {
