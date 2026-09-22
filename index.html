@@ -327,6 +327,32 @@ html.dark .kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,80,80,0.12)
 .kld-dots i:nth-child(3){ animation-delay:.3s }
 @keyframes kldDot { 0%,80%,100%{ opacity:.25; transform:translateY(0) } 40%{ opacity:1; transform:translateY(-3px) } }
 .kld-thinking-label { font-size:12px; color:var(--text-faint); }
+/* 主聊天/副聊天等球：三点跳动复用上面的 kldDot，秒数见 chatWaitTick。
+   放在 .page 里、滚动容器之后：.page 自己就是滚动容器（overflow-y:auto），
+   所以 sticky bottom:0 会把它钉在可视区底部；下面那截 padding 是给悬浮的输入栏留的，
+   等球就站在这段留白里，输入栏够不着它。装饰元素不吃点击。
+   另外它不在滚动容器内，renderMessageWindow 的 innerHTML='' 清不掉它；
+   exportShot 另建 #shotStage 且只克隆消息行，也不会被长截图带上。 */
+.chat-wait {
+  display: none; align-items: center; gap: 8px; pointer-events: none;
+  position: sticky; bottom: 0; z-index: 30; width: fit-content; max-width: calc(100% - 20px);
+  margin: 0 10px 10px; padding: 8px 12px; border-radius: 16px;
+  background: var(--composer-glass-bg); border: 0.5px solid var(--composer-glass-border);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 4px 14px rgba(38,63,78,0.10);
+}
+.chat-wait.show { display: flex; animation: chatWaitIn 0.18s ease; }
+@supports not (backdrop-filter: blur(1px)) {
+  .chat-wait { background: rgba(240,246,249,0.94); }
+  html.dark .chat-wait { background: rgba(40,46,50,0.94); }
+}
+@keyframes chatWaitIn { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
+.chat-wait-dots { display:inline-flex; gap:4px; flex-shrink:0; }
+.chat-wait-dots i { width:6px; height:6px; border-radius:50%; background:var(--text-faint); animation:kldDot 1.2s infinite ease-in-out; }
+.chat-wait-dots i:nth-child(2){ animation-delay:.15s }
+.chat-wait-dots i:nth-child(3){ animation-delay:.3s }
+.chat-wait-label { font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .kld-msg.anim { animation:kldIn .3s ease; }
 .kld-msg-narration { text-align:center; font-size:12px; color:var(--text-faint); padding:6px 24px; line-height:1.6; }
 .kld-msg-npc { text-align:center; font-size:12px; color:var(--text-faint); padding:4px 24px; }
@@ -1670,6 +1696,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 <div id="content">
   <div class="page active" id="page-chat">
     <div id="chatScroll"></div>
+    <div class="chat-wait" id="chatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在想</span></div>
   </div>
 
   <div class="page" id="page-diary">
@@ -1914,6 +1941,7 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
 
   <div class="page" id="page-subchat">
     <div class="subchat-scroll" id="subchatScroll"></div>
+    <div class="chat-wait" id="subchatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在回应</span></div>
   </div>
 
   <div class="page" id="page-vocab">
@@ -4537,10 +4565,16 @@ function subscribeMainChatOnce() {
 // 只读通道：garden-agent 每次写完 chats(main) 都会触发这个 Realtime UPDATE，用来让同设备的其它
 // 标签页/窗口、以及别的设备看到最新聊天内容——纯展示层的重render，绝不在这里触发任何回写。
 //
-// chats(main) 云端现在只保留最近 200 条（见 galatea-garden-agent::CHAT_MAIN_WINDOW_SIZE，
-// 云端整行 jsonb 攒到 15MB 后每次读写要好几秒到二十几秒，这是主聊天卡顿的真正主因），
-// 本地 IndexedDB 仍然保留完整历史，所以云端数据不能再直接整体覆盖本地——用云端窗口
-// 第一条消息的 id 当锚点，只替换本地数组里从锚点往后的这一段，锚点之前的本地历史原样保留。
+// 说明：09-20 迁本地文件后，服务端 CHAT_MAIN_WINDOW_SIZE 那段裁剪已经不起作用了
+// （本地文件里存的是全量，200 条窗口那个 trimChatMain 已经删了），本地和云端都是全量。
+// 下面这套「按锚点只合并尾部窗口」的合并逻辑因此退化成一次等价替换，留着当兜底：
+// 万一哪天云端再出现窗口/裁剪，也不会用一份不完整的数据把本地历史盖掉。
+//
+// 它当初为什么这么写，一并留个记录：当年 chats(main) 云端只保留最近 200 条（见
+// galatea-garden-agent::CHAT_MAIN_WINDOW_SIZE，云端整行 jsonb 攒到 15MB 后每次读写要好几秒
+// 到二十几秒，这是主聊天卡顿的真正主因），而本地 IndexedDB 仍然保留完整历史，所以云端数据
+// 不能再直接整体覆盖本地——用云端窗口第一条消息的 id 当锚点，只替换本地数组里从锚点往后的
+// 这一段，锚点之前的本地历史原样保留。
 // 找不到锚点（比如本地历史比云端窗口还短，或者本地暂时是空的）时：本地为空就直接用云端数据；
 // 本地不为空但对不齐，宁可跳过这次合并保持本地不动，也不要用云端这个"尾部窗口"覆盖掉
 // 可能更完整的本地历史——避免重演之前"用旧/不完整数据覆盖本地"的同步事故。
@@ -4576,6 +4610,11 @@ function mergeCloudTailIntoLocal(localMessages, cloudMessages) {
 }
 function applyCloudMainUpdate(row) {
   if (!row || !Array.isArray(row.data)) return;
+  // 流式中的整轮重建一律跳过：这一轮真正的状态（活气泡 + 正在累积的正文）在本地，比云端任何
+  // 一份快照都新，重画一次只是白费一次全量渲染；更要紧的是 renderAllMessages 结尾的
+  // scrollToBottom 会把 autoFollowState 设回 true，把正在往上翻历史的人强行拽回底部。
+  // 和 refreshChatsOnResume 一个理由：这一轮的收尾由 done 分支统一重画。
+  if (mainGenerating) return;
   let nextMessages = mergeCloudTailIntoLocal(messages, row.data);
   if (activeStreamMsgId) {
     const stillThere = nextMessages.some(m => m.id === activeStreamMsgId);
@@ -6773,26 +6812,100 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
 AI 生成状态机：thinking 状态绑定具体消息行，避免全局布尔导致的
 历史消息误显示 thinking、旧请求延迟数据污染新消息等问题
 ============================================================ */
-function createGenTracker(row) {
-  const thinkEl = row ? row.querySelector('.gen-thinking') : null;
+/* ============================================================
+等球（主聊天 / 副聊天）
+============================================================ */
+// 「发出去之后、第一个字回来之前」这段时间屏幕上必须有东西在动，否则看着就是「没出字」，
+// 人接着就去重发了。载体故意做成页面级的块，不进滚动容器：
+// renderMessageWindow 一整段 innerHTML='' 重建（轮询 / 云端更新）弄不丢它，
+// 带图那几百毫秒到几秒的压图/上传窗口也照样亮着。
+const WAIT_LABELS = { 'page-chat': '正在想', 'page-subchat': '正在回应' };
+const CHAT_WAIT = {
+  'page-chat':    { timer: null, loop: null, t0: 0, pending: false },
+  'page-subchat': { timer: null, loop: null, t0: 0, pending: false }
+};
+function chatWaitEl(pageId) {
+  return document.getElementById(pageId === 'page-chat' ? 'chatWaitBar' : 'subchatWaitBar');
+}
+function chatWaitTick(pageId) {
+  const st = CHAT_WAIT[pageId]; if (!st) return;
+  const el = chatWaitEl(pageId); if (!el) return;
+  const label = el.querySelector('.chat-wait-label'); if (!label) return;
+  const sec = Math.floor((Date.now() - st.t0) / 1000);
+  label.textContent = (WAIT_LABELS[pageId] || '正在回应') + (sec >= 3 ? ' · ' + sec + 's' : '');
+}
+function chatWaitShowNow(pageId) {
+  const st = CHAT_WAIT[pageId]; if (!st) return;
+  st.pending = false;
+  const el = chatWaitEl(pageId); if (!el) return;
+  if (st.loop) return;   // 已经在计时了就别重开，秒数得接着数
+  st.t0 = Date.now();
+  el.classList.add('show');
+  chatWaitTick(pageId);
+  st.loop = setInterval(() => chatWaitTick(pageId), 1000);
+}
+// 收到任何「对面还活着」的信号都走这里。攒够 400ms 才亮，免得秒回的一轮闪一下。
+function chatWaitShown(pageId) {
+  const st = CHAT_WAIT[pageId]; if (!st || st.loop || st.pending) return;
+  st.pending = true;
+  st.timer = setTimeout(() => { st.timer = null; chatWaitShowNow(pageId); }, 400);
+}
+// 给「本地心跳」用：亮着就只刷新秒数，没亮就按上面的延迟挂上。
+function chatWaitTouch(pageId) {
+  const st = CHAT_WAIT[pageId]; if (!st) return;
+  if (st.loop) { chatWaitTick(pageId); return; }
+  chatWaitShown(pageId);
+}
+function chatWaitHide(pageId) {
+  const st = CHAT_WAIT[pageId]; if (!st) return;
+  if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+  if (st.loop) { clearInterval(st.loop); st.loop = null; }
+  st.pending = false;
+  const el = chatWaitEl(pageId);
+  if (el) el.classList.remove('show');
+}
+
+function createGenTracker(pageId) {
+  // 等待提示不再抓着本行那个 .gen-thinking 小云：那个节点只在同一发言人连续段的第一行才有
+  // （buildMsgRow 里 !isSameSender 才建），而且 renderMessageWindow 一整段 innerHTML='' 重建
+  // 就会换成另一个节点，旧引用当场失效——这回合剩下的时间那朵云再也亮不起来。
+  // 改成交给页面等球（上面的 chatWait*），重建弄不丢。
   const requestId = genId();
   let status = 'thinking';
   let active = true, tokenArrived = false;
-  const showTimer = setTimeout(() => { if (active && !tokenArrived && thinkEl) thinkEl.classList.add('show'); }, 120);
+  let waitActive = false, waitDelay = null, waitLoop = null;
+  const waitDone = () => {
+    if (waitDelay) { clearTimeout(waitDelay); waitDelay = null; }
+    if (waitLoop) { clearInterval(waitLoop); waitLoop = null; }
+    if (waitActive && pageId) { waitActive = false; chatWaitHide(pageId); }
+  };
+  const waitAlive = () => {
+    // tokenArrived 之后不再重新点亮：第一个真 token 到手就说明字在往外冒，等球功成身退
+    if (!active || tokenArrived || !pageId || waitActive) return;
+    waitActive = true;
+    waitDelay = setTimeout(() => {
+      waitDelay = null;
+      chatWaitShown(pageId);
+      // 本地也走一根心跳。不能只靠服务端的 SSE ping：那个 ping 只在第一个 token 之前推，
+      // 而带图的回合在压图/上传那几百毫秒到几秒里，服务端连请求都还没收到。
+      waitLoop = setInterval(() => chatWaitTouch(pageId), 1000);
+    }, 400);
+  };
   return {
     requestId,
     isActive: () => active,
+    // 「对面还活着」的信号，可以在第一个真 token 之前随便调（收到 ping / 还在压图上传）。
+    // 自带 400ms 延迟和 1s 心跳，重复调用不会把秒数归零。
+    onWait: waitAlive,
     onToken() {
       if (!active || tokenArrived) return;
       tokenArrived = true; status = 'streaming';
-      clearTimeout(showTimer);
-      if (thinkEl) thinkEl.classList.remove('show');
+      waitDone();
     },
     stop(finalStatus) {
       if (!active) return;
       active = false; status = finalStatus || 'stopped';
-      clearTimeout(showTimer);
-      if (thinkEl) thinkEl.classList.remove('show');
+      waitDone();
     }
   };
 }
@@ -7352,7 +7465,7 @@ function triggerBookclubCheck() {
 }
 // text/event-stream 手动解析：契约用 `event: xxx` + `data: {...}` 两行一组、空行分隔，跟 readChatStream()
 // 解析的"纯 data: 行、OpenAI/Claude 原生增量协议"是两套不同格式，所以另写一个而不是复用 readChatStream。
-async function readChatMainSSE(res, onDelta) {
+async function readChatMainSSE(res, onDelta, onWait) {
   const reader = res.body.getReader(); const decoder = new TextDecoder();
   let buf = '';
   let result = { type: null, payload: null };
@@ -7368,7 +7481,12 @@ async function readChatMainSSE(res, onDelta) {
       });
       if (!dataStr) continue;
       let data; try { data = JSON.parse(dataStr); } catch(_) { continue; }
-      if (eventType === 'delta') { if (data.text) onDelta(data.text); }
+      // 服务端在第一个 token 之前每 3s 推一个 ping（runStreamingTurn 里那个防 11s 静默超时的
+      // 心跳，第一个字一到就停）。它不带内容，只说明「模型还在想、链路是活的」——以前这里没有
+      // ping 分支，data: {} 走完 if-else 谁都没接住被静默丢弃，屏幕上就是纯静止，看着正好像
+      // 「没出字」。现在拿它点亮等球。
+      if (eventType === 'ping') { if (onWait) onWait(); }
+      else if (eventType === 'delta') { if (data.text) onDelta(data.text); }
       else if (eventType === 'done') result = { type: 'done', payload: data };
       else if (eventType === 'error') result = { type: 'error', payload: data };
     }
@@ -7401,7 +7519,7 @@ async function sendChatMain(userMsg) {
 
   const sendBtnEl = document.getElementById('sendBtn');
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
-  const gen = createGenTracker(aiRow);
+  const gen = createGenTracker('page-chat');
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   activeStreamMsgId = aiMsg.id;
   // 必须在这里同步登记，不能等到 fetch 前再登记：下面带图的路径有 waitPendingUploads/fitImagesToBudget
@@ -7427,12 +7545,15 @@ async function sendChatMain(userMsg) {
     };
     // 带图才需要过预算闸；纯文字本来就只有几 KB
     if (body.images && body.images.length) {
-      gen.onToken();   // 压图/上传要几百毫秒到几秒，先把 等待中/已接收 的心跳续上，别停在"等待中"
+      // 压图/上传要几百毫秒到几秒，这段服务端连请求都还没收到，只能靠本地心跳把等球撑住。
+      // 这里以前调的是 gen.onToken()，而它的语义是「token 到了，撤掉等待提示」——等于在最慢的
+      // 一条路上主动把提示掐掉，带图回合从压图到真正开工全程零提示。
+      gen.onWait();
       // 阶段 E：还有图没拿到远端 URL 就再等一小会儿（选完图立刻按发送时，上传多半还没跑完）
       if (body.images.some(u => !isRemoteImg(u))) await waitPendingUploads(6000);
       if (body.images.every(isRemoteImg)) {
         // 全部在服务器上：body 只剩几十字节的 URL，一趟几十毫秒，预算闸没有意义，直接发
-        gen.onToken();
+        gen.onWait();
       } else {
       // 有图没传上去（弱网 / 被服务端拒了）：整条退回阶段一的 base64 + 预算闸路径，行为不比现在差
       const fit = await fitImagesToBudget(body, body.images);
@@ -7459,7 +7580,7 @@ async function sendChatMain(userMsg) {
     const result = await readChatMainSSE(res, (deltaText) => {
       accumulated += deltaText; renderer.push(accumulated);
       if (deltaText.trim()) gen.onToken();
-    });
+    }, () => gen.onWait());
     // 流式段到此结束，交还活气泡（其后每条出口都由数据重建整行）。必须在下面 done 分支
     // 那次全量重建之前交还：服务端回填的 aiMessages 万一同 id，认着活气泡就会把只有
     // stream-chunk 的未定型正文留成最终画面，把 marked 渲染过的完整气泡顶掉。
@@ -7551,7 +7672,7 @@ async function callAPI(rerollTarget) {
 
   const sendBtnEl = document.getElementById('sendBtn');
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
-  const gen = createGenTracker(aiRow);
+  const gen = createGenTracker('page-chat');
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   activeStreamMsgId = aiMsg.id;
   let accumulated = '';
@@ -7563,7 +7684,7 @@ async function callAPI(rerollTarget) {
     const result = await readChatMainSSE(res, (deltaText) => {
       accumulated += deltaText; renderer.push(accumulated);
       if (deltaText.trim()) gen.onToken();
-    });
+    }, () => gen.onWait());
     // 流式段到此结束：重投用的是同一条消息 id，下面每个分支（成功/error）都会 refreshRow 这一行，
     // 若还认得活气泡，就会把没定型的流式壳子顶上去、盖掉真正该显示的版本正文。先交还。
     mainStreamBubbleEl = null;
@@ -7625,7 +7746,7 @@ async function callSubChatAPI(rerollTarget) {
 
   const sendBtnEl = document.getElementById('subchatSendBtn');
   const controller = new AbortController(); subAbortController = controller; subGenerating = true; updateSendBtnState(sendBtnEl, true, false);
-  const gen = createGenTracker(aiRow);
+  const gen = createGenTracker('page-subchat');
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(subchatScroll, 'page-subchat'));
   let accumulated = '', accumulatedReasoning = '', toolCallLog = [];
 
