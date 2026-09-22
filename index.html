@@ -2322,6 +2322,11 @@ let mainTurnSourceId = null;    // 当前进行中回合的触发消息 id（sen
 // 主聊天流式生成过程中，正在生成的AI占位消息id——applyCloudMainUpdate 靠它避免云端Realtime更新
 // 中途把用户正在看的流式气泡整个替换掉（云端行要等这一轮生成完、后端持久化后才会包含这条消息）。
 let activeStreamMsgId = null;
+// 流式生成中那只「活气泡」的 DOM 节点本身。renderMessageWindow 每次重建都以 container.innerHTML=''
+// 开头，会把 makeStreamRenderer 捕获的气泡连同祖先一起摘出文档——之后每个 delta 都写进看不见的
+// 节点里，这就是"前端看不到流式输出"的根因。重建时由 buildMsgRow 把这个节点整只搬进新行
+// （见那边的 isLiveStreamRow 分支），气泡就永远活在文档里，不必另造覆盖层。只在流式回合内非空。
+let mainStreamBubbleEl = null;
 let mainChatSubscribed = false;
 let subGenerating = false;
 let subAbortController = null;
@@ -4127,6 +4132,9 @@ window.addEventListener('pageshow', refreshChatsOnResume);
 let chatSyncRefreshing = false;
 async function refreshChatsOnResume() {
   if (!chatSyncReady || chatSyncRefreshing) return;
+  // 正在流式生成的回合里，5s 轮询本来就会把这一轮的内容带回来，切回前台再整轮拉一次是白多一次全量重建
+  // （下面 applyCloudMainUpdate 和 onChatSyncDone 各重建一次）。等这轮结束由 done 分支统一重画。
+  if (mainGenerating) return;
   chatSyncRefreshing = true;
   try {
     const { data: mainRow } = await window.supabaseChats.getChat('main');
@@ -5738,10 +5746,16 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
     msg.files.forEach(f => { const c = document.createElement('span'); c.className = 'msg-file-chip'; c.textContent = '📎 ' + f.name; fw.appendChild(c); }); col.appendChild(fw);
   }
   const displayText = getMsgDisplayText(msg);
+  // 正在流式生成的那一条：气泡是活的，绝不能在这里再新建一个空壳把活节点顶掉。
+  // 把 makeStreamRenderer 捕获的那个节点整只搬进来——正文、stream-chunk 全长在节点上，搬迁不丢。
+  // 回合结束后 mainStreamBubbleEl 归 null，这里自动退回正常渲染（done 之后重建出来的就是
+  // 完整解析过的最终气泡，跟今天的样子一模一样）。
+  const isLiveStreamRow = !!mainStreamBubbleEl && mainGenerating && msg.id === activeStreamMsgId;
+  if (isLiveStreamRow) wrap.appendChild(mainStreamBubbleEl);
   // 内心想法被强制拆成独立气泡时正文是空的——只有上面的 think-cloud/think-content，
   // 不再额外画一个空的 msg-bubble 方块
   const isThinkingOnlyBubble = isThinkingOnlyMsg(msg);
-  if (!isThinkingOnlyBubble) {
+  if (!isThinkingOnlyBubble && !isLiveStreamRow) {
     if (isHtmlOnlyMsg(msg)) {
       // 后端已经把这条消息整体切成"就是一个 html 代码块"——不再走 msg-bubble，
       // 直接裸渲染成 sandbox iframe，没有背景/圆角/padding
@@ -7480,9 +7494,15 @@ async function sendChatMain(userMsg) {
   const gen = createGenTracker(aiRow);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   activeStreamMsgId = aiMsg.id;
+  // 必须在这里同步登记，不能等到 fetch 前再登记：下面带图的路径有 waitPendingUploads/fitImagesToBudget
+  // 这种几秒级的 await，期间轮询完全可能重建一次 DOM，那时若还没登记，活气泡就被扔了。
+  mainStreamBubbleEl = aiBubble;
   let accumulated = '';
 
   function dropPlaceholderIfEmpty() {
+    // 只在这个回合的收尾/失败路径上被调用：不管下面走哪一支，这一行都要按数据重画，
+    // 活气泡的使命到此为止，先交还，免得 refreshRow 时把没最终定型的流式壳子搬进新行
+    mainStreamBubbleEl = null;
     if (!mainAbortDiscard && accumulated.trim()) { aiMsg.text = accumulated; aiMsg.versions[0] = accumulated; persistMessages(); refreshRow(aiMsg, mainCtx); return; }
     const idx = messages.findIndex(m => m.id === aiMsg.id);
     if (idx !== -1) messages.splice(idx, 1);
@@ -7530,8 +7550,17 @@ async function sendChatMain(userMsg) {
       accumulated += deltaText; renderer.push(accumulated);
       if (deltaText.trim()) gen.onToken();
     });
+    // 流式段到此结束，交还活气泡（其后每条出口都由数据重建整行）。必须在下面 done 分支
+    // 那次全量重建之前交还：服务端回填的 aiMessages 万一同 id，认着活气泡就会把只有
+    // stream-chunk 的未定型正文留成最终画面，把 marked 渲染过的完整气泡顶掉。
+    mainStreamBubbleEl = null;
     if (result.type === 'error') {
       dropPlaceholderIfEmpty();
+      // dropPlaceholderIfEmpty 可能在 partial 非空时把这条留下，也可能整条撤掉。这儿按 messages
+      // 的真正状态统一收口：留下就重画一遍完整的行（refreshRow 也兜得住），撤掉也得把窗口
+      // 起点收回去，免得白屏。
+      mainRenderStart = null;
+      renderAllMessages();
       showToast('回复失败：' + ((result.payload && result.payload.message) || '未知错误'), 3500);
       return;
     }
@@ -7559,7 +7588,7 @@ async function sendChatMain(userMsg) {
     if (err.name === 'AbortError') { dropPlaceholderIfEmpty(); }
     else { console.error(err); dropPlaceholderIfEmpty(); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
   } finally {
-    activeStreamMsgId = null; mainGenerating = false; mainAbortController = null; mainTurnSourceId = null; mainAbortDiscard = false; gen.stop();
+    activeStreamMsgId = null; mainStreamBubbleEl = null; mainGenerating = false; mainAbortController = null; mainTurnSourceId = null; mainAbortDiscard = false; gen.stop();
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
   }
 }
@@ -7625,6 +7654,9 @@ async function callAPI(rerollTarget) {
       accumulated += deltaText; renderer.push(accumulated);
       if (deltaText.trim()) gen.onToken();
     });
+    // 流式段到此结束：重投用的是同一条消息 id，下面每个分支（成功/error）都会 refreshRow 这一行，
+    // 若还认得活气泡，就会把没定型的流式壳子顶上去、盖掉真正该显示的版本正文。先交还。
+    mainStreamBubbleEl = null;
     if (result.type === 'error') {
       showToast('重新生成失败：' + ((result.payload && result.payload.message) || '未知错误'), 3500);
       refreshRow(aiMsg, mainCtx);
@@ -7639,9 +7671,10 @@ async function callAPI(rerollTarget) {
     }
   } catch(err) {
     if (err.name !== 'AbortError') { console.error(err); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
+    mainStreamBubbleEl = null;   // 同上一处：这条消息 id 没变，别让中断时的半截流式壳子顶掉原有版本正文
     refreshRow(aiMsg, mainCtx);
   } finally {
-    activeStreamMsgId = null; mainGenerating = false; mainAbortController = null; gen.stop();
+    activeStreamMsgId = null; mainStreamBubbleEl = null; mainGenerating = false; mainAbortController = null; gen.stop();
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
   }
 }
