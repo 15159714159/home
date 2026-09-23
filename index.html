@@ -357,6 +357,42 @@ html.dark .kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,80,80,0.12)
 .chat-wait-dots i:nth-child(2){ animation-delay:.15s }
 .chat-wait-dots i:nth-child(3){ animation-delay:.3s }
 .chat-wait-label { font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* RP（万花筒合体 2026-09-23）身份横条：跟等球同一套路——挂在 #content 里、两条 .page 之外。
+   放 .page 里面会被 renderMessageWindow 的 innerHTML='' 冲掉；站 .page 的底部留白里又会被
+   z-index:40 的输入栏玻璃板压住（等球上一版就栽在这儿），所以照抄等球的位置。
+   z-index 比等球低一层，且等球在戏中会被抬到横条上方（见下面 body.rp-on 那条），两层不叠。 */
+#rpBar {
+  position: absolute; left: 0; right: 0;
+  bottom: calc(var(--composer-h, 64px) + 4px);
+  z-index: 34; display: none; pointer-events: none;
+}
+.rp-bar {
+  display: flex; align-items: center; gap: 8px;
+  width: fit-content; max-width: calc(100% - 20px);
+  margin: 0 10px; padding: 6px 10px; border-radius: 14px;
+  background: var(--bg-surface); border: 0.5px solid var(--border-color);
+  box-shadow: 0 4px 14px rgba(38,63,78,0.10);
+  pointer-events: auto;   /* 外层 layer 跟等球一样是穿透的，只有这一块收点击 */
+}
+.rp-bar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.rp-bar-text { font-size: 12px; line-height: 16px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rp-bar-exit {
+  flex-shrink: 0; font-size: 11px; line-height: 16px; padding: 2px 9px; border-radius: 9px;
+  border: 0.5px solid var(--border-color); background: var(--bg-subtle); color: var(--text-secondary);
+  font-family: inherit; cursor: pointer;
+}
+.rp-bar-exit:active { background: var(--border-color); }
+/* 戏中时等球让位：横条占掉的那一条高度从等球身上让出来。--rp-bar-h 由 rpBarSync 量真实
+   高度写回，横条换行/字体变大也不会算错。只写 #chatWaitLayer —— 副聊天的等球跟戏中身份
+   无关，不该被顶起来。 */
+body.rp-on #chatWaitLayer { bottom: calc(var(--composer-h, 64px) + 4px + var(--rp-bar-h, 34px)); }
+/* RP 配角行（旁白 / NPC）：折进主聊天历史的一条淡色裸行。视觉上贴着 msg-notice 那套
+   「不属于气泡对话」的语言，但**故意不叫 notice** —— notice 在好几处（选中态、
+   findPrevMsg/findNextMsg）被当成「不属于对话流的系统提示」整条跳过，而旁白是上下文本身
+   的一部分，跳过了主聊天的渲染顺序就跟服务端折叠出的顺序对不上。 */
+.rp-aside { text-align: center; font-size: 12px; line-height: 18px; color: var(--text-faint); padding: 3px 24px; word-break: break-word; }
+.rp-aside-npc { color: var(--text-secondary); }
+.rp-aside-name { display: inline-block; font-size: 10px; line-height: 16px; color: var(--text-secondary); background: var(--bg-subtle); padding: 1px 8px; border-radius: 8px; margin-right: 6px; vertical-align: 1px; }
 .kld-msg.anim { animation:kldIn .3s ease; }
 .kld-msg-narration { text-align:center; font-size:12px; color:var(--text-faint); padding:6px 24px; line-height:1.6; }
 .kld-msg-npc { text-align:center; font-size:12px; color:var(--text-faint); padding:4px 24px; }
@@ -1704,6 +1740,9 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
        renderMessageWindow 的 innerHTML='' 重建。 -->
   <div id="chatWaitLayer"><div class="chat-wait" id="chatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在想</span></div></div>
   <div id="subchatWaitLayer"><div class="chat-wait" id="subchatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在回应</span></div></div>
+  <!-- RP 身份横条（万花筒合体 2026-09-23）：跟等球同一个位置理由，见上面那段注释。
+       只在这一轮带着 rpRunId 时显示；文字由 rpBarRender() 写，不在 HTML 里写死。 -->
+  <div id="rpBar"><div class="rp-bar"><span class="rp-bar-dot"></span><span class="rp-bar-text" id="rpBarText"></span><button type="button" class="rp-bar-exit" id="rpBarExit">出戏</button></div></div>
   <div class="page active" id="page-chat">
     <div id="chatScroll"></div>
   </div>
@@ -3598,7 +3637,12 @@ document.getElementById('darkModeToggle').addEventListener('change', (e) => {
   applyDarkMode(on);
 });
 function applyGlobalNames() {
-  document.getElementById('textInput').placeholder = `跟${appName}说点什么…`;
+  // 戏中时输入框改成"说话"口吻并提示怎么出戏（RP 合体 2026-09-23）——
+  // 同一句提示在 kld-room 那边原本就有（打【停】出戏），这里保持一致。
+  const rpOn = (typeof rpGetRunId === 'function') && rpGetRunId();
+  document.getElementById('textInput').placeholder = rpOn
+    ? `${appName}正在戏中，说点什么…（打【停】出戏）`
+    : `跟${appName}说点什么…`;
   document.getElementById('sideNameDisplay').textContent = appName;
   const raoTag = document.querySelector('.diary-filter-tag[data-filter="ao"]');
   const rranjunTag = document.querySelector('.diary-filter-tag[data-filter="ranjun"]');
@@ -4100,7 +4144,7 @@ async function loadMessages() {
   let migrated = false;
   messages.forEach(m => {
     if (!m.id) { m.id = genId(); migrated = true; }
-    if (m.role !== 'user' && m.role !== 'notice' && m.role !== 'wake_session' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
+    if (m.role !== 'user' && m.role !== 'notice' && m.role !== 'wake_session' && m.role !== 'rp_aside' && !m.versions) { m.versions = [m.text || '']; m.versionIndex = 0; migrated = true; }
     if (m.createdAt == null) { m.createdAt = Date.now(); migrated = true; }
   });
   if (migrated) persistMessages();
@@ -5114,6 +5158,19 @@ function attachLongPress(el, msg, ctx) {
 }
 function openMsgMenu(msg, ctx, x, y) {
   if (msg.role === 'notice') { openFloatingMenu([{ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) }], x, y); return; }
+  // RP 配角行只读：引用/编辑/重新生成对它都没意义（重新生成还会把旁白当成"我说的话"重写一遍），
+  // 只留复制 + 删除 —— 跟 notice 一样走窄菜单。
+  if (msg.role === 'rp_aside') {
+    openFloatingMenu([
+      { label: '复制', onClick: () => {
+        const text = getMsgDisplayText(msg);
+        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => showToast('复制失败')); }
+        else showToast('复制失败');
+      }},
+      { label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) },
+    ], x, y);
+    return;
+  }
   const items = [];
   if (ctx === mainCtx) items.push({ label: '多选', onClick: () => enterSelectMode() });
   items.push({ label: '引用', onClick: () => setQuote(msg, ctx) });
@@ -5123,7 +5180,10 @@ function openMsgMenu(msg, ctx, x, y) {
     else showToast('复制失败');
   }});
   items.push({ label: '编辑', onClick: () => triggerEditMessage(msg, ctx) });
-  if (msg.role !== 'user') items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
+  // 重新生成在戏中藏着不给：那条路由（/chat-main/regenerate）不取身份块、也不走剥标记，
+  // 在戏里点它等于用"出戏的人格"重写一条旁白、还会把 [cue:…] 原样写回主聊天历史。
+  // 要支持得改服务端那条独立路由，留到下一阶段。
+  if (msg.role !== 'user' && !rpGetRunId()) items.push({ label: '重新生成', onClick: () => regenerateMessage(msg, ctx) });
   items.push({ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) });
   openFloatingMenu(items, x, y);
 }
@@ -5643,6 +5703,21 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   if (msg.role === 'wake_session') {
     return buildWakeSessionCard(msg, ctx); // ctx 别丢：丢了就永远拿不到多选态，勾选框/长按全没有
   }
+  // RP 配角行（旁白 / NPC）：跟 notice / wake_session 一样是"裸行"，不套气泡、不带头像。
+  // **故意不复用 .msg-notice**：notice 在好几处（选中态、findPrevMsg/findNextMsg）被当成
+  // "不属于对话流"整条跳过，而旁白是上下文本身的一部分，跳过了就会跟服务端折叠出的顺序错位。
+  if (msg.role === 'rp_aside') {
+    const row = document.createElement('div');
+    row.className = 'rp-aside' + (msg.rpKind === 'npc' ? ' rp-aside-npc' : '');
+    row.dataset.msgId = msg.id;
+    if (msg.rpKind === 'npc') {
+      const tag = document.createElement('span'); tag.className = 'rp-aside-name';
+      tag.textContent = msg.rpName || 'NPC'; row.appendChild(tag);
+    }
+    row.appendChild(document.createTextNode(msg.text || ''));
+    if (ctx) attachLongPress(row, msg, ctx);
+    return row;
+  }
   const row = document.createElement('div');
   row.className = 'msg-row ' + (msg.role === 'user' ? 'user' : 'ai'); row.dataset.msgId = msg.id;
   // 纯 thinking 气泡只有在"它自己是这一串连续消息里第一条"、且后面紧跟着同发送方的
@@ -5778,6 +5853,9 @@ const MSG_PAGE_SIZE = 30;
 let mainRenderStart = null;
 let subRenderStart = null;
 let lastSubChatIdRendered = undefined;
+// 三条邻居查找只跳过 notice（"不属于对话流"的系统提示）。**RP 配角行（rp_aside）不跳**：
+// 旁白是上下文本身的一部分，模型看得到它，渲染顺序就得跟服务端折叠出的顺序一致；
+// 跳过它会让旁白后面那条气泡的前后邻居变成"隔着旁白"的那条，头像/时间线的归属跟着错位。
 function findPrevMsg(arr, idx) {
   for (let i = idx - 1; i >= 0; i--) { if (arr[i].role !== 'notice') return arr[i]; }
   return null;
@@ -6216,6 +6294,7 @@ function switchPage(pageName) {
   if (pageName === 'vocab') { vocabOnEnterPage(); }
   if (pageName === 'kaleidoscope') { kldOnEnter(); }
   chatWaitOnActivePage();
+  rpBarOnActivePage();
 }
 document.querySelectorAll('.side-nav-item[data-nav]').forEach(item => {
   if (item.dataset.nav === 'diary' || item.dataset.nav === 'space' || item.dataset.nav === 'vocab' || item.dataset.nav === 'kaleidoscope') {
@@ -6836,6 +6915,9 @@ const CHAT_WAIT = {
 function chatWaitLayerOf(pageId) {
   return document.getElementById(pageId === 'page-chat' ? 'chatWaitLayer' : 'subchatWaitLayer');
 }
+// 横条文字长短不定（世界名 + 「你在演 …」可能很长），换行就会变高，而 body.rp-on 那
+// 条规则拿的是 --rp-bar-h。切页 / 转屏 / 起戏时重量一次，写回变量，等球才不会被压住。
+window.addEventListener('resize', rpBarMeasure);
 // 等球是 #content 里的独立层、不在任何 .page 内，所以「哪一页的等球该露出来」得自己管：
 // 只有当前页是主聊天/副聊天时才显示对应那个。切页时调一次，每回合开头再同步一次防漏。
 function chatWaitOnActivePage() {
@@ -6887,6 +6969,81 @@ function chatWaitHide(pageId) {
   // 这里再关一次无害；要是在本页还留着不收，等球就永远挂在屏幕上了。
   const layer = chatWaitLayerOf(pageId);
   if (layer) layer.style.display = 'none';
+}
+
+/* ---------- RP 身份横条（万花筒合体 2026-09-23） ----------
+   「此刻我在演谁」。跟等球同一套路：#content 里的独立层、不在 .page 内，所以哪一页该露
+   得自己管（rpBarOnActivePage，切页时跟着 chatWaitOnActivePage 一起调）。
+   rpRunId 是**这一轮请求**带不带身份块的开关：服务端只有收到 rpRunId 才往 system 里插
+   第 3 块（pin 在 systemBlocks 下标 2）。所以读写都以它为准，不另存内存变量。
+   横条文字跟 runId 一起记在 localStorage 里（开局那一刻世界名就在手上，没必要为了省这点
+   字再跑一趟 /api/room/context）—— 只有这一份，刷新/切页都还在。 */
+const LS_RP_RUN  = 'rpRunId';
+const LS_RP_INFO = 'rpRunInfo';
+function rpGetRunId() { try { return localStorage.getItem(LS_RP_RUN) || ''; } catch (e) { return ''; } }
+function rpSetRunId(v, info) {
+  try {
+    if (v) { localStorage.setItem(LS_RP_RUN, v); if (info) localStorage.setItem(LS_RP_INFO, info); }
+    else { localStorage.removeItem(LS_RP_RUN); localStorage.removeItem(LS_RP_INFO); }
+  } catch (e) {}
+}
+function rpBarShow() {
+  const layer = document.getElementById('rpBar');
+  if (!layer) return;
+  const on = (currentPage === 'chat' && rpGetRunId());
+  layer.style.display = on ? 'block' : 'none';
+  if (on) rpBarMeasure();
+}
+function rpBarOnActivePage() { rpBarShow(); }
+// 横条会换行（世界名/身份句长短不一），高度量出来写回 --rp-bar-h，
+// body.rp-on #chatWaitLayer 拿它把等球顶上去 —— 写死高度迟早对不上。
+function rpBarMeasure() {
+  const bar = document.querySelector('#rpBar .rp-bar');
+  if (!bar) return;
+  const h = Math.round(bar.getBoundingClientRect().height);
+  if (h > 0) document.documentElement.style.setProperty('--rp-bar-h', h + 'px');
+}
+// 上了戏 / 出了戏都走这里：body.rp-on 决定等球是否让位，横条文字从 LS_RP_INFO 取。
+function rpBarSync() {
+  const runId = rpGetRunId();
+  document.body.classList.toggle('rp-on', !!runId);
+  const el = document.getElementById('rpBarText');
+  if (el) {
+    let info = '';
+    try { info = localStorage.getItem(LS_RP_INFO) || ''; } catch (e) {}
+    el.textContent = runId ? (info || '戏中…') : '';
+  }
+  rpBarShow();
+}
+// 戏中的「出戏」口令：直接打字发出去就行，不用去够那个按钮。**不发给服务端**——
+// 这一句是给界面的指令，不是剧情，发出去会白烧一轮还会让 Yori 在戏里回一句
+// 「好的我出戏了」。所以命中就拦下来，跟点横条上的按钮同一条路。
+function rpIsExitCue(text) {
+  return /^[【\[]\s*停\s*[】\]]$/.test((text || '').trim());
+}
+// 横条上的「出戏」按钮。绑在这儿而不是文件末尾那堆绑定里：这里跟 rpExit 同一段，
+// 以后要改出戏的语义只用看这一处。
+document.getElementById('rpBarExit').addEventListener('click', () => rpExit());
+// 出戏：清本地状态即可。不碰服务端那一局 —— 它照样开在那儿，历史里还能翻回去续演。
+function rpExit(showMsg) {
+  rpSetRunId('');
+  rpBarSync();
+  applyGlobalNames();   // placeholder 跟着身份走
+  if (showMsg !== false && typeof showToast === 'function') showToast('出戏了');
+}
+// 戏中的流式防闪：正文里的 [cue:…] / [npc:…] 只有等 done 那一刻服务端才剥得干净
+// （strip 是权威实现，前端绝不自己重实现）。边收边显示的话屏幕上会先闪一段
+// 「[cue:窗外在下雨]」再跳掉，所以戏中只吐到最后一个"还没闭合的 [" 之前。
+// 只影响显示：accumulated 一个字不动，交回去的仍是完整原文。
+// 完整标记（含 ']'）照常显示；明显不是标记行（敞开超过 80 字）也照常显示，
+// 免得正文里一个孤立的 '[' 把后半条消息一直扣到 done。
+function rpStreamVisible(text) {
+  // 半角 '[' 和全角 '【' 都可能是标记的开头（协议两种都收），取更靠后的那个。
+  const i = Math.max(text.lastIndexOf('['), text.lastIndexOf('【'));
+  if (i === -1) return text;
+  const tail = text.slice(i);
+  if (tail.includes(']') || tail.includes('】') || tail.length > 80) return text;
+  return text.slice(0, i);
 }
 
 function createGenTracker(pageId) {
@@ -7571,6 +7728,9 @@ async function sendChatMain(userMsg) {
       id: userMsg.id, createdAt: userMsg.createdAt, text: userMsg.text, images: userMsg.images, files: userMsg.files,
       quote: userMsg.quote, username: appUsername, ...buildGalateaMcpRequestFields(cfg), ...buildCedarToyMcpRequestFields(cfg), ...buildSpicyBookclubRequestFields(cfg)
     };
+    // 戏中：把这一局的 id 一起带上，服务端据此往 system 尾部插身份块（systemBlocks 下标 2），
+    // 并在落库前把 [cue:…]/[npc:…] 剥干净。空串等价于没带，走原来的纯主聊天路径。
+    if (rpGetRunId()) body.rpRunId = rpGetRunId();
     // 带图才需要过预算闸；纯文字本来就只有几 KB
     if (body.images && body.images.length) {
       // 压图/上传要几百毫秒到几秒，这段服务端连请求都还没收到，只能靠本地心跳把等球撑住。
@@ -7606,7 +7766,10 @@ async function sendChatMain(userMsg) {
     const res = await fetch(chatMainUrl('/send'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     const result = await readChatMainSSE(res, (deltaText) => {
-      accumulated += deltaText; renderer.push(accumulated);
+      accumulated += deltaText;
+      // 戏中扣住没闭合的 [cue:…]（见 rpStreamVisible）。regenerate 那条路径不这么做：
+      // 它在戏中被藏起来了（openMsgMenu），走不到这儿。
+      renderer.push(rpGetRunId() ? rpStreamVisible(accumulated) : accumulated);
       if (deltaText.trim()) gen.onToken();
     }, () => gen.onWait());
     // 流式段到此结束，交还活气泡（其后每条出口都由数据重建整行）。必须在下面 done 分支
@@ -7846,6 +8009,12 @@ textInput.addEventListener('input', () => {
 });
 async function sendMessage() {
   const text = textInput.value.trim();
+  // 合体（2026-09-23）：戏中打字「【停】」= 出戏。拦在最前面——往下走会先建气泡、
+  // 再进 /send 那条链，这一句就会被当成剧情发出去（还白烧一轮）。
+  // 附件不为空时不当口令，免得「【停】+ 一张图」这种组合被悄悄吞掉。
+  if (pendingAttachments.length === 0 && typeof rpIsExitCue === 'function' && rpIsExitCue(text)) {
+    textInput.value = ''; textInput.style.height = 'auto'; rpExit(); return;
+  }
   if (!text && pendingAttachments.length === 0) return;
   // 阶段 E：还在传的图先等一小会儿（最多 6s）——传上去了就发 URL，没传上去就用本地那份
   // 压缩结果走 base64 老路，行为不比现在差。拖久了不如直接发，所以有上限。
@@ -8317,9 +8486,16 @@ window.addEventListener('DOMContentLoaded', () => {
   preloadChatThemeAssets();
   applyAppIcon();
   switchPage('chat');
+  // 合体（2026-09-23）：rpRunId 落在 localStorage 里会跨刷新活着（所以刷新=续演），
+  // 开局这一步得把横条和 body.rp-on 的状态补回来，否则刷新之后等球会被横条压住。
+  rpBarSync();
   renderAllMessages();
   renderSubChatSidebarList();
   applyGlobalNames();
+  // 横条是 #content 里的独立层、不在 .page 内，它的高度只能等首帧排完才量得准；
+  // rpBarSync 里那次量到的是 0（display:none 时 getBoundingClientRect 全 0），
+  // 得在渲染落地之后再补一次，否则 --rp-bar-h 还是兜底值 34px。
+  requestAnimationFrame(rpBarMeasure);
   setupViewportKeyboardHandling();
   setupAutoFollowTracking('page-chat');
   setupAutoFollowTracking('page-subchat');
@@ -9246,7 +9422,16 @@ function kldShowConfig(){
   document.getElementById('kldCfgGo').addEventListener('click',async()=>{
     if(!kldCurrentWorld)return;
     try{const r=await kldApi('/api/runs/start',{worldId:kldCurrentWorld.id,speed:kldCfgSpeed,intimate:kldCfgIntimate});
-      kldCurrentRun=r.run;document.getElementById('kldConfigSheet').classList.remove('show');kldEnterRoom(kldCurrentRun.id);
+      kldCurrentRun=r.run;document.getElementById('kldConfigSheet').classList.remove('show');
+      // 合体（2026-09-23）：接戏不再是「进小房间」，而是把这一局的身份钉在**主聊天**上——
+      // 横条显示、输入框换口吻、之后每轮 /send 都带 rpRunId 让服务端插身份块。
+      // 世界名 / 我在这局是谁 都从手上这张世界卡取（run 不带这两个字段，见 kldCfgGo 上游）。
+      rpSetRunId(String(kldCurrentRun.id),
+        kldCurrentWorld.name + ' · 你在演 ' + (kldCurrentWorld.charRole || '你自己'));
+      rpBarSync(); applyGlobalNames();
+      document.getElementById('kldRoomSheet').classList.remove('show');
+      kldCurrentRun=null;
+      switchPage('chat');
     }catch(e){showToast(e.message)}
   });
   document.getElementById('kldConfigSheet').classList.add('show');
@@ -9359,7 +9544,9 @@ async function kldEnterRoom(runId){
     const rr=await kldApi('/api/room?run='+runId);kldMsgRows=rr.rows||[];
     kldResetRows();
     kldRenderMsgs(false);
-    if(!kldMsgRows.length&&kldCurrentRun&&!kldCurrentRun.endedAt){await kldDoNudge()}
+    // 合体后这里是**只读回看**：不再自动 kldDoNudge()。合体后剧情全在主聊天里推，
+    // 进这里只是想把这一局发生过什么摊开看一眼；自动推一步会在背后烧一次配角模型的钱，
+    // 还会把 kldMsgRows 往前挪一格、跟主聊天历史对不上（旁白已经在主聊天里了）。
   }catch(e){msgs.innerHTML='<div style="text-align:center;color:var(--danger);padding:40px">'+esc(e.message)+'</div>'}
 }
 function kldRenderMsgs(animated){
@@ -9427,38 +9614,19 @@ function kldDrawUserNow(text){
   const d=document.createElement('div');d.innerHTML=kldRenderRow({kind:'user',text},true);
   if(d.firstChild){el.appendChild(d.firstChild);el.scrollTop=el.scrollHeight}
 }
+/* 合体（2026-09-23）后小房间只读：这三支（自己发话 / 推一步 / 来段旁白）都会真的调一次
+   配角模型并往这一局补行，跟主聊天那条链（/send → rpRoomIngest）是两个入口各写各的，
+   同时开着必然重复花钱、还会把同一段剧情在两处各记一份。所以整个掐掉，统一从主聊天发。
+   保留函数本体（改成提示）而不是删掉：还有事件绑定和别处引用指着这几个名字，
+   删了会在别的地方炸出 ReferenceError。 */
 async function kldDoSend(){
-  if(!kldCurrentRun||kldCurrentRun.endedAt)return;
-  const input=document.getElementById('kldInput'),text=input.value.trim();
-  const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');input.disabled=true;
-  try{let result;
-    if(text){
-      kldDrawUserNow(text);input.value='';
-      kldMsgRows.push({kind:'user',text,name:'',ts:new Date().toISOString()});
-      kldThinkingOn('正在回应');
-      result=await kldApi('/api/room/say',{run:kldCurrentRun.id,text});
-    }else{
-      kldThinkingOn('正在回应');
-      result=await kldApi('/api/room/nudge',{run:kldCurrentRun.id});
-    }
-    if(result.rows?.length)kldAppendRows(result.rows);
-  }catch(e){showToast(e.message)}
-  kldThinkingOff();
-  btn.disabled=false;btn.classList.remove('loading');input.disabled=false;input.focus();
+  showToast('合体后剧情在聊天里推——直接回聊天页说话就行');
 }
 async function kldDoNudge(){
-  const btn=document.getElementById('kldSendBtn');btn.disabled=true;btn.classList.add('loading');
-  kldThinkingOn('正在续写');
-  try{const r=await kldApi('/api/room/nudge',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
-  kldThinkingOff();
-  btn.disabled=false;btn.classList.remove('loading');
+  showToast('合体后剧情在聊天里推——直接回聊天页说话就行');
 }
 async function kldDoNarrate(){
-  const btn=document.getElementById('kldNarBtn');btn.disabled=true;
-  kldThinkingOn('旁白正在写');
-  try{const r=await kldApi('/api/room/narrate',{run:kldCurrentRun.id});if(r.rows?.length)kldAppendRows(r.rows)}catch(e){showToast(e.message)}
-  kldThinkingOff();
-  btn.disabled=false;
+  showToast('合体后剧情在聊天里推——直接回聊天页说话就行');
 }
 function kldOpenRoomSettings(){
   const p=document.getElementById('kldRoomPanel');const run=kldCurrentRun;
@@ -9497,8 +9665,20 @@ function kldShowSummary(runId){
   document.getElementById('kldSumDigest').innerHTML=run.digest?'<div style="font-size:11px;color:var(--text-faint);margin-bottom:6px">前情</div>'+esc(run.digest).replace(/\n/g,'<br>'):'<div style="color:var(--text-faint)">没有前情摘要</div>';
   const w=kldWorlds.find(x=>x.id===run.worldId);
   document.getElementById('kldSumSetting').textContent=w?w.setting:'';
+  // 文案按局的状态切（终局的按钮写「重新翻开」，只是点下去会被上面那行 endedAt 拦下）
   document.getElementById('kldSumContinue').textContent=run.endedAt?'重新翻开':'继续这一趟';
-  document.getElementById('kldSumContinue').onclick=()=>{if(run.endedAt){showToast('这一局已经结束了')}else kldEnterRoom(run.id)};
+  document.getElementById('kldSumContinue').onclick=()=>{
+    if(run.endedAt){showToast('这一局已经结束了');return}
+    // 合体（2026-09-23）：从来没有「回那个小房间接着演」了——续演就是把这一局的身份重新
+    // 钉回主聊天横条。世界名从 run 上取（历史局未必还留着世界卡，所以退到 kldWorlds 再兜底）。
+    const w=kldWorlds.find(x=>x.id===run.worldId);
+    rpSetRunId(String(run.id),
+      (run.worldName||w?.name||'这一局') + ' · 你在演 ' + (w?.charRole || '你自己'));
+    rpBarSync(); applyGlobalNames();
+    kldCurrentRun=null;
+    kldSwitchView('kld-hub'); kldSwitchTab('history');
+    switchPage('chat');
+  };
 }
 /* === Event bindings === */
 document.getElementById('kldBack').addEventListener('click',()=>switchPage('chat'));
@@ -9516,7 +9696,9 @@ document.querySelectorAll('#kld-tab-slots .kld-tone-btn').forEach(b=>b.addEventL
 document.getElementById('kldRollBtn').addEventListener('click',()=>kldDoSpin());
 document.getElementById('kldWriteBtn').addEventListener('click',()=>kldWriteWorld());
 document.getElementById('kldSaveWordsBtn').addEventListener('click',()=>kldSaveWords());
-document.getElementById('kldRoomBack').addEventListener('click',()=>{kldCurrentRun=null;kldOnEnter()});
+// 合体（2026-09-23）后小房间的返回键 = 出戏：这里看到的剧情已经在主聊天里了，
+// 再回到万花筒首页反而多一步。清掉身份、横条收起来、回聊天。
+document.getElementById('kldRoomBack').addEventListener('click',()=>{kldCurrentRun=null;rpExit();switchPage('chat')});
 document.getElementById('kldRoomGear').addEventListener('click',()=>kldOpenRoomSettings());
 document.getElementById('kldSendBtn').addEventListener('click',()=>kldDoSend());
 document.getElementById('kldInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();kldDoSend()}});
