@@ -7220,7 +7220,7 @@ function bubbleWaitShow(bubbleEl) {
   const st = { mark, label: mark.querySelector('.bubble-wait-label'), t0, timer: null };
   st.timer = setInterval(() => {
     const sec = Math.floor((Date.now() - st.t0) / 1000);
-    if (st.label) st.label.textContent = '正在想' + (sec >= 3 ? ' · ' + sec + 's' : '');
+    if (st.label) st.label.textContent = '正在想' + (sec >= 3 ? ' · ' + sec + 's' : '') + (sec >= 20 ? '（还没收到字）' : '');
   }, 1000);
   bubbleWaitSts.set(bubbleEl, st);
 }
