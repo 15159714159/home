@@ -2402,6 +2402,11 @@ let activeStreamMsgId = null;
 // 节点里，这就是"前端看不到流式输出"的根因。重建时由 buildMsgRow 把这个节点整只搬进新行
 // （见那边的 isLiveStreamRow 分支），气泡就永远活在文档里，不必另造覆盖层。只在流式回合内非空。
 let mainStreamBubbleEl = null;
+// 流式期间从 reasoning 渠道攒起来的思考全文。它是**增量**拼出来的（服务端每帧只推这一段新增
+// 的 thinking，不是累积全文，见 chatEngine.js 的 accumulatedReasoning），所以必须自己累加。
+// 用途只有一个：重建活行时把这段文字重新灌进那朵活云（见 setLiveThinkingText），
+// 免得模型写了半天思考、画面被 5s 轮询重建一次就全空。回合结束由 sendChatMain 清空。
+let liveThinkingText = '';
 let mainChatSubscribed = false;
 let subGenerating = false;
 let subAbortController = null;
@@ -5746,6 +5751,45 @@ function appendThinkCloud(nameLine, col, thinking, inline) {
   }
   col.appendChild(thinkBody);
 }
+// 流式期间的"活云"：长得跟 appendThinkCloud 的画法一样，但**幂等**——同一个 col 里最多一个，
+// 靠 querySelector 自愈。
+// 为什么要单独一条路：appendThinkCloud 每次调用都新建一对节点，而流式期间 DOM 会被
+// 反复重建（renderAllMessages → renderMessageWindow 的 innerHTML=''，见 2399 的注释），
+// 所以流式期不能用「建一次、存引用」的写法，得每次进 buildMsgRow 时现查现建；旧节点随旧行
+// 一起被丢弃，不会重复挂载，因此也不需要任何全局搬运变量。
+// 挂点只有一个：buildMsgRow 的 isLiveStreamRow 分支（活气泡被搬进新行时）。
+// 插在气泡之前：col 的顺序是 [名字行?] [云] [云正文] [图/文件] [wrap 气泡]，
+// 云要压在气泡上面。wrap 可能还没进 col（buildMsgRow 是最后才 col.appendChild(wrap)，
+// 而我这边也可能在流式途中被 onReasoning 直接调到时 wrap 早已在位）——两种时机都要对。
+function ensureLiveThinkingCloud(col) {
+  if (!col) return null;
+  const existing = col.querySelector(':scope > .think-cloud[data-live-think]');
+  if (existing) return existing;
+  const cloud = document.createElement('div');
+  cloud.className = 'think-cloud';
+  cloud.dataset.liveThink = '1';
+  const thinkBody = document.createElement('div');
+  thinkBody.className = 'think-content';
+  thinkBody.dataset.liveThink = '1';
+  thinkBody.style.display = 'none';
+  cloud.addEventListener('click', (e) => {
+    e.stopPropagation();
+    thinkBody.style.display = thinkBody.style.display !== 'none' ? 'none' : 'block';
+  });
+  cloud.innerHTML = ICONS.cloud + '<span>-thinking-</span>';
+  const wrapEl = col.querySelector(':scope > .msg-bubble-wrap');
+  if (wrapEl) { col.insertBefore(cloud, wrapEl); col.insertBefore(thinkBody, wrapEl); }
+  else { col.appendChild(cloud); col.appendChild(thinkBody); }
+  return cloud;
+}
+// 更新活云里折叠的思考正文（增量拼好的全文）。节点可能因重建而不在了 → 现查，
+// 查不到就先 ensure 一朵。不做全量重画，只写 textContent。
+function setLiveThinkingText(col, text) {
+  if (!col || !text) return;   // 没有思考内容就一朵云都不画（模型不走 reasoning 渠道时这里全程为空）
+  ensureLiveThinkingCloud(col);
+  const body = col.querySelector(':scope > .think-content[data-live-think]');
+  if (body) body.textContent = text;
+}
 function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   if (msg.role === 'notice') {
     const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
@@ -5834,7 +5878,14 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   // 回合结束后 mainStreamBubbleEl 归 null，这里自动退回正常渲染（done 之后重建出来的就是
   // 完整解析过的最终气泡，跟今天的样子一模一样）。
   const isLiveStreamRow = !!mainStreamBubbleEl && mainGenerating && msg.id === activeStreamMsgId;
-  if (isLiveStreamRow) wrap.appendChild(mainStreamBubbleEl);
+  if (isLiveStreamRow) {
+    // 流式期的活云：模型往里写的思考（reasoning 渠道）实时显示成一朵可折叠的云。
+    // 重建时这里会重新 ensure 一朵新节点（旧的随旧行丢弃），不需要全局变量搬它。
+    // 注意这时候 wrap 还没进 col（col.appendChild(wrap) 在本函数末尾），所以只是 append 到
+    // col 尾；等 wrap 后进，顺序自然还是 [名字行] [云] [云正文] [气泡]。
+    setLiveThinkingText(col, liveThinkingText);
+    wrap.appendChild(mainStreamBubbleEl);
+  }
   // 内心想法被强制拆成独立气泡时正文是空的——只有上面的 think-cloud/think-content，
   // 不再额外画一个空的 msg-bubble 方块
   const isThinkingOnlyBubble = isThinkingOnlyMsg(msg);
@@ -6947,6 +6998,39 @@ dismissKeyboardOnBlankTap(subchatScroll, document.getElementById('subchatTextInp
 
 
 /* ============================================================
+流式期间的"未闭合标记扣留"
+============================================================ */
+// 只动显示、不碰数据：交回去的仍是完整原文，只是把尾巴上几个"还没长完的标记"先按住
+// （同 rpStreamVisible 的路数）。三类标记在 done 之前会在气泡里裸奔：
+//   1. 没等到 ']' 的 [内心想法：…] —— 服务端要等整回合结束才把它包成哨兵、拆成独立的
+//      纯 thinking 气泡（live-chatTurn.js 的 wrapInlineThinkingForSplit），那之前这段原文
+//      就直接飘在正文里。这里扣到开括号之前。
+//      只认 '内心想法'（半角 '[' / 全角 '【' 都可能是开头，允许中间空白，冒号两种）——
+//      正文里普通的 '[' 一律不碰，所以不需要 rpStreamVisible 那个 80 字兜底：'[内' 会不会
+//      长成标记是能判定的，长不成下一帧就自己回来了（比如 '[内容]'）。
+//   2. 落单的 **：marked 拿不到闭合的 ** 就把星号当普通字符吐出来，屏幕上先闪一段 '**'。
+//   3. 落单的反引号：同上（行内代码、``` 围栏没闭合时）。
+// 2/3 带 80 字兜底（照抄 rpStreamVisible 的理由）：正文里一个孤立的 ** 或 ` 不该把后半条
+// 消息一直扣到 done。
+// 注意 '[cue:…]' 不在这里管——那是戏中的事，已由调用点的 rpStreamVisible 负责，重复扣会打架。
+function hideUnclosedMarkers(text) {
+  if (!text) return text;
+  // 1) 内心想法标记：取最后一个开括号，看它后面是不是"正在长成 [内心想法：…]"
+  const openIdx = Math.max(text.lastIndexOf('['), text.lastIndexOf('【'));
+  if (openIdx !== -1) {
+    const head = text.slice(openIdx + 1).replace(/^\s+/, '');
+    const growing = '内心想法'.startsWith(head) || /^内心想法\s*[:：]/.test(head);
+    if (growing && !head.includes(']') && !head.includes('】')) return text.slice(0, openIdx);
+  }
+  // 2) 落单的 **
+  const b = text.lastIndexOf('**');
+  if (b !== -1 && (text.split('**').length - 1) % 2 === 1 && text.length - b <= 80) return text.slice(0, b);
+  // 3) 落单的反引号
+  const t = text.lastIndexOf('`');
+  if (t !== -1 && (text.split('`').length - 1) % 2 === 1 && text.length - t <= 80) return text.slice(0, t);
+  return text;
+}
+/* ============================================================
 流式渲染节流
 ============================================================ */
 function makeStreamRenderer(bubbleEl, scrollFn) {
@@ -6962,7 +7046,15 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
     scrollFn(); pendingRender = false;
   }
   return {
-    push(accumulated) { latestText = accumulated; if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); } },
+    push(accumulated) {
+      // 只扣"还没长完的标记"（[内心想法：/落单的 ** /落单的 `），显示用；accumulated 本身
+      // 一个字不动，done 之后落库的仍是完整原文。注意这里必须在**进 flush 之前**做：
+      // flush 是 appendChild 累积式追加，显示文本一旦变短就没法回退（只能 innerHTML='' 全量
+      // 重建，那会连气泡里的等球 mark 一起炸掉）。而 hideUnclosedMarkers 的输出是单调不减的
+      // （扣掉的那截会在后续 delta 里原样长回来），所以 renderedLen 切片照旧成立。
+      latestText = hideUnclosedMarkers(accumulated);
+      if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); }
+    },
     finalize(text) { bubbleEl.innerHTML = ''; try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; } addCopyButtons(bubbleEl); scrollFn(); }
   };
 }
@@ -7782,7 +7874,7 @@ function triggerBookclubCheck() {
 }
 // text/event-stream 手动解析：契约用 `event: xxx` + `data: {...}` 两行一组、空行分隔，跟 readChatStream()
 // 解析的"纯 data: 行、OpenAI/Claude 原生增量协议"是两套不同格式，所以另写一个而不是复用 readChatStream。
-async function readChatMainSSE(res, onDelta, onWait) {
+async function readChatMainSSE(res, onDelta, onWait, onReasoning) {
   const reader = res.body.getReader(); const decoder = new TextDecoder();
   let buf = '';
   let result = { type: null, payload: null };
@@ -7803,7 +7895,10 @@ async function readChatMainSSE(res, onDelta, onWait) {
       // ping 分支，data: {} 走完 if-else 谁都没接住被静默丢弃，屏幕上就是纯静止，看着正好像
       // 「没出字」。现在拿它点亮等球。
       if (eventType === 'ping') { if (onWait) onWait(); }
-      else if (eventType === 'delta') { if (data.text) onDelta(data.text); }
+      // 服务端每帧把 reasoning 和正文一起推（只推 reasoning 的那几帧 text 是空串）。data.reasoning
+      // 是**增量**不是全文，累加交给调用方——这里只负责原样透出，别在这儿做任何拼接。
+      // onReasoning 不接的调用方（reroll）就当没有过：思考流直接忽略，也不撤等球。
+      else if (eventType === 'delta') { if (data.text) onDelta(data.text); if (data.reasoning && onReasoning) onReasoning(data.reasoning); }
       else if (eventType === 'done') result = { type: 'done', payload: data };
       else if (eventType === 'error') result = { type: 'error', payload: data };
     }
@@ -7850,6 +7945,10 @@ async function sendChatMain(userMsg) {
   // 这种几秒级的 await，期间轮询完全可能重建一次 DOM，那时若还没登记，活气泡就被扔了。
   mainStreamBubbleEl = aiBubble;
   let accumulated = '';
+  // reasoning 渠道的思考（增量累加），显示在那朵"活云"上。它跟 accumulated 各走各的：
+  // 思考不进气泡正文，也不参与 done 之后的落库——落库用的 thinking 由服务端在 finishChatTurn
+  // 里算好、随 done 帧的 aiMessages 回填。跨帧的状态（liveThinkingText）在 finally 里清。
+  let accumulatedReasoning = '';
 
   function dropPlaceholderIfEmpty() {
     // 只在这个回合的收尾/失败路径上被调用：不管下面走哪一支，这一行都要按数据重画，
@@ -7911,7 +8010,15 @@ async function sendChatMain(userMsg) {
       // 它在戏中被藏起来了（openMsgMenu），走不到这儿。
       renderer.push(rpGetRunId() ? rpStreamVisible(accumulated) : accumulated);
       if (deltaText.trim()) gen.onToken();
-    }, () => gen.onWait());
+    }, () => gen.onWait(), (reasoningDelta) => {
+      // 模型的思考（reasoning 渠道）。只做两件事：累加全文、写进活云。
+      // 刻意不调 gen.onToken()：等球的语义是"正文第一个字到了"，思考先来不代表正文来了，
+      // 撤早了会看见等球一闪而过。若这一轮模型完全不产出正文，等球由 done/error 收尾兜底。
+      accumulatedReasoning += reasoningDelta;
+      liveThinkingText = accumulatedReasoning;
+      const col = aiBubble.parentNode;
+      if (col && col.classList && col.classList.contains('msg-col')) setLiveThinkingText(col, accumulatedReasoning);
+    });
     // 流式段到此结束，交还活气泡（其后每条出口都由数据重建整行）。必须在下面 done 分支
     // 那次全量重建之前交还：服务端回填的 aiMessages 万一同 id，认着活气泡就会把只有
     // stream-chunk 的未定型正文留成最终画面，把 marked 渲染过的完整气泡顶掉。
@@ -7955,6 +8062,7 @@ async function sendChatMain(userMsg) {
     else { console.error(err); dropPlaceholderIfEmpty(); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
   } finally {
     activeStreamMsgId = null; mainStreamBubbleEl = null; mainGenerating = false; mainAbortController = null; mainTurnSourceId = null; mainAbortDiscard = false; gen.stop();
+    liveThinkingText = '';   // 活云的备份文字随回合一起作废，免得下一轮开局闪出上一轮的思考
     bubbleWaitRemove(aiBubble);   // 兜底：throw / abort 分支不一定走到上面的摘除点，定时器不能漏
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
   }
