@@ -357,6 +357,15 @@ html.dark .kld-slot-row.nsfw-row .kld-slot-box { background:rgba(180,80,80,0.12)
 .chat-wait-dots i:nth-child(2){ animation-delay:.15s }
 .chat-wait-dots i:nth-child(3){ animation-delay:.3s }
 .chat-wait-label { font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* 主聊天等球（2026-09-24 起）就长在 Yori 这颗气泡**里面**：等球站在"这一轮回复将要出现的位置"上，
+   第一个字回来时原地换成正文。height 钉死一行正文的 21px（.msg-bubble 是 font-size:15px/line-height:21px），
+   所以换成正文前后气泡尺寸一模一样，不跳。三点跳动的动画复用上面的 kldDot。 */
+.bubble-wait { display: inline-flex; align-items: center; gap: 6px; height: 21px; }
+.bubble-wait-dots { display:inline-flex; gap:4px; flex-shrink:0; }
+.bubble-wait-dots i { width:6px; height:6px; border-radius:50%; background:var(--text-faint); animation:kldDot 1.2s infinite ease-in-out; }
+.bubble-wait-dots i:nth-child(2){ animation-delay:.15s }
+.bubble-wait-dots i:nth-child(3){ animation-delay:.3s }
+.bubble-wait-label { font-size:13px; color:var(--text-secondary); white-space:nowrap; }
 /* RP（万花筒合体 2026-09-23）身份横条：跟等球同一套路——挂在 #content 里、两条 .page 之外。
    放 .page 里面会被 renderMessageWindow 的 innerHTML='' 冲掉；站 .page 的底部留白里又会被
    z-index:40 的输入栏玻璃板压住（等球上一版就栽在这儿），所以照抄等球的位置。
@@ -1740,6 +1749,13 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
        renderMessageWindow 的 innerHTML='' 重建。 -->
   <div id="chatWaitLayer"><div class="chat-wait" id="chatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在想</span></div></div>
   <div id="subchatWaitLayer"><div class="chat-wait" id="subchatWaitBar"><span class="chat-wait-dots"><i></i><i></i><i></i></span><span class="chat-wait-label">正在回应</span></div></div>
+  <!-- 主聊天不再用这一层（2026-09-24）：等球整体搬进了 Yori 那条回复自己的气泡里——
+       sendChatMain / callAPI 一开始就 push 一条空 aiMsg 并渲染成 .msg-bubble，那就是这轮回复的
+       座位，等球画在这颗气泡**里面**（bubbleWaitShow），第一个字一到就地换成正文。这样"正在想"
+       永远贴在它该出现的那条消息上，位置天然对齐、也不跟输入栏和 RP 横条抢地方。
+       chatWaitUsesLayer('page-chat') 返回 false，把这层从可见性逻辑里摘掉（#chatWaitLayer 因此
+       当前没有使用者，但它绝不能残留成可见的——那会是屏上第二个"正在想"）。
+       #subchatWaitLayer 照旧服务副聊天。 -->
   <!-- RP 身份横条（万花筒合体 2026-09-23）：跟等球同一个位置理由，见上面那段注释。
        只在这一轮带着 rpRunId 时显示；文字由 rpBarRender() 写，不在 HTML 里写死。 -->
   <div id="rpBar"><div class="rp-bar"><span class="rp-bar-dot"></span><span class="rp-bar-text" id="rpBarText"></span><button type="button" class="rp-bar-exit" id="rpBarExit">出戏</button></div></div>
@@ -4660,6 +4676,24 @@ function mergeCloudTailIntoLocal(localMessages, cloudMessages) {
   console.warn('云端主聊天窗口与本地历史无法对齐，暂不合并（本地未改动）');
   return localMessages;
 }
+function sameMsgSeq(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return false; }
+  return true;
+}
+// 这份云端快照能不能盖掉本地？判据只有一条：**比本地短就不盖**。
+// 短 = 服务端那一份落后于屏幕上这一份。两种情况都会短，两种都不该盖：
+//   ① 陈旧快照（下面 applyCloudMainUpdate 那段注释讲的那个竞态）；
+//   ② 本地刚 push、还没落库的消息（发出去之后的那几百毫秒，或者发送失败的那条）。
+//     这时盖下去就是"自己刚发的消息自己看不见"，比不刷新更糟。
+// 为什么不怕"删了东西之后云端还长着、于是永远盖不上"：本地删除走 markDeletedLocally 墓碑，
+// 云端那份里被删的 id 会在 filterDeletedLocally 里被滤掉，合并结果跟本地等长 → 照常应用。
+// 所以"删了自己看得见"，这个方向不成立。
+// 反方向（别的标签页/设备删了最后一条，本机这份还长着）确实会盖不上——但那正是墓碑机制
+// 当初要防的"云端旧窗口把删掉的铺回来"，宁可不追这个删除，也不许本地被旧快照改回去。
+function cloudSnapshotIsStale(nextSeq, localSeq) {
+  return nextSeq.length < localSeq.length;
+}
 function applyCloudMainUpdate(row) {
   if (!row || !Array.isArray(row.data)) return;
   // 流式中的整轮重建一律跳过：这一轮真正的状态（活气泡 + 正在累积的正文）在本地，比云端任何
@@ -4675,10 +4709,27 @@ function applyCloudMainUpdate(row) {
       if (localPlaceholder) nextMessages = [...nextMessages, localPlaceholder];
     }
   }
-  messages = filterDeletedLocally(nextMessages);
-  safeIdbSet(LS_MESSAGES, messages);
-  mainRenderStart = null;
-  renderAllMessages();
+  nextMessages = filterDeletedLocally(nextMessages);
+  // 「有时显示有时不显示、要过一阵子才稳定」的根因就在这一句上。
+  // 服务端一轮往 chats(main) 写两次（阶段一存 user、阶段三存 AI），而 5s 轮询的那根请求可能
+  // 正好在阶段三落库**之前**发出、在 done 帧到达**之后**才收到响应——带回来的是一份缺了本轮
+  // AI 回复的旧快照。此刻 done 分支刚重建完，这一句把它整条抹掉，直到下一轮轮询（最多 5s）
+  // 才回来。判据/理由见 cloudSnapshotIsStale 上面的注释（一句话：短就不盖）。
+  const localSeq = messages.map(m => m.id);
+  const nextSeq = nextMessages.map(m => m.id);
+  if (cloudSnapshotIsStale(nextSeq, localSeq)) {
+    console.warn('云端主聊天快照比本地短（陈旧快照或本地尚未落库），本次跳过不应用');
+    return;
+  }
+  // 没变化就别重建：以前这里无条件 renderAllMessages()，一轮对话要白重画三次（阶段一、阶段三、
+  // done 后的 notice 各触发一次），每次都把滚动拽回底部、长聊时肉眼可见地闪。
+  const changed = !sameMsgSeq(nextSeq, localSeq);
+  messages = nextMessages;
+  if (changed) {
+    safeIdbSet(LS_MESSAGES, messages);
+    mainRenderStart = null;
+    renderAllMessages();
+  }
 }
 function localTouchedAt(key) {
   try { const v = localStorage.getItem(key); return v ? parseInt(v, 10) || 0 : 0; } catch(e) { return 0; }
@@ -5943,12 +5994,27 @@ function loadEarlierSub() {
 }
 function renderAllMessages() {
   const pageEl = document.getElementById('page-chat');
-  // 多选模式也走窗口渲染（选更早的消息往上滚动加载即可）——
-  // 之前强制从 0 全量渲染，聊天记录一长进多选就整页卡死
+  // 「刷着记录刷着就退回最底部」的根因就是下面那句无条件 scrollToBottom：它不看 autoFollowState，
+  // 只要发生一次整段重建（云端合并、切回前台补拉、改名、系统提示……）就把正在往上翻的人拽回底部。
+  // 重建本身躲不掉（内容确实变了），但"跟不跟到底"得听人的：贴着底部才跟，否则按高度差把滚动
+  // 位置补偿回去，屏幕上的内容原地不动。
+  const following = isNearBottom('page-chat');
+  // 同一个毛病的第二半：不跟随的时候，窗口起点也不能被清掉。几个调用点习惯先
+  // `mainRenderStart = null` 表示"窗口回到尾部"，可那会让窗口从"翻到的几百条"瞬间缩回最后
+  // MSG_PAGE_SIZE 条——人正看着的那段历史整段消失（哪怕不跳底，屏幕也会变成一片陌生内容）。
+  // 所以这里用屏上第一条消息的 id 把窗口起点找回来；找不到（首屏、内容已删）就退回原逻辑。
+  if (!following && mainRenderStart == null) {
+    const anchorEl = chatScroll.querySelector('[data-msg-id]');
+    const anchorId = anchorEl && anchorEl.getAttribute('data-msg-id');
+    const anchorIdx = anchorId ? messages.findIndex(m => m.id === anchorId) : -1;
+    if (anchorIdx >= 0) mainRenderStart = anchorIdx;   // 0 也要认（人翻到了最顶上），只有找不到才退回尾部窗口
+  }
   if (mainRenderStart == null) mainRenderStart = Math.max(0, messages.length - MSG_PAGE_SIZE);
   mainRenderStart = Math.min(mainRenderStart, messages.length);
+  const oldTop = pageEl.scrollTop, oldHeight = pageEl.scrollHeight;
   renderMessageWindow(chatScroll, pageEl, messages, mainCtx, mainRenderStart, loadEarlierMain);
-  scrollToBottom(chatScroll, 'page-chat');
+  if (following) scrollToBottom(chatScroll, 'page-chat');
+  else pageEl.scrollTop = Math.min(oldTop + (pageEl.scrollHeight - oldHeight), Math.max(0, pageEl.scrollHeight - pageEl.clientHeight));
 }
 function appendMessage(msg) {
   let prevIdx = -1;
@@ -6886,7 +6952,11 @@ dismissKeyboardOnBlankTap(subchatScroll, document.getElementById('subchatTextInp
 function makeStreamRenderer(bubbleEl, scrollFn) {
   let renderedLen = 0, pendingRender = false, latestText = '';
   function flush() {
-    const thinkingEl = bubbleEl.querySelector('.thinking-text'); if (thinkingEl) thinkingEl.remove();
+    // 主聊天的等球就长在这颗气泡里（bubbleWaitShow）。第一个真字符落地时把它摘掉——
+    // 等球和正文是同一颗气泡的两个阶段，摘掉即"消息变成了原气泡"，尺寸一模一样不跳。
+    // 这里以前查的 .thinking-text 是死代码：那个节点只由 renderSplitBubbles 路径写，
+    // 而 renderSplitBubbles 早已没有调用者（见 showThinkingRow 的注释），永远查不到。
+    bubbleWaitRemove(bubbleEl);
     const newPart = latestText.slice(renderedLen);
     if (newPart) { const span = document.createElement('span'); span.className = 'stream-chunk'; span.textContent = newPart; bubbleEl.appendChild(span); renderedLen = latestText.length; }
     scrollFn(); pendingRender = false;
@@ -6912,7 +6982,12 @@ const CHAT_WAIT = {
   'page-chat':    { timer: null, loop: null, t0: 0, pending: false },
   'page-subchat': { timer: null, loop: null, t0: 0, pending: false }
 };
+// 主聊天的等球不挂在页面级浮层上（2026-09-24 起搬进 Yori 那条回复自己的气泡，见 bubbleWaitShow）：
+// 对它来说这层整体失效——否则屏幕上会同时挂两个"正在想"（气泡里一个、输入栏上方一个）。
+// 副聊天那几条路径的气泡是并行多开的，钉在输入栏上方仍然合适，继续用浮层。
+function chatWaitUsesLayer(pageId) { return pageId !== 'page-chat'; }
 function chatWaitLayerOf(pageId) {
+  if (!chatWaitUsesLayer(pageId)) return null;
   return document.getElementById(pageId === 'page-chat' ? 'chatWaitLayer' : 'subchatWaitLayer');
 }
 // 横条文字长短不定（世界名 + 「你在演 …」可能很长），换行就会变高，而 body.rp-on 那
@@ -6924,7 +6999,17 @@ function chatWaitOnActivePage() {
   const map = { 'page-chat': 'chatWaitLayer', 'page-subchat': 'subchatWaitLayer' };
   Object.keys(map).forEach(pid => {
     const el = document.getElementById(map[pid]);
-    if (el) el.style.display = (currentPage === pid.replace('page-', '')) ? 'block' : 'none';
+    if (!el) return;
+    // 主聊天那层已经废弃（等球搬进 Yori 的气泡），任何情况下都必须收着——它要是不小心被点亮，
+    // 屏幕上就会出现两个"正在想"。
+    if (!chatWaitUsesLayer(pid)) { el.style.display = 'none'; return; }
+    // 只有这一页**真在等**的时候才亮。早先的写法是「当前页是主聊天就把 chatWaitLayer 设成
+    // block」，而这一层在 #content 里是常驻 DOM、不在任何 .page 内——于是每次切回聊天页
+    // （switchPage 末尾就会调一次）都把一份空壳重新显示出来，"没给他发消息也一直挂着
+    // 正在想"。可见性一律以 CHAT_WAIT[pid] 的状态为准：亮着 = loop 在跑或 400ms 延迟已挂上。
+    const st = CHAT_WAIT[pid];
+    const waiting = !!(st && (st.loop || st.pending));
+    el.style.display = (currentPage === pid.replace('page-', '') && waiting) ? 'block' : 'none';
   });
 }
 function chatWaitEl(pageId) {
@@ -6938,6 +7023,7 @@ function chatWaitTick(pageId) {
   label.textContent = (WAIT_LABELS[pageId] || '正在回应') + (sec >= 3 ? ' · ' + sec + 's' : '');
 }
 function chatWaitShowNow(pageId) {
+  if (!chatWaitUsesLayer(pageId)) return;   // 主聊天等球在气泡里，浮层永不点亮（见 chatWaitUsesLayer）
   const st = CHAT_WAIT[pageId]; if (!st) return;
   st.pending = false;
   const el = chatWaitEl(pageId); if (!el) return;
@@ -6950,12 +7036,20 @@ function chatWaitShowNow(pageId) {
 }
 // 收到任何「对面还活着」的信号都走这里。攒够 400ms 才亮，免得秒回的一轮闪一下。
 function chatWaitShown(pageId) {
-  const st = CHAT_WAIT[pageId]; if (!st || st.loop || st.pending) return;
+  const st = CHAT_WAIT[pageId]; if (!st || st.loop) return;
+  // 主聊天不用浮层（等球长在 Yori 的气泡里），这里的整套状态机对它直接短路：省掉一根没人看、
+  // 每秒空转的定时器，也让 CHAT_WAIT['page-chat'] 永远停在"没在等"，浮层不可能被点亮。
+  if (!chatWaitUsesLayer(pageId)) return;
+  // 这里不再用 pending 做去重：收尾时 chatWaitHide 会把 pending 清掉，可一个已经排上队的
+  // 400ms 延迟还活着，它到期后会把等球重新点亮（见 createGenTracker.waitDone 的注释）。
+  // 改成"先把上一根定时器撤掉再挂新的"，重复调用就等于把延迟往后推，语义反而更准。
+  if (st.timer) clearTimeout(st.timer);
   st.pending = true;
-  st.timer = setTimeout(() => { st.timer = null; chatWaitShowNow(pageId); }, 400);
+  st.timer = setTimeout(() => { st.timer = null; st.pending = false; chatWaitShowNow(pageId); }, 400);
 }
 // 给「本地心跳」用：亮着就只刷新秒数，没亮就按上面的延迟挂上。
 function chatWaitTouch(pageId) {
+  if (!chatWaitUsesLayer(pageId)) return;
   const st = CHAT_WAIT[pageId]; if (!st) return;
   if (st.loop) { chatWaitTick(pageId); return; }
   chatWaitShown(pageId);
@@ -6967,8 +7061,45 @@ function chatWaitHide(pageId) {
   st.pending = false;
   // 无条件收：切页时另一个页面那份本来就被 chatWaitOnActivePage 关着了，
   // 这里再关一次无害；要是在本页还留着不收，等球就永远挂在屏幕上了。
-  const layer = chatWaitLayerOf(pageId);
+  // 主聊天返回 null（等球在气泡里），所以还得补一条对 #chatWaitLayer 的直接收口：
+  // 万一它是可见的（旧版本、或别处手滑点亮），这一轮收尾时顺手关掉，绝不会残留。
+  const layer = chatWaitLayerOf(pageId) || (pageId === 'page-chat' ? document.getElementById('chatWaitLayer') : null);
   if (layer) layer.style.display = 'none';
+}
+
+/* ---------- 主聊天：等球长在 Yori 的气泡里（2026-09-24） ----------
+   页面级浮层（.chat-wait）无论钉在哪儿都跟「这一轮回复该出现的位置」对不齐：钉在 #content
+   底部贴着输入栏，看着像个全局提示条，还会跟输入栏、RP 横条抢地方（它上一版甚至被输入栏
+   玻璃板盖死，见 18e0e11）。
+   主聊天的等待点其实是现成的：sendChatMain 一开始就 push 了一条空 aiMsg 并渲染成
+   .msg-bubble——那就是 Yori 这轮回复的座位。等球画在这颗气泡**里面**，第一个字回来时就地
+   换成正文（makeStreamRenderer.flush）：等球和回复是同一个东西的两个阶段，不存在"位置对不
+   对齐"的问题，也不占额外的地方。
+   只服务主聊天。副聊天还是用页面级的 #subchatWaitLayer（那条路径的气泡是并行多开的，
+   等球钉在输入栏上方更合适）。 */
+const bubbleWaitSts = new WeakMap();   // bubbleEl -> { mark, label, t0, timer }
+function bubbleWaitShow(bubbleEl) {
+  if (!bubbleEl) return;
+  if (bubbleWaitSts.has(bubbleEl)) return;   // 已经长着了就别重开，秒数不能归零
+  const t0 = Date.now();
+  const mark = document.createElement('div'); mark.className = 'bubble-wait';
+  mark.innerHTML = '<span class="bubble-wait-dots"><i></i><i></i><i></i></span><span class="bubble-wait-label">正在想</span>';
+  bubbleEl.appendChild(mark);
+  const st = { mark, label: mark.querySelector('.bubble-wait-label'), t0, timer: null };
+  st.timer = setInterval(() => {
+    const sec = Math.floor((Date.now() - st.t0) / 1000);
+    if (st.label) st.label.textContent = '正在想' + (sec >= 3 ? ' · ' + sec + 's' : '');
+  }, 1000);
+  bubbleWaitSts.set(bubbleEl, st);
+}
+// 摘掉（幂等）。**必须在所有出口都调**：气泡节点被 refreshRow / 整轮重建丢弃时 WeakMap 会跟着
+// 回收，但那个 1s 的 interval 是自己活着、永远不结束的——不显式收就是一条内存泄漏。
+function bubbleWaitRemove(bubbleEl) {
+  const st = bubbleEl && bubbleWaitSts.get(bubbleEl);
+  if (!st) return;
+  bubbleWaitSts.delete(bubbleEl);
+  if (st.timer) { clearInterval(st.timer); st.timer = null; }
+  if (st.mark && st.mark.parentNode) st.mark.parentNode.removeChild(st.mark);
 }
 
 /* ---------- RP 身份横条（万花筒合体 2026-09-23） ----------
@@ -7058,7 +7189,12 @@ function createGenTracker(pageId) {
   const waitDone = () => {
     if (waitDelay) { clearTimeout(waitDelay); waitDelay = null; }
     if (waitLoop) { clearInterval(waitLoop); waitLoop = null; }
-    if (waitActive && pageId) { waitActive = false; chatWaitHide(pageId); }
+    // 不再用 waitActive 把 chatWaitHide 挡在外面：waitDone 的语义是「这一轮的等待态到此结束」，
+    // 无论当初有没有亮过、现在是不是亮着，都得无条件收干净。否则一条 400ms 后到期的
+    // setTimeout 能在收尾之后才执行，把已经结束的等球重新点亮，而那时 CHAT_WAIT 已经
+    // pending=false、再也没有人来关它——一个永远挂着的"正在想"。
+    if (pageId) chatWaitHide(pageId);
+    waitActive = false;
   };
   const waitAlive = () => {
     // tokenArrived 之后不再重新点亮：第一个真 token 到手就说明字在往外冒，等球功成身退
@@ -7704,7 +7840,10 @@ async function sendChatMain(userMsg) {
   const gen = createGenTracker('page-chat');
   // 从这一刻起屏幕上就该有东西在动：下面带图的路径要压图、等上传，几百毫秒到几秒，而服务端那根
   // 3s 心跳这时候还没开始（请求都还没发出去），只能靠本地心跳把等球撑住。
+  // 主聊天的等球画在**这颗气泡里面**（bubbleWaitShow）——它就是 Yori 这轮回复的座位，
+  // 第一个字回来时由 makeStreamRenderer.flush 就地摘掉换成正文（见那两处的注释）。
   gen.onWait();
+  bubbleWaitShow(aiBubble);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   activeStreamMsgId = aiMsg.id;
   // 必须在这里同步登记，不能等到 fetch 前再登记：下面带图的路径有 waitPendingUploads/fitImagesToBudget
@@ -7716,6 +7855,7 @@ async function sendChatMain(userMsg) {
     // 只在这个回合的收尾/失败路径上被调用：不管下面走哪一支，这一行都要按数据重画，
     // 活气泡的使命到此为止，先交还，免得 refreshRow 时把没最终定型的流式壳子搬进新行
     mainStreamBubbleEl = null;
+    bubbleWaitRemove(aiBubble);   // 气泡里的等球必须由我们亲手摘：这条气泡马上就作废了，flush 不会再跑
     if (!mainAbortDiscard && accumulated.trim()) { aiMsg.text = accumulated; aiMsg.versions[0] = accumulated; persistMessages(); refreshRow(aiMsg, mainCtx); return; }
     const idx = messages.findIndex(m => m.id === aiMsg.id);
     if (idx !== -1) messages.splice(idx, 1);
@@ -7776,6 +7916,10 @@ async function sendChatMain(userMsg) {
     // 那次全量重建之前交还：服务端回填的 aiMessages 万一同 id，认着活气泡就会把只有
     // stream-chunk 的未定型正文留成最终画面，把 marked 渲染过的完整气泡顶掉。
     mainStreamBubbleEl = null;
+    // 气泡里的等球一并摘掉。多数情况 flush 已经摘过（这里有幂等保护）；但服务端一个字都没
+    // 吐出来、或者只吐了空白就收尾的回合，flush 从没跑过，不在这儿补一刀那根 1s 的秒数
+    // 定时器就永久活着了（下面 finally 还有一次兜底）。
+    bubbleWaitRemove(aiBubble);
     if (result.type === 'error') {
       dropPlaceholderIfEmpty();
       // dropPlaceholderIfEmpty 可能在 partial 非空时把这条留下，也可能整条撤掉。这儿按 messages
@@ -7811,6 +7955,7 @@ async function sendChatMain(userMsg) {
     else { console.error(err); dropPlaceholderIfEmpty(); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
   } finally {
     activeStreamMsgId = null; mainStreamBubbleEl = null; mainGenerating = false; mainAbortController = null; mainTurnSourceId = null; mainAbortDiscard = false; gen.stop();
+    bubbleWaitRemove(aiBubble);   // 兜底：throw / abort 分支不一定走到上面的摘除点，定时器不能漏
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
   }
 }
@@ -7865,6 +8010,8 @@ async function callAPI(rerollTarget) {
   const controller = new AbortController(); mainAbortController = controller; mainGenerating = true; updateSendBtnState(sendBtnEl, true, false);
   const gen = createGenTracker('page-chat');
   chatWaitOnActivePage();
+  // 重投也是「等这条回复」，等球同样画在这条的重投目标气泡里（flush 首字摘除，出口见下）
+  bubbleWaitShow(aiBubble);
   const renderer = makeStreamRenderer(aiBubble, () => scrollToBottomSticky(chatScroll, 'page-chat'));
   activeStreamMsgId = aiMsg.id;
   let accumulated = '';
@@ -7880,6 +8027,7 @@ async function callAPI(rerollTarget) {
     // 流式段到此结束：重投用的是同一条消息 id，下面每个分支（成功/error）都会 refreshRow 这一行，
     // 若还认得活气泡，就会把没定型的流式壳子顶上去、盖掉真正该显示的版本正文。先交还。
     mainStreamBubbleEl = null;
+    bubbleWaitRemove(aiBubble);   // 同 sendChatMain：一个字都没吐出来的回合 flush 不会跑，这里补收
     if (result.type === 'error') {
       showToast('重新生成失败：' + ((result.payload && result.payload.message) || '未知错误'), 3500);
       refreshRow(aiMsg, mainCtx);
@@ -7895,9 +8043,11 @@ async function callAPI(rerollTarget) {
   } catch(err) {
     if (err.name !== 'AbortError') { console.error(err); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
     mainStreamBubbleEl = null;   // 同上一处：这条消息 id 没变，别让中断时的半截流式壳子顶掉原有版本正文
+    bubbleWaitRemove(aiBubble);
     refreshRow(aiMsg, mainCtx);
   } finally {
     activeStreamMsgId = null; mainStreamBubbleEl = null; mainGenerating = false; mainAbortController = null; gen.stop();
+    bubbleWaitRemove(aiBubble);   // 兜底
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
   }
 }
