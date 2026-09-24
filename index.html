@@ -7009,50 +7009,90 @@ dismissKeyboardOnBlankTap(subchatScroll, document.getElementById('subchatTextInp
 //      正文里普通的 '[' 一律不碰，所以不需要 rpStreamVisible 那个 80 字兜底：'[内' 会不会
 //      长成标记是能判定的，长不成下一帧就自己回来了（比如 '[内容]'）。
 //   2. 落单的 **：marked 拿不到闭合的 ** 就把星号当普通字符吐出来，屏幕上先闪一段 '**'。
+//      连它前面那个单 '*' 也一起按住——那是下一帧 '**' 的前半个，放过去等第二个 '*' 到了
+//      切点会往回退（见下面契约）。
 //   3. 落单的反引号：同上（行内代码、``` 围栏没闭合时）。
 // 2/3 带 80 字兜底（照抄 rpStreamVisible 的理由）：正文里一个孤立的 ** 或 ` 不该把后半条
 // 消息一直扣到 done。
 // 注意 '[cue:…]' 不在这里管——那是戏中的事，已由调用点的 rpStreamVisible 负责，重复扣会打架。
+//
+// 定位：这是一个**纯启发式**，只决定"多扣一点、少扣一点"，不承担正确性。真正的安全保证在
+// makeStreamRenderer 的 advance() 那道"显示只往前走"的地板上（那里写着为什么必须有它）。
+// 本函数只要做到"尽量别把已经显示过的字符再收回去"就行，判断错了最坏也只是多扣几帧。
+// 四条候选**各自算切点、取最靠前的那个、只切一刀**。写成四个依次 return 的 if 会出岔子：
+// 正文里先有个孤立假反引号（或落单 **）把尾巴扣住、后面又长出未闭合的 `[内心想法：` 时，
+// 第 1 条直接 `return text.slice(0, openIdx)` 会把第 3 条已经扣掉的那截**重新吐出来**，
+// 输出不升反降——2026-09-24 第一版就是这个形状，四类混着出现时能实测出来。
+// 回归：`node _deploy/stream-marker-contract-sim.mjs`（直接从本文件抠源码来跑，另带随机模糊）。
 function hideUnclosedMarkers(text) {
   if (!text) return text;
+  let cut = text.length;
   // 1) 内心想法标记：取最后一个开括号，看它后面是不是"正在长成 [内心想法：…]"
   const openIdx = Math.max(text.lastIndexOf('['), text.lastIndexOf('【'));
   if (openIdx !== -1) {
     const head = text.slice(openIdx + 1).replace(/^\s+/, '');
     const growing = '内心想法'.startsWith(head) || /^内心想法\s*[:：]/.test(head);
-    if (growing && !head.includes(']') && !head.includes('】')) return text.slice(0, openIdx);
+    if (growing && !head.includes(']') && !head.includes('】')) cut = Math.min(cut, openIdx);
   }
   // 2) 落单的 **
   const b = text.lastIndexOf('**');
-  if (b !== -1 && (text.split('**').length - 1) % 2 === 1 && text.length - b <= 80) return text.slice(0, b);
+  if (b !== -1 && (text.split('**').length - 1) % 2 === 1 && text.length - b <= 80) cut = Math.min(cut, b);
+  // 2b) 尾巴上那个**单独**的 '*'：它可能正是下一帧那个 '**' 的前半个。不扣它的话会先看见一个
+  //     裸 '*'，等第二个 '*' 到了切点又退回它前面——显示变短，进而漏字（就是这条契约要防的事）。
+  //     只在 '*' 总数为奇数（确有一个没配对的）时才扣，这样 "abc **bold**" 这种正常收尾不受影响。
+  const s = text.lastIndexOf('*');
+  if (s === text.length - 1 && (text.split('*').length - 1) % 2 === 1) cut = Math.min(cut, s);
   // 3) 落单的反引号
   const t = text.lastIndexOf('`');
-  if (t !== -1 && (text.split('`').length - 1) % 2 === 1 && text.length - t <= 80) return text.slice(0, t);
-  return text;
+  if (t !== -1 && (text.split('`').length - 1) % 2 === 1 && text.length - t <= 80) cut = Math.min(cut, t);
+  return cut >= text.length ? text : text.slice(0, cut);
 }
 /* ============================================================
 流式渲染节流
 ============================================================ */
 function makeStreamRenderer(bubbleEl, scrollFn) {
-  let renderedLen = 0, pendingRender = false, latestText = '';
+  let renderedLen = 0, pendingRender = false, latestText = '', rawText = '';
   function flush() {
-    // 主聊天的等球就长在这颗气泡里（bubbleWaitShow）。第一个真字符落地时把它摘掉——
-    // 等球和正文是同一颗气泡的两个阶段，摘掉即"消息变成了原气泡"，尺寸一模一样不跳。
-    // 这里以前查的 .thinking-text 是死代码：那个节点只由 renderSplitBubbles 路径写，
-    // 而 renderSplitBubbles 早已没有调用者（见 showThinkingRow 的注释），永远查不到。
-    bubbleWaitRemove(bubbleEl);
     const newPart = latestText.slice(renderedLen);
-    if (newPart) { const span = document.createElement('span'); span.className = 'stream-chunk'; span.textContent = newPart; bubbleEl.appendChild(span); renderedLen = latestText.length; }
+    if (newPart) {
+      // 主聊天的等球就长在这颗气泡里（bubbleWaitShow）。**第一段真文字真正落地时**才摘掉——
+      // 不能无条件摘：hideUnclosedMarkers 会把还没长完的标记按住，一条以未闭合 `[内心想法：`
+      // 开头的回复前十几帧显示都是空的（逐字流时要攒到 40 字左右），那会儿摘了等球又没字补上，
+      // 屏幕上就变成"什么都没有"——比"正在想"更容易让人以为它死了。等球撑到第一个可见字符为止
+      // （整轮只有思考、始终没有正文时，由出口那几处 bubbleWaitRemove 收口）。
+      // 摘除挪到 appendChild **之后**：先摘后追加的话两者之间会空一帧闪一下。
+      // 另外 .thinking-text 那套查法早就是死代码（只由已无调用者的 renderSplitBubbles 写），删了。
+      const span = document.createElement('span'); span.className = 'stream-chunk'; span.textContent = newPart; bubbleEl.appendChild(span); renderedLen = latestText.length;
+      bubbleWaitRemove(bubbleEl);
+    }
     scrollFn(); pendingRender = false;
+  }
+  // 显示文本只往前走的那道地板。hideUnclosedMarkers 是启发式，随机模糊测过它偶尔仍会把
+  // 已经吐出去的字符再收回去（2026-09-24，40000 条随机串里 372 处），而 flush 是 appendChild
+  // 累积式追加、只靠 renderedLen 切增量，显示一旦缩水就永久错位（漏字 / 重字，要等 done 重建
+  // 才恢复）。所以正确性不押在"标记都枚举对"上，押在这里，两步都用：
+  //   ① 往前补：把上一帧已经显示的原文前缀放回来（只会变长，不可能变短）；
+  //   ② 往后挪：把这一帧的新内容扣掉，直到结果确实还落在原文里。
+  // 这样本函数对任意 hideUnclosedMarkers 实现都恒有「前缀 + 单调不减」，模糊测试因此能钉到 0 违约。
+  function advance(accumulated) {
+    if (accumulated.length < rawText.length) rawText = '';   // 不认得清空的意图，宁可当新的一轮
+    else rawText = accumulated;
+    let shown = hideUnclosedMarkers(rawText);
+    if (!rawText.startsWith(shown)) {
+      const keep = Math.min(renderedLen, rawText.length);
+      shown = rawText.slice(0, keep);
+    }
+    while (shown.length > renderedLen && !rawText.startsWith(shown)) shown = shown.slice(0, -1);
+    if (shown.length < renderedLen) return latestText;        // 兜底：宁可什么都不画，也不回退
+    return shown;
   }
   return {
     push(accumulated) {
       // 只扣"还没长完的标记"（[内心想法：/落单的 ** /落单的 `），显示用；accumulated 本身
       // 一个字不动，done 之后落库的仍是完整原文。注意这里必须在**进 flush 之前**做：
       // flush 是 appendChild 累积式追加，显示文本一旦变短就没法回退（只能 innerHTML='' 全量
-      // 重建，那会连气泡里的等球 mark 一起炸掉）。而 hideUnclosedMarkers 的输出是单调不减的
-      // （扣掉的那截会在后续 delta 里原样长回来），所以 renderedLen 切片照旧成立。
-      latestText = hideUnclosedMarkers(accumulated);
+      // 重建，那会连气泡里的等球 mark 一起炸掉）。安全保证见上面 advance()。
+      latestText = advance(accumulated);
       if (!pendingRender) { pendingRender = true; requestAnimationFrame(flush); }
     },
     finalize(text) { bubbleEl.innerHTML = ''; try { bubbleEl.innerHTML = marked.parse(text).trim(); } catch(e) { bubbleEl.textContent = text; } addCopyButtons(bubbleEl); scrollFn(); }
