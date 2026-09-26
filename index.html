@@ -1819,6 +1819,11 @@ border-radius: 20px; width: 84%; max-width: 320px; margin: 0 auto;
           <div class="space-hint" style="margin-top:14px;">最近 usage（最多20条，进程内存，重启即丢）</div>
           <table class="cache-debug-usage-table" id="cacheDebugUsageTable"></table>
         </div>
+        <div id="turnTimingWrap" style="display:none;">
+          <div class="space-hint" style="margin-top:14px;">最近回合时间轴（最多20条，本机 localStorage）—— 单位毫秒，都相对按下发送那一刻</div>
+          <table class="cache-debug-usage-table" id="turnTimingTable"></table>
+          <div class="space-hint">发出＝本地压图/上传之后真正发出请求；首帧＝服务端第一个信号（3s 心跳 ping）；首字＝正文第一个非空 token。首帧比首字晚＝模型还在生成，首帧一直不来＝链路没通。</div>
+        </div>
       </div>
 
       <div class="space-divider"></div>
@@ -5037,6 +5042,53 @@ function renderCacheUsage() {
 }
 
 /* ============================================================
+回合时间轴（2026-09-26）：只量，不改聊天链路
+------------------------------------------------------------
+09-24 夜我连开四个"流式显示"补丁，没有一个解决 ao 的体感，因为他要的是"等得短"，
+而我**从来没量出过到底等了多少秒**——手上唯一的两行 [chat-loop] 是「轮次完成」日志，
+不是首字时间，所以"服务器几秒出字"这件事一直没被证明。这块面板就是把三段分开量清楚：
+  发出   t1-t0  本地压图/等上传。带图回合几百 ms～几秒，这时服务端**还没收到请求**，
+                 账不能算到"服务器慢"头上（所以它必须和 t0 分开计）
+  首帧   t2-t0  服务端第一个 SSE 帧。服务端在首个正文 token 之前每 3s 发一个 ping 保活，
+                 所以"首帧"就是 ping 到达（readChatMainSSE 的 ping 分支）；一直不来=链路没通
+  首字   t3-t0  正文第一个非空 token。首帧早、首字晚=模型在生成（等的是模型）；
+                 thinking 先到不代表正文到了，所以另记一列首字(思考)
+落点全在既有的 done 分支旁边，零新增数据通路、零后端改动、不碰聊天数据。
+============================================================ */
+const LS_TURN_TIMINGS = 'chatTurnTimings';
+function recordTurnTiming(t) {
+  if (!t || t.t0 == null) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(LS_TURN_TIMINGS) || '[]'); } catch (_) {}
+  if (!Array.isArray(list)) list = [];
+  list.push({ ts: t.t0, sent: t.t1, firstFrame: t.t2, firstText: t.t3, firstThink: t.t3r, total: t.total, outcome: t.outcome || 'ok' });
+  if (list.length > 20) list = list.slice(list.length - 20);
+  safeSetItem(LS_TURN_TIMINGS, JSON.stringify(list));
+}
+// 窗口还没填就显示 —：比显示 0ms 诚实，0 会被读成"秒回"。
+function turnCell(t0, mark) {
+  if (t0 == null || mark == null) return '—';
+  const v = mark - t0;
+  return v < 0 ? '—' : v + 'ms';
+}
+function renderTurnTimings() {
+  const table = document.getElementById('turnTimingTable');
+  const wrap = document.getElementById('turnTimingWrap');
+  if (!table || !wrap) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(LS_TURN_TIMINGS) || '[]'); } catch (_) {}
+  if (!Array.isArray(list) || !list.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const rows = [...list].reverse().map(t => {
+    const d = new Date(t.ts);
+    const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    const tag = (!t.outcome || t.outcome === 'ok') ? '' : `<span style="color:#c66">（${t.outcome}）</span>`;
+    return `<tr><td>${time}${tag}</td><td>${turnCell(t.ts, t.sent)}</td><td>${turnCell(t.ts, t.firstFrame)}</td><td>${turnCell(t.ts, t.firstText)}</td><td>${turnCell(t.ts, t.firstThink)}</td><td>${turnCell(t.ts, t.total)}</td></tr>`;
+  }).join('');
+  table.innerHTML = `<tr><th>时间</th><th>发出</th><th>首帧</th><th>首字·正文</th><th>首字·思考</th><th>总时长</th></tr>${rows}`;
+}
+
+/* ============================================================
 缓存诊断面板（任务I 2026-08-25）：点按钮才请求 /chat-main/cache-debug，不自动轮询。
 hash 变化对比靠 localStorage 记住上一次刷新的结果，纯前端逻辑，不依赖后端存历史。
 ============================================================ */
@@ -6407,7 +6459,7 @@ function switchPage(pageName) {
   closeComposerPanels('main'); closeComposerPanels('sub');
   if (pageName !== 'space') modelDropdown.style.display = 'none';
   if (pageName === 'diary') { renderPlans(); renderDiaries(); }
-  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); loadChatSettings(); loadOmbreModelConfig(); }
+  if (pageName === 'space') { refreshTokenEstimate(); renderCacheUsage(); renderTurnTimings(); loadChatSettings(); loadOmbreModelConfig(); }
   if (pageName === 'vocab') { vocabOnEnterPage(); }
   if (pageName === 'kaleidoscope') { kldOnEnter(); }
   chatWaitOnActivePage();
@@ -7963,6 +8015,9 @@ function buildSpicyBookclubRequestFields(cfg) {
 async function sendChatMain(userMsg) {
   const cfg = getConfig();
   if (!cfg.chatServiceKey) { showToast('请先在 Space 页填写聊天服务密钥'); return; }
+  // 回合时间轴的五个落点，全部相对这一行（= 用户按下发送）。落盘在 done 分支和 finally 兜底，
+  // 见 recordTurnTiming 上方那段注释；量的是"等多久"，不含任何行为改动。
+  const turnT = { t0: Date.now(), t1: null, t2: null, t3: null, t3r: null, total: null, outcome: 'ok' };
   const aiMsg = { id: genId(), role:'ai', text:'', versions:[''], versionIndex:0, images:[], files:[], time:timeStr(), createdAt: Date.now(), thinking:'' };
   mainTurnSourceId = userMsg.id;   // 撤回锚点：删掉这条自己刚发的消息 = 整回合作废
   mainAbortDiscard = false;
@@ -8042,6 +8097,8 @@ async function sendChatMain(userMsg) {
       }
       }
     }
+    // 上面那几段（等上传 / 压图）走完，请求才真的出门 —— 时间轴在这里打"发出"这一格
+    turnT.t1 = Date.now();
     const res = await fetch(chatMainUrl('/send'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify(body), signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     const result = await readChatMainSSE(res, (deltaText) => {
@@ -8049,11 +8106,15 @@ async function sendChatMain(userMsg) {
       // 戏中扣住没闭合的 [cue:…]（见 rpStreamVisible）。regenerate 那条路径不这么做：
       // 它在戏中被藏起来了（openMsgMenu），走不到这儿。
       renderer.push(rpGetRunId() ? rpStreamVisible(accumulated) : accumulated);
-      if (deltaText.trim()) gen.onToken();
-    }, () => gen.onWait(), (reasoningDelta) => {
+      if (deltaText.trim()) {
+        if (turnT.t3 == null) turnT.t3 = Date.now();   // 正文第一个字：和下一行的 gen.onToken() 严格同义
+        gen.onToken();
+      }
+    }, () => { if (turnT.t2 == null) turnT.t2 = Date.now(); gen.onWait(); }, (reasoningDelta) => {
       // 模型的思考（reasoning 渠道）。只做两件事：累加全文、写进活云。
       // 刻意不调 gen.onToken()：等球的语义是"正文第一个字到了"，思考先来不代表正文来了，
       // 撤早了会看见等球一闪而过。若这一轮模型完全不产出正文，等球由 done/error 收尾兜底。
+      if (turnT.t3r == null) turnT.t3r = Date.now();
       accumulatedReasoning += reasoningDelta;
       liveThinkingText = accumulatedReasoning;
       const col = aiBubble.parentNode;
@@ -8096,15 +8157,24 @@ async function sendChatMain(userMsg) {
       renderAllMessages();
       refreshTokenEstimate();
       recordCacheUsage(usage);
+      turnT.total = Date.now();
+      turnT.outcome = 'ok';   // 置了 ok，下面的 finally 兜底就不会重复记这一轮
+      recordTurnTiming(turnT);
     }
   } catch(err) {
-    if (err.name === 'AbortError') { dropPlaceholderIfEmpty(); }
-    else { console.error(err); dropPlaceholderIfEmpty(); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
+    if (err.name === 'AbortError') { turnT.outcome = 'aborted'; dropPlaceholderIfEmpty(); }
+    else { turnT.outcome = 'error'; console.error(err); dropPlaceholderIfEmpty(); showToast('连接失败，请检查网络或聊天服务配置', 3500); }
   } finally {
     activeStreamMsgId = null; mainStreamBubbleEl = null; mainGenerating = false; mainAbortController = null; mainTurnSourceId = null; mainAbortDiscard = false; gen.stop();
     liveThinkingText = '';   // 活云的备份文字随回合一起作废，免得下一轮开局闪出上一轮的思考
     bubbleWaitRemove(aiBubble);   // 兜底：throw / abort 分支不一定走到上面的摘除点，定时器不能漏
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
+    // 时间轴兜底落盘：只有真跑到底的回合才置 'ok'，剩下两种出口都在上面标掉了。
+    // 没走到 done 就收场的情形（用户撤回、断流、报错）正是"等很久最后什么都没出来"，最该被记下。
+    if (turnT.outcome !== 'ok') {
+      turnT.total = Date.now();
+      recordTurnTiming(turnT);
+    }
   }
 }
 async function chatMainEditRequest(msg) {
