@@ -162,9 +162,11 @@ isolation: isolate; /* 建立独立堆叠上下文：让 z-index:-1 的背景图
 #shotStage.has-bg .msg-row.user .msg-bubble { background: rgba(254,229,0,0.88); }
 #shotStage.has-bg .msg-row.ai .msg-bubble { background: rgba(255,255,255,0.88); }
 
+/* 常驻挂在行上，显隐交给页面 class：进/出多选态只切 .page.select-mode，不再整窗重建。
+   （display 在基础规则里是 none，`.page.select-mode` 那条抬回 flex。见 enterSelectMode。） */
 .msg-select-cb {
 width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong);
-flex-shrink: 0; display: flex; align-items: center;
+flex-shrink: 0; display: none; align-items: center;
 justify-content: center; font-size: 12px; color: var(--accent-text);
 transition: background 0.15s, border-color 0.15s;
 align-self: center; background: var(--bg-surface); pointer-events: none;
@@ -172,6 +174,9 @@ align-self: center; background: var(--bg-surface); pointer-events: none;
 .msg-select-cb.checked { background: var(--accent); border-color: var(--accent); }
 .msg-row.user .msg-select-cb { margin-left: 8px; }
 .msg-row.ai .msg-select-cb { margin-right: 8px; }
+.page.select-mode .msg-select-cb { display: flex; }
+/* 多选态整行可点：以前是进多选态时逐行写 row.style.cursor，现在一份 CSS 管住所有行 */
+.page.select-mode .msg-row, .page.select-mode .wake-session-row { cursor: pointer; }
 
 #sidebarOverlay {
 position: fixed; inset: 0; background: rgba(0,0,0,0.25);
@@ -596,14 +601,16 @@ html.dark .tool-notice-pill { background: rgba(160,180,196,0.24); color: rgba(22
    点击标题条时正文用高度 FLIP 动画"长出来"，标题条自身的 free time 文字同步淡出
    （营造"折叠标注变形长大"的观感），不是 display 硬切换，细节见 buildWakeSessionCard。 */
 .wake-session-row { display: flex; justify-content: center; margin: 4px 0 10px; }
-/* 多选态：勾选框挂进 header，row 就成了"勾选框 + 卡片"的左右件。卡片原来是 fit-content，
-   旁边多一个 22px 的兄弟节点后要显式给宽（86%，与 .wake-session-note 的 max-width 一致，
-   别写死 px——卡片宽度本来就是按容器百分比算的），否则折叠态下勾选框会被挤出屏幕；
+/* 多选态：勾选框常驻在 header 里（由 .page.select-mode 那条 CSS 显隐），
+   于是 wake 行是"勾选框 + 卡片"的左右件。卡片原来是 fit-content，旁边多一个 22px 的
+   兄弟节点后要显式给宽（86%，与 .wake-session-note 的 max-width 一致，别写死 px——
+   卡片宽度本来就是按容器百分比算的），否则折叠态下勾选框会被挤出屏幕；
    justify-content 仍是 center，勾选框靠 note 吃掉的剩余宽度居中。
    间距 8px 走 header 的 gap——`.msg-select-cb` 的 margin 规则只挂在 .msg-row.user/.ai 下，
-   而 wake 行这两个类都没有。 */
-.wake-session-multiselect .wake-session-note { width: 86%; }
-.wake-session-multiselect .wake-session-header { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+   而 wake 行这两个类都没有。
+   作用域用 .page.select-mode（页面 class）而不是行上的标记类：这样进/出多选态不用碰 DOM。 */
+.page.select-mode .wake-session-note { width: 86%; }
+.page.select-mode .wake-session-header { display: flex; flex-direction: row; align-items: center; gap: 8px; }
 /* 展开态那条 `.wake-session-note.is-expanded { width: 86% }` 写在后面且特异性相同，
    压不住它（两个类 vs 一个类）；抬成三件套才管用。折叠态是 fit-content，无需处理。 */
 .wake-session-row .wake-session-note.is-expanded { width: 86%; }
@@ -2712,12 +2719,24 @@ function idbThumbPut(id, dataUrl) {
 // 由图片 URL 反查缩略图；查不到返回 ''
 function thumbForImage(u) { const id = imageIdOf(u); return id ? (idbThumbCache.get(id) || '') : ''; }
 
+// 存储失败通常是同一批条件下的连续失败（配额满 / 事务被中止），一次操作能连着弹好几条同样的 toast。
+// 10s 内只打扰一次，日志照旧每次都打（排查时要的是完整记录，不是安静）。
+let idbFailToastAt = 0;
 async function safeIdbSet(key, value) {
   try { await idbSet(key, value); return true; }
-  catch(e) { console.error('IndexedDB存储失败', key, e); showToast('存储失败，数据可能未保存', 4000); return false; }
+  catch(e) {
+    console.error('IndexedDB存储失败', key, e);
+    const now = Date.now();
+    if (now - idbFailToastAt > 10000) { idbFailToastAt = now; showToast('存储失败，数据可能未保存', 4000); }
+    return false;
+  }
 }
 // 一次性迁移：把旧版本存在 localStorage 里的大体积数据搬进 IndexedDB，搬完即删除 localStorage 副本腾出空间。
 async function migrateLocalStorageToIdb() {
+  // 搬家写进去的是权威内容（localStorage 里那份旧数据），所以先把攒着的合并写丢掉（见 persistMessages）：
+  // 万一有个 400ms 的写还在飞，它落下来会把刚搬进来的内容按内存里的旧值盖回去。
+  // 正常初始化顺序（本函数 await 在 loadMessages 之前）不会有这种定时器，这里是防以后有人调换顺序。
+  cancelPendingPersist();
   for (const key of IDB_KEYS) {
     const existing = await idbGet(key);
     if (existing !== undefined) continue;
@@ -3441,22 +3460,45 @@ document.getElementById('resetAppIconBtn').addEventListener('click', () => { loc
 /* ============================================================
 多选模式
 ============================================================ */
-function enterSelectMode() {
-  selectMode = true; selectedIds.clear();
-  document.getElementById('selectBar').classList.add('show');
-  document.getElementById('sidebarToggleBtn').style.visibility = 'hidden';
-  document.getElementById('topRightSlot').style.visibility = 'hidden';
-  const pageEl = document.getElementById('page-chat');
-  const oldHeight = pageEl.scrollHeight, oldTop = pageEl.scrollTop;
-  updateSelectBar(); renderAllMessages();
-  pageEl.scrollTop = oldTop + (pageEl.scrollHeight - oldHeight);
+// 进/出多选态只切一个页面 class（勾选框的显隐、整行的 cursor 全交给 CSS），
+// 不再 renderAllMessages 整窗重建——以前那次重建只为显隐 22px 的勾选框，
+// 却要连带重解析图片、重建 html 沙箱 iframe（会重跑它的脚本）、重挂每行监听器。
+// 也因为没有 DOM 结构变化，原来那段 FLIP 滚动补偿（记 scrollHeight 再补 scrollTop）一并去掉。
+// 行上的 .checked 要手动同步：那是构建时按 selectedIds 写死在行上的类，CSS 管不到。
+function setSelectMode(on) {
+  selectMode = on;
+  if (!on) selectedIds.clear();
+  document.getElementById('page-chat').classList.toggle('select-mode', on);
+  document.getElementById('selectBar').classList.toggle('show', on);
+  document.getElementById('sidebarToggleBtn').style.visibility = on ? 'hidden' : '';
+  document.getElementById('topRightSlot').style.visibility = on ? 'hidden' : '';
+  chatScroll.querySelectorAll('[data-msg-id]').forEach(rowEl => {
+    // 工具通知行没有 data-msg-id，选择器天然跳过；有 msg-id 但没挂勾选框的（老 rows）也一并跳过
+    const cb = rowEl.querySelector(':scope > .msg-select-cb, :scope > .wake-session-note > .wake-session-header > .msg-select-cb');
+    if (!cb) return;
+    const checked = on && selectedIds.has(rowEl.dataset.msgId);
+    cb.classList.toggle('checked', checked);
+    cb.textContent = checked ? '✓' : '';
+  });
+  updateSelectBar();
 }
-function exitSelectMode() {
-  selectMode = false; selectedIds.clear();
-  document.getElementById('selectBar').classList.remove('show');
-  document.getElementById('sidebarToggleBtn').style.visibility = '';
-  document.getElementById('topRightSlot').style.visibility = '';
-  updateSelectBar(); renderAllMessages();
+function enterSelectMode() { setSelectMode(true); }
+function exitSelectMode() { setSelectMode(false); }
+// 多选态的整行点击：一个委托监听器挂在 chatScroll 上，替掉以前逐行 addEventListener。
+// 行上没有别的 click 监听器依赖"先于我"的语义——真正的交互（版本切换、复制按钮、
+// 唤醒卡片展开、工具摘要折叠）都在自己那条链上 stopPropagation，够不着这里。
+// 行内的文本选中（拖选复制）不该被当成点击切换，chars 长度 > 0 时放过。
+let selectDelegateWired = false;
+function setupSelectDelegation() {
+  if (selectDelegateWired) return;
+  selectDelegateWired = true;
+  chatScroll.addEventListener('click', (e) => {
+    if (!selectMode) return;
+    const rowEl = e.target.closest('[data-msg-id]');
+    if (!rowEl || !chatScroll.contains(rowEl)) return;
+    if (window.getSelection && String(window.getSelection()).length > 0) return;
+    toggleSelect(rowEl.dataset.msgId);
+  });
 }
 function updateSelectBar() {
   document.getElementById('selectCountLabel').textContent = `已选 ${selectedIds.size} 项`;
@@ -3475,6 +3517,9 @@ function deleteSelected() {
   mainRenderStart = null;
   markDeletedLocally(ids); // 本地先删，云端那次删除请求是异步的，这里登记短期黑名单防止被云端旧窗口复活
   persistMessages(); exitSelectMode();
+  // 选中态不再进 msgSig（见 msgSig 的注释），所以删除后的行指纹跟删除前一样，
+  // repaintTail 不会替我们摘行——这里必须整窗重建一次，否则删掉的气泡还留在屏上。
+  renderAllMessages();
   chatMainDeleteRequest(ids); // 多选删除只在主聊天可用（打开多选入口本身就限定 ctx === mainCtx），所以这里无条件调用
 }
 document.getElementById('selectCancelBtn').addEventListener('click', exitSelectMode);
@@ -4136,8 +4181,15 @@ function scheduleChatSync() {
   clearTimeout(chatSyncTimer);
   chatSyncTimer = setTimeout(flushChatSync, 800);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) flushChatSync(); else refreshChatsOnResume(); });
-window.addEventListener('pagehide', flushChatSync);
+// 切到后台也顺手把合并写落地：手机上 pagehide 不一定会来（进程被系统直接回收时就没有），
+// 而 visibilitychange(hidden) 基本都能收到，多这一道不至于让最后一次改动躺在 400ms 窗口里丢。
+document.addEventListener('visibilitychange', () => { if (document.hidden) { flushPersistMessages(); flushChatSync(); } else refreshChatsOnResume(); });
+// 攒着的那次合并写（见 persistMessages）必须在页面离开前落地，否则刷新/关闭正好落在 400ms 窗口里时，
+// 最后一次改动就丢了。pagehide 这条最可靠（bfcache 进出、关闭、切后台都走它）；
+// visibilitychange 那条是它被浏览器吞掉时的兜底。
+// 顺序上先 flush 本地写再 flushChatSync：后者会读 messages 生成提示文案，读到的是内存里的值，
+// 其实不依赖这次落盘，但没有理由把本地持久化排在网络请求后面。
+window.addEventListener('pagehide', () => { flushPersistMessages(); flushChatSync(); });
 window.addEventListener('pageshow', refreshChatsOnResume);
 // 事故复盘5：长时间挂起的标签页被浏览器唤醒（bfcache恢复）不会重跑 DOMContentLoaded，initChatSync()
 // 也就不会再执行，画面会一直停留在唤醒前内存里的旧数据上，看起来像"没同步"。所以补一个"回到前台就拉一次云端"
@@ -4147,24 +4199,66 @@ window.addEventListener('pageshow', refreshChatsOnResume);
 // 期间如果正好有本地流式占位消息在等待完成，applyCloudMainUpdate 的同一套保护逻辑一样适用。
 let chatSyncRefreshing = false;
 async function refreshChatsOnResume() {
-  if (!chatSyncReady || chatSyncRefreshing) return;
+  // 下面两道闸门以前都是"一去不回"的丢弃：闸门挡下的这一次补拉没有任何补偿机制，
+  // 而 pageshow/visibilitychange 也不会自己重放，于是"切回前台看到的还是旧画面"能一直挂到
+  // 下一轮 5s 轮询为止。现在改成置 resumePending 记一笔，等 drainDeferredSync() 在合适时机
+  // （回合结束 / 本次补拉收尾）补跑。
+  if (!chatSyncReady) { resumePending = true; return; }
+  if (chatSyncRefreshing) { resumePending = true; return; }
   // 正在流式生成的回合里，5s 轮询本来就会把这一轮的内容带回来，切回前台再整轮拉一次是白多一次全量重建
   // （下面 applyCloudMainUpdate 和 onChatSyncDone 各重建一次）。等这轮结束由 done 分支统一重画。
-  if (mainGenerating) return;
+  if (mainGenerating) { resumePending = true; return; }
+  resumePending = false;
   chatSyncRefreshing = true;
   try {
     const { data: mainRow } = await window.supabaseChats.getChat('main');
-    if (mainRow) applyCloudMainUpdate(mainRow); // 内部的 filterDeletedLocally 会挡住"云端还没落地这次删除"的旧快照
+    // 内部 filterDeletedLocally 会挡住"云端还没落地这次删除"的旧快照。
+    // 它自己已经负责主聊天的重画（有变化才画），所以这里不再叠一次 onChatSyncDone() 的整窗重建——
+    // 以前那两下是连着来的，白画一整窗 30 行。
+    if (mainRow) applyCloudMainUpdate(mainRow);
     await refreshSubChatsFromSupabase();
-    onChatSyncDone();
+    if (currentSubChatId) { subRenderStart = null; renderSubChatMessages(); }
+    renderSubChatSidebarList();
   }
-  finally { chatSyncRefreshing = false; }
+  finally {
+    chatSyncRefreshing = false;
+    // 补拉期间又切了一次前台 / 又攒下了一份没消费的快照 → 这里接上
+    if (resumePending || pendingCloudRow) drainDeferredSync();
+  }
 }
 // persistMessages 现在只做本地缓存（IndexedDB + touched-at），不再触发任何云端写入——
 // 主聊天迁移到 garden-agent 后端架构后，真正的持久化都走 /chat-main/* 系列端点（见 sendChatMain/
 // chatMainEdit/chatMainDelete/chatMainVersion/regenerateChatMain），这里只负责让本机刷新/离线时
 // 不丢刚做的本地改动，跟"回推云端"完全脱钩。
-function persistMessages() { safeIdbSet(LS_MESSAGES, messages); try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(Date.now())); } catch(e) {} }
+//
+// 2026-09-28 卡顿修复：这里改成"合并写"。一轮对话会调它 2~4 次（用户消息入列、正文增量收尾、
+// 阶段三的 AI 回复、notice），每次都要把**整个 messages 数组**结构化克隆一遍写进 IndexedDB——
+// 长聊时（几千条 + data: 图片）这几次克隆是纯浪费，而这期间的画面状态本来就是"中间态"，
+// 谁也不会去读它。合并成最多延迟 400ms 一次：从第一次改动起计时，期间再调只更新时间戳、
+// 不重排定时器（延迟有上界，不会因为流式期间持续调用而永远写不下去），定时器回调里**现读**
+// messages 而不是调度时的快照，所以写下去的永远是那一刻最新的内容。
+// 真正要"立刻落盘 / 不能被晚到的写覆盖"的场合都显式处理：读之前 flushPersistMessages、
+// 外部数据硬覆盖之前 cancelPendingPersist，见各自的调用点。
+// LS_MAIN_TOUCHED_AT 保持立即写：它是个时间戳，语义就是"这一刻本地动过"，延迟写反而会让它说谎
+// （虽然主聊天路径目前不读它，但留着这个语义，以后要用不至于踩坑）。
+let persistMessagesTimer = null;
+function persistMessages() {
+  try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(Date.now())); } catch(e) {}
+  if (persistMessagesTimer) return;
+  persistMessagesTimer = setTimeout(persistMessagesNow, 400);
+}
+// 真正落盘的那一下。定时器路径与 flush 路径共用，写完清空定时器句柄。
+function persistMessagesNow() {
+  clearTimeout(persistMessagesTimer); persistMessagesTimer = null;
+  safeIdbSet(LS_MESSAGES, messages);
+}
+// 读之前用：把攒着的那次写立刻落下去，保证读到的就是当前内存里的内容。
+function flushPersistMessages() { if (persistMessagesTimer) persistMessagesNow(); }
+// 外部数据要硬覆盖 IndexedDB 时用：把攒着的那次写**丢掉**，而不是落下去。
+// 这些路径（导入备份 / 强制拉云端 / 初始化合并）写进去的是权威数据，而内存里这份 messages
+// 马上就要被丢弃或替换，让它晚 400ms 再写一次就是把刚拉下来的内容按旧内容盖回去——
+// 正是 Incident 2/3 的"整片覆盖式同步"那个失败模式，所以这里只清定时器、不落盘。
+function cancelPendingPersist() { clearTimeout(persistMessagesTimer); persistMessagesTimer = null; }
 async function loadMessages() {
   try { const r = await idbGet(LS_MESSAGES); if (r) messages = r; } catch(e) { messages = []; }
   let migrated = false;
@@ -4327,6 +4421,8 @@ document.getElementById('forcePullCloudBtn').addEventListener('click', async () 
     const { data: subRow, error: e2 } = await window.supabaseChats.getChat('subchats');
     if (e1 || e2) { showToast('拉取云端失败：' + ((e1 || e2).message || '未知错误'), 4000); return; }
     if (mainRow && Array.isArray(mainRow.data)) {
+      // 先把攒着的那次合并写丢掉再覆盖：它是"旧内存"的快照，晚 400ms 落下来会把刚拉到的云端内容盖回去。
+      cancelPendingPersist();
       await idbSet(LS_MESSAGES, mainRow.data);
       try { localStorage.setItem(LS_MAIN_TOUCHED_AT, String(new Date(mainRow.updated_at).getTime())); } catch(e) {}
     }
@@ -4339,6 +4435,9 @@ document.getElementById('forcePullCloudBtn').addEventListener('click', async () 
   } catch(err) { showToast('操作失败：' + (err && err.message || err), 4000); }
 });
 document.getElementById('exportBackupBtn').addEventListener('click', async () => {
+  // 导出的必须是屏幕上此刻的内容。合并写最多攒 400ms，先把那次写落下去再读，
+  // 否则刚好在窗口里点导出，导出来的备份会缺最后一次改动（导完就要刷新，等于真丢）。
+  flushPersistMessages();
   const backup = {
     nest_messages: JSON.stringify((await idbGet(LS_MESSAGES)) || []),
     nest_memory: JSON.stringify((await idbGet(LS_MEMORY)) || []),
@@ -4373,6 +4472,9 @@ backupImportHidden.addEventListener('change', e => {
   reader.onload = async ev => {
     try {
       const data = JSON.parse(ev.target.result);
+      // 导入是"以这份文件为准"：先把攒着的合并写丢掉，免得下面写进 IndexedDB 之后，
+      // 那个定时器又把导入前内存里的旧内容落回去。
+      cancelPendingPersist();
       for (const key of Object.keys(data)) {
         if (data[key] == null) continue;
         if (IDB_KEYS.includes(key)) { try { await idbSet(key, JSON.parse(data[key])); } catch(e) { console.warn('导入到IndexedDB失败', key, e); } }
@@ -4627,18 +4729,58 @@ async function initChatSync(attempt = 0) {
   try {
     const { data: mainRow, error } = await window.supabaseChats.getChat('main');
     if (error) { console.warn('Supabase聊天记录状态检查失败，稍后重试', error); retry(); return; }
-    if (mainRow && Array.isArray(mainRow.data)) { messages = mergeCloudTailIntoLocal(messages, mainRow.data); messages = filterDeletedLocally(messages); safeIdbSet(LS_MESSAGES, messages); }
+    if (mainRow && Array.isArray(mainRow.data)) { messages = mergeCloudTailIntoLocal(messages, mainRow.data); messages = filterDeletedLocally(messages); persistMessagesNow(); }
     subscribeMainChatOnce();
     await refreshSubChatsFromSupabase();
     chatSyncReady = true;
     updateChatSyncHint('同步状态：已连接云端');
     if (chatSyncDirty) flushChatSync();
+    // 初始化期间（chatSyncReady 还是 false）切回前台会被闸门挡下，这里补跑一次
+    if (resumePending) drainDeferredSync();
   } catch(e) { console.warn('Supabase聊天记录同步初始化出错，稍后重试', e); retry(); }
 }
 function subscribeMainChatOnce() {
   if (mainChatSubscribed || !window.supabaseChats || !window.supabaseChats.subscribeMainChat) return;
   mainChatSubscribed = true;
+  // 回调返回值语义：true=这份快照被吃掉了，false=没吃掉（快照已被 park，等着重放）。
+  // supabase.js 的轮询据此决定要不要推进去重键——返回 false 它就不推进，下个 tick 会重投。
   window.supabaseChats.subscribeMainChat(row => applyCloudMainUpdate(row));
+}
+
+/* ============================================================
+未消费快照的定点重放（pending 快照槽）
+============================================================ */
+// 这一套是为一个反复出现的体验缺陷加的：**四条只读通道里，只要有一条"这次消费不掉"，
+// 那份云端快照就被静默丢掉了，而且丢掉之后没有任何重放机制**——要等下一次 updated_at
+// 变化（最长 5s 轮询）才会再有机会，屏幕上就是"消息半天不出现 / 过一阵子才稳定"。
+// 典型的三条丢弃路径：本轮正在流式生成（mainGenerating）、陈旧快照被判短（见
+// cloudSnapshotIsStale 的注释）、合并锚点对不上（mergeCloudTailIntoLocal）。
+//
+// 现在统一改成：不消费就 park 进槽位，1.5s 后自己重放一次；另外由"回合结束(finally)"和
+// "回到前台"两个时机各补一次 drain。drain 是幂等的，重复调用无副作用。
+// 槽位只留最近一份：drain 时会重新走一遍 applyCloudMainUpdate 的合并逻辑，而合并本身
+// 就是"把云端尾巴接到本地"的幂等操作，所以丢掉中间某一份不影响最终收敛。
+let pendingCloudRow = null;
+let pendingCloudTimer = null;
+let resumePending = false;   // 回前台补拉被闸门挡下时置位，等合适时机重放
+function parkCloudRow(row, why) {
+  if (!row || !Array.isArray(row.data)) return;
+  pendingCloudRow = row;
+  clearTimeout(pendingCloudTimer);
+  if (why) console.warn('云端主聊天快照本次未消费，已挂起重放：', why);
+  pendingCloudTimer = setTimeout(drainPendingCloudRow, 1500);
+}
+function drainPendingCloudRow() {
+  clearTimeout(pendingCloudTimer); pendingCloudTimer = null;
+  if (mainGenerating) return;                // 还没轮到，保留在槽位里
+  const row = pendingCloudRow; pendingCloudRow = null;
+  if (!row) return;
+  applyCloudMainUpdate(row);
+}
+// 回合结束 / 回到前台时调用：把被闸门挡下的重放补上
+function drainDeferredSync() {
+  drainPendingCloudRow();
+  if (resumePending) { resumePending = false; refreshChatsOnResume(); }
 }
 // 只读通道：garden-agent 每次写完 chats(main) 都会触发这个 Realtime UPDATE，用来让同设备的其它
 // 标签页/窗口、以及别的设备看到最新聊天内容——纯展示层的重render，绝不在这里触发任何回写。
@@ -4683,8 +4825,20 @@ function mergeCloudTailIntoLocal(localMessages, cloudMessages) {
   const idx = localMessages.findIndex(m => m.id === anchorId);
   if (idx !== -1) return filterDeletedLocally([...localMessages.slice(0, idx), ...cloudMessages]);
   if (localMessages.length === 0) return filterDeletedLocally(cloudMessages);
-  console.warn('云端主聊天窗口与本地历史无法对齐，暂不合并（本地未改动）');
-  return localMessages;
+  // 锚点（云端窗口的第一条）在本地找不到——最典型的情形是本地窗口起点比云端晚。
+  // 老做法是 console.warn 一句就返回本地，**云端这段新内容被静默吞掉**，后面的
+  // sameMsgSeq 又因为结果跟本地一模一样而判"无变化"，连重建都不触发，这一份就这么没了。
+  // 退一步改按"本地最后一条也出现在云端里"的位置重新对齐：只要能找到那个 k，
+  // local.slice(0,k) + cloud 就是一条连续的、正确的时间线，绕开起点漂移。
+  for (let k = localMessages.length - 1; k >= 0; k--) {
+    if (cloudMessages.some(m => m.id === localMessages[k].id)) {
+      return filterDeletedLocally([...localMessages.slice(0, k), ...cloudMessages]);
+    }
+  }
+  // 两边完全没有交集（本地这一份跟云端不是同一条时间线，比如刚清空过 / 换了账号）。
+  // 这种确实不该硬合，但也不能静默丢：由调用方 park 起来重试，并把原因带出去。
+  console.warn('云端主聊天窗口与本地历史完全无交集，暂不合并（本地未改动）');
+  return null;   // null = 没合上，调用方据此 park
 }
 function sameMsgSeq(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
@@ -4704,14 +4858,19 @@ function sameMsgSeq(a, b) {
 function cloudSnapshotIsStale(nextSeq, localSeq) {
   return nextSeq.length < localSeq.length;
 }
+// 返回值：true = 这一份快照被消费掉了（不论有没有真的改动画面）；false = 没消费，调用方应 park。
+// supabase.js 的轮询读这个返回值决定要不要推进去重键，道理见那边 pollMainChat 的注释。
 function applyCloudMainUpdate(row) {
-  if (!row || !Array.isArray(row.data)) return;
+  if (!row || !Array.isArray(row.data)) return true;
   // 流式中的整轮重建一律跳过：这一轮真正的状态（活气泡 + 正在累积的正文）在本地，比云端任何
   // 一份快照都新，重画一次只是白费一次全量渲染；更要紧的是 renderAllMessages 结尾的
   // scrollToBottom 会把 autoFollowState 设回 true，把正在往上翻历史的人强行拽回底部。
   // 和 refreshChatsOnResume 一个理由：这一轮的收尾由 done 分支统一重画。
-  if (mainGenerating) return;
+  // 但**不能就这么丢掉**：回合结束后 done 分支虽然会重画，可服务端阶段三落库的那一份
+  // 未必赶得上——它要等下一轮轮询（最长 5s）才回来。所以 park 进槽位，1.5s 后重放。
+  if (mainGenerating) { parkCloudRow(row, '本轮正在流式生成'); return false; }
   let nextMessages = mergeCloudTailIntoLocal(messages, row.data);
+  if (nextMessages === null) { parkCloudRow(row, '与本地历史无交集'); return false; }
   if (activeStreamMsgId) {
     const stillThere = nextMessages.some(m => m.id === activeStreamMsgId);
     if (!stillThere) {
@@ -4725,21 +4884,28 @@ function applyCloudMainUpdate(row) {
   // 正好在阶段三落库**之前**发出、在 done 帧到达**之后**才收到响应——带回来的是一份缺了本轮
   // AI 回复的旧快照。此刻 done 分支刚重建完，这一句把它整条抹掉，直到下一轮轮询（最多 5s）
   // 才回来。判据/理由见 cloudSnapshotIsStale 上面的注释（一句话：短就不盖）。
+  // 同样不许静默丢：park 后 1.5s 重试，那一刻阶段三多半已经落库，快照不再短。
   const localSeq = messages.map(m => m.id);
   const nextSeq = nextMessages.map(m => m.id);
   if (cloudSnapshotIsStale(nextSeq, localSeq)) {
-    console.warn('云端主聊天快照比本地短（陈旧快照或本地尚未落库），本次跳过不应用');
-    return;
+    parkCloudRow(row, '快照比本地短（陈旧快照或本地尚未落库）');
+    return false;
   }
   // 没变化就别重建：以前这里无条件 renderAllMessages()，一轮对话要白重画三次（阶段一、阶段三、
   // done 后的 notice 各触发一次），每次都把滚动拽回底部、长聊时肉眼可见地闪。
   const changed = !sameMsgSeq(nextSeq, localSeq);
   messages = nextMessages;
   if (changed) {
-    safeIdbSet(LS_MESSAGES, messages);
-    mainRenderStart = null;
-    renderAllMessages();
+    // 这一份是权威内容（刚合并好的云端快照），立刻落盘并清掉攒着的合并写：
+    // persistMessagesNow 读的是实时的 messages，就是下面这个 nextMessages，写下去内容一致，
+    // 顺带把定时器句柄收了，不会再有一次多余的写。
+    persistMessagesNow();
+    // 同 done 分支：只动真正变了的那几行，不再整窗重建。这里尤其值钱——轮询每 5s 一次，
+    // 一轮对话能让它走进这个分支两三次，而每次整窗重建都会把 data: 图片重解析一遍、
+    // 把 ```html 沙箱 iframe 里的脚本重新执行一遍、把长按监听器重挂一遍（长聊时就是成片闪烁）。
+    repaintTail();
   }
+  return true;
 }
 function localTouchedAt(key) {
   try { const v = localStorage.getItem(key); return v ? parseInt(v, 10) || 0 : 0; } catch(e) { return 0; }
@@ -5201,6 +5367,59 @@ function isThinkingOnlyMsg(m) {
 function isHtmlOnlyMsg(m) {
   return !!(m && m.role !== 'user' && m.htmlBlock);
 }
+// 一行的"内容指纹"：这一行是按哪份数据画出来的。尾部增量重画（repaintTail，见 appendMessage
+// 后面那段注释）拿它判断"这一行还是原来那份内容吗"，只重画真正变了的行，不再整窗 innerHTML=''。
+// 必须覆盖 buildMsgRow / buildWakeSessionCard / buildToolNoticeRow 会读到的**所有**字段——
+// 漏一个就会出现"数据变了、指纹却没变 → 这一行不重画 → 屏幕停在旧内容上"。
+// 代价上刻意用短哈希而不是 JSON.stringify 整个 msg：正文动辄几 KB，逐层序列化比重新渲染还贵。
+function strHash(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return h;
+}
+// 小对象的指纹：只取长度 + 头部 400 字符。工具调用的 args 偶尔很大（整篇记忆/长正文），
+// 而通知条上显示的本来就是截断后的摘要，头尾够用。
+function briefHash(v) {
+  let s;
+  try { s = typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { s = ''; }
+  if (!s) return 0;
+  return s.length * 31 + strHash(s.length > 400 ? s.slice(0, 400) : s);
+}
+// 图片的指纹：data: URL 可能几百 KB，不整串哈希；长度 + 头尾各 24 字符足够区分
+// "本地 base64 占位 → 服务端远程 URL"这种替换，也足够区分真换了图。
+function imgKeyOf(u) {
+  if (typeof u !== 'string' || !u) return '';
+  return u.length + ':' + u.slice(0, 24) + ':' + u.slice(-24);
+}
+function msgSig(msg) {
+  if (!msg) return '';
+  const p = [msg.role, msg.time || '', msg.createdAt == null ? '' : msg.createdAt];
+  p.push(strHash(getMsgDisplayText(msg)));
+  p.push(msg.versions ? msg.versions.length : 0, msg.versionIndex == null ? '' : msg.versionIndex);
+  p.push(msg.thinking ? strHash(msg.thinking) : 0);
+  p.push(msg.htmlBlock ? 1 : 0);
+  const imgs = msg.images || [];
+  p.push(imgs.length);
+  for (let i = 0; i < imgs.length && i < 6; i++) p.push(imgKeyOf(imgs[i]));
+  p.push(msg.thumbs ? msg.thumbs.length : 0);
+  p.push(msg.files ? msg.files.length : 0);
+  if (msg.files) for (let i = 0; i < msg.files.length && i < 6; i++) p.push((msg.files[i] && msg.files[i].name) || '');
+  p.push(msg.toolCalls ? msg.toolCalls.length : 0);
+  if (msg.toolCalls) for (let i = 0; i < msg.toolCalls.length && i < 12; i++) {
+    const tc = msg.toolCalls[i] || {};
+    p.push(tc.name || '', tc.isError ? 1 : 0, briefHash(tc.args), tc.result ? briefHash(tc.result) : 0);
+  }
+  p.push(msg.rpKind || '', msg.rpName || '');
+  p.push(msg.quote ? strHash(msg.quote.author + '\u0000' + msg.quote.text) : 0);
+  // 刻意**不**把选中态放进指纹：勾选框的显隐现在由 .page.select-mode 那条 CSS 管，
+  // 勾一下只改一个类、不动 DOM 结构。若把 selectedIds 算进来，每次勾选都会让这一行的
+  // 指纹变一次 → repaintTail 认为内容变了 → refreshRow 整行重建（连带重挂监听器）。
+  // 代价：删除后的行指纹与删除前相同，repaintTail 不会替我们摘行，
+  // 所以 deleteSelected 末尾必须自己补一次 renderAllMessages（那里有注释）。
+  p.push(msg.startedAt == null ? '' : msg.startedAt, msg.endedAt == null ? '' : msg.endedAt);
+  p.push(msg.monologue ? strHash(msg.monologue) : 0);   // 私人时间卡片的正文
+  return p.join('|');
+}
 function refreshRow(msg, ctx) {
   const oldRow = ctx.container.querySelector(`[data-msg-id="${msg.id}"]`); if (!oldRow) return;
   const arr = ctx.getArray(); const idx = arr.findIndex(m => m.id === msg.id);
@@ -5265,6 +5484,10 @@ function attachLongPress(el, msg, ctx) {
   el.addEventListener('contextmenu', (e) => { if (window.getSelection && window.getSelection().toString().length > 0) return; e.preventDefault(); openMsgMenu(msg, ctx, e.clientX, e.clientY); });
 }
 function openMsgMenu(msg, ctx, x, y) {
+  // 多选态里长按不该再弹菜单：整行点击的语义已经变成"选中"，弹出来只会跟委托监听器打架。
+  // 这道保护在勾选框常驻之后是必需的——以前多选态下根本不挂 attachLongPress，
+  // 现在挂载只看"是不是主聊天"，触发时机得靠这里挡。
+  if (selectMode) return;
   if (msg.role === 'notice') { openFloatingMenu([{ label: '删除', danger: true, onClick: () => deleteMessage(msg, ctx) }], x, y); return; }
   // RP 配角行只读：引用/编辑/重新生成对它都没意义（重新生成还会把旁白当成"我说的话"重写一遍），
   // 只留复制 + 删除 —— 跟 notice 一样走窄菜单。
@@ -5692,17 +5915,18 @@ function buildWakeSessionCard(msg, ctx) {
   body.appendChild(meta);
   bodyWrap.appendChild(body);
 
-  // 多选态（主聊天 + 已进入多选）才挂勾选框：挂在 header 里而不是 row 上，
-  // 因为 row 是"占满整行居中卡片"的容器，直接塞个兄弟节点会跑到卡片外面去。
-  const isMultiSelectable = ctx === mainCtx && selectMode;
-  if (isMultiSelectable) { header.appendChild(buildSelectCb(msg)); row.classList.add('wake-session-multiselect'); }
-
   note.appendChild(header); note.appendChild(bodyWrap);
   row.appendChild(note);
 
-  // 勾选框 pointer-events:none，点它等于点 row——所以多选态下整行（含展开的正文）
-  // 都要能切换选中；否则展开时只有那条 22px 的头部还管用。
-  if (isMultiSelectable) { row.style.cursor = 'pointer'; row.addEventListener('click', () => toggleSelect(msg.id)); }
+  // 勾选框常驻挂在 header 里、由 .page.select-mode 那条 CSS 显隐，所以这里不再看 selectMode。
+  // 放在 DOM 组装完之后才挂：这颗勾选框是新元素，header 那些 click 处理器（含底下的委托替换）
+  // 都不可能挂到它身上；挂在 header 而不是 row 上，因为 row 是"占满整行居中卡片"的容器，
+  // 直接塞个兄弟节点会跑到卡片外面去。
+  if (ctx === mainCtx) header.appendChild(buildSelectCb(msg));
+
+  // 多选态的整行点击走 chatScroll 上的一个委托监听器（见 setupSelectDelegation）：
+  // 以前是进多选态时逐行 attach，现在勾选框常驻，行上不再挂 click。
+  // 光标形状由 CSS `.page.select-mode .wake-session-row { cursor: pointer }` 管。
 
   let expanded = false;
   // 果冻变形：小药丸(fit-content)⇄大卡片(86%宽)用 FLIP 同时动画宽度和正文高度，
@@ -5843,12 +6067,17 @@ function setLiveThinkingText(col, text) {
   if (body) body.textContent = text;
 }
 function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
+  // dataset.sig：这一行是按哪份内容画出来的指纹。尾部增量重画（repaintTail）靠它判断
+  // "这一行还是原来那份内容吗"，从而只重画真正变了的行。见 msgSig 的注释。
   if (msg.role === 'notice') {
     const row = document.createElement('div'); row.className = 'msg-notice'; row.dataset.msgId = msg.id; row.textContent = msg.text;
+    row.dataset.sig = msgSig(msg);
     if (ctx) attachLongPress(row, msg, ctx); return row;
   }
   if (msg.role === 'wake_session') {
-    return buildWakeSessionCard(msg, ctx); // ctx 别丢：丢了就永远拿不到多选态，勾选框/长按全没有
+    const wrow = buildWakeSessionCard(msg, ctx); // ctx 别丢：丢了就永远拿不到多选态，勾选框/长按全没有
+    wrow.dataset.sig = msgSig(msg);
+    return wrow;
   }
   // RP 配角行（旁白 / NPC）：跟 notice / wake_session 一样是"裸行"，不套气泡、不带头像。
   // **故意不复用 .msg-notice**：notice 在好几处（选中态、findPrevMsg/findNextMsg）被当成
@@ -5862,6 +6091,7 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
       tag.textContent = msg.rpName || 'NPC'; row.appendChild(tag);
     }
     row.appendChild(document.createTextNode(msg.text || ''));
+    row.dataset.sig = msgSig(msg);
     if (ctx) attachLongPress(row, msg, ctx);
     return row;
   }
@@ -5880,7 +6110,9 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   // 间距单独用 CSS 缩到 0
   if (isThinkingOnlyMsg(msg) && !defersHeaderToNext) row.classList.add('thinking-row');
   if (!!prevMsg && prevMsg.role === msg.role && isThinkingOnlyMsg(prevMsg) && !inheritsHeaderFromPrev) row.classList.add('after-thinking-row');
-  const isMultiSelectable = ctx === mainCtx && selectMode;
+  // 勾选框常驻挂在行上、由 `.page.select-mode .msg-select-cb { display: flex }` 显隐，
+  // 所以这里不再看 selectMode——进/出多选态只切一次页面 class，不用重建 DOM。
+  const isMultiSelectable = ctx === mainCtx;
   if (isMultiSelectable && msg.role === 'ai') row.appendChild(buildSelectCb(msg));
 
   let nameLine = null;
@@ -5978,7 +6210,9 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
     }
   }
   }
-  if (!isMultiSelectable && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
+  // 版本切换器在多选态里要收起来（点它本该切版本，多选态里点整行是选中，两者撞车）。
+  // 判据只看 selectMode，不看 isMultiSelectable——后者现在只管"勾选框挂不挂"。
+  if (!selectMode && msg.role !== 'user' && msg.versions && msg.versions.length > 1) wrap.appendChild(buildVersionSwitcher(msg, ctx));
   // 时间只在"这个人连续发的最后一条"上显示——和 next 同一发送方、且中间没有时间分隔线的话，
   // 说明还在同一串连续消息里，时间戳交给这一串的最后一条负责
   const isLastInRun = !nextMsg || nextMsg.role !== msg.role || shouldShowTimeDivider(msg, nextMsg);
@@ -5987,8 +6221,10 @@ function buildMsgRow(msg, ctx, prevMsg, nextMsg, prevWasFirstInRun) {
   }
   col.appendChild(wrap);
   if (isMultiSelectable && msg.role === 'user') row.appendChild(buildSelectCb(msg));
-  if (isMultiSelectable) { row.style.cursor = 'pointer'; row.addEventListener('click', () => toggleSelect(msg.id)); }
-  else if (ctx) attachLongPress(wrap, msg, ctx);
+  // 长按菜单照旧只挂在不进多选态的行上（多选态里长按没有意义，且 openMsgMenu 里另有一道 selectMode 保护）。
+  // 多选态的整行点击走 chatScroll 上的一个委托监听器（见 setupSelectDelegation），不在行上逐行注册。
+  if (ctx && !(isMultiSelectable && selectMode)) attachLongPress(wrap, msg, ctx);
+  row.dataset.sig = msgSig(msg);
   return row;
 }
 function buildSelectCb(msg) {
@@ -6119,7 +6355,94 @@ function renderAllMessages() {
   if (following) scrollToBottom(chatScroll, 'page-chat');
   else pageEl.scrollTop = Math.min(oldTop + (pageEl.scrollHeight - oldHeight), Math.max(0, pageEl.scrollHeight - pageEl.clientHeight));
 }
-function appendMessage(msg) {
+// 尾部增量重画：把"内容变了"这件事只花在真正变了的那几行上。
+// 以前 done 分支和 applyCloudMainUpdate 的 changed 分支一律 `mainRenderStart = null; renderAllMessages()`，
+// 而那是整窗 innerHTML='' 重建——重解析 data: URL 图片、重建 ```html 沙箱 iframe（里面的脚本会**重新执行**）、
+// 给每行重挂长按监听器、每行重建一次思考云。一轮对话至少两次，长聊时就是肉眼可见的成片闪烁。
+// 做法：拿屏上最后一行的 id 当锚点在 messages 里定位，逐行核对 id 与 dataset.sig（buildMsgRow 落的指纹，
+// 见 msgSig 的注释）——没变 → 原样留着；变了 → refreshRow 单行替换；比窗口多出来的尾巴 → appendMessage 追加。
+// 窗口语义与 renderAllMessages 严格对齐：贴底时把窗口收回最后 MSG_PAGE_SIZE 条（头部多出来的行砍掉，
+// 否则增量只增不减，长聊会把整段历史都挂在屏幕上）；不贴底时补画但不滚动、也不砍——人正看着的那段历史不能动。
+// 任何一处对不上（起点失效、锚点找不到、id 错位、分隔线/工具条数目不符）都退回整窗重建：
+// 宁可多画一次，不可少画一行。
+function repaintTail() {
+  if (mainRenderStart == null) { renderAllMessages(); return; }
+  const pageEl = document.getElementById('page-chat');
+  const following = isNearBottom('page-chat');
+  // querySelectorAll 给的是静态快照，但里面的**节点**会被 ① 的 refreshRow 换掉。
+  // 拷贝成数组、并严格按"先读 sig 再替换"的顺序走，才不会被换下来的旧节点骗到。
+  const domRows = Array.from(chatScroll.querySelectorAll('[data-msg-id]'));
+  if (domRows.length === 0) { mainRenderStart = null; renderAllMessages(); return; }
+  const lastId = domRows[domRows.length - 1].getAttribute('data-msg-id');
+  const anchorIdx = messages.findIndex(m => m.id === lastId);
+  if (anchorIdx === -1) { mainRenderStart = null; renderAllMessages(); return; }
+  const start = anchorIdx - (domRows.length - 1);
+  if (start < 0) { mainRenderStart = null; renderAllMessages(); return; }
+  for (let k = 0; k < domRows.length; k++) {
+    if (domRows[k].getAttribute('data-msg-id') !== messages[start + k].id) { mainRenderStart = null; renderAllMessages(); return; }
+  }
+  // 分隔线/工具通知条是行外的兄弟节点，归属随邻居变化，单行替换管不到它们。数目对不上就不冒这个险。
+  let expDiv = 0, expNotice = 0, prev = findPrevMsg(messages, start);
+  for (let i = start; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.role === 'notice') continue;
+    if (shouldShowTimeDivider(prev, m)) expDiv++;
+    if (m.role !== 'user' && m.role !== 'wake_session' && m.toolCalls && m.toolCalls.length) expNotice++;
+    prev = m;
+  }
+  if (chatScroll.querySelectorAll('.time-divider-row').length !== expDiv ||
+      chatScroll.querySelectorAll('.tool-notice-row').length !== expNotice) { mainRenderStart = null; renderAllMessages(); return; }
+  // ①② 先做，再定滚动位置。原因：这两个空 window-divider 的**显示/隐藏**只取决于 prev/msg 的间隔，
+  //   跟 start 在哪儿无关，所以窗口起点是哪儿都不影响这一趟该不该画；反过来，滚动补偿必须先发生，
+  //   头部才会被推进视口上方、才有资格被下面的收窗逻辑砍掉。所以顺序固定是"画 → 补偿 → 收窗"，
+  //   不能像 renderAllMessages 那样"先记高度、画、再滚"——那样会把新追加的高度也算进补偿里。
+  mainRenderStart = start;
+  const oldTop = pageEl.scrollTop, h0 = pageEl.scrollHeight;
+  // ① 变了的行：单行替换（refreshRow 顺手把工具通知条一起对齐）。上面那段 id 逐位核对保证了
+  //    domRows[k] 就是 messages[start+k] 那一行，所以按下标取即可（domRows[k] 里存的是旧节点，
+  //    但 dataset 是替换前读的，不会读到新行的指纹）。
+  for (let k = 0; k < domRows.length; k++) {
+    if (domRows[k].dataset.sig !== msgSig(messages[start + k])) refreshRow(messages[start + k], mainCtx);
+  }
+  // ② 新来的尾巴：追加。不贴底时不滚动——追加只长在视口下面，位置本来就不会动。
+  const newTail = mainRenderStart + domRows.length;   // appendMessage 会改 autoFollowState，别用 domRows.length 后算
+  for (let i = newTail; i < messages.length; i++) appendMessage(messages[i], !following);
+  // ③ 不贴底时，①里改过内容的行可能把视口上方撑高（比如思考云展开），按高度差把滚动位置补偿回去。
+  //    只算 ① 的增量：②的追加在视口下方、不该把人也往下推。
+  if (!following) {
+    const h1 = pageEl.scrollHeight;
+    pageEl.scrollTop = Math.min(oldTop + (h1 - h0), Math.max(0, h1 - pageEl.clientHeight));
+  }
+  // ④ 收窗：贴底时与 renderAllMessages 的 `mainRenderStart = max(0, len - MSG_PAGE_SIZE)` 同语义；
+  //    不贴底时窗口起点只增不减（保历史），但若 ② 的追加已经把人挤到屏幕上方，
+  //    就把视口外的头部收掉——滑回底部时是普通 DOM 滚动、不触发 loadEarlier，所以这是安全的。
+  const total = mainRenderStart + chatScroll.querySelectorAll('[data-msg-id]').length;
+  const targetStart = following
+    ? Math.max(0, total - MSG_PAGE_SIZE)
+    : Math.min(mainRenderStart, Math.max(0, messages.length - MSG_PAGE_SIZE));
+  let excess = mainRenderStart - targetStart;
+  while (excess > 0) {
+    const first = chatScroll.querySelector('[data-msg-id]');
+    if (!first) break;
+    // 顺带把它上面挂着的那点东西一起带走：收窗后最顶端那条要能够到 load-earlier 哨兵。
+    // 只删"已滚出视口、且不是哨兵"的兄弟节点——直接用 offsetTop 判——这样既不会把哨兵顶到
+    // 第二条消息后面（哨兵在文档流顶部，offsetTop 极小），也不会误删底部工具条的落点。
+    let sib = first.previousElementSibling;
+    while (sib && sib !== first && !sib.classList.contains('load-earlier-sentinel') && sib.offsetTop < pageEl.scrollTop) {
+      const p = sib.previousElementSibling; sib.remove(); sib = p;
+    }
+    first.remove(); mainRenderStart--; excess--;
+  }
+  if (mainRenderStart > 0 && !chatScroll.querySelector('.load-earlier-sentinel')) {
+    chatScroll.insertBefore(buildLoadEarlierSentinel(pageEl, loadEarlierMain), chatScroll.firstChild);
+  }
+  // 贴底的人照旧跟到底（appendMessage 已经跟过了，这里兜住 ① 撑高 / ④ 收窗带来的位移）；
+  // 在上面翻历史的人位置由 ③/④ 自己维持，这里一根手指都不碰——这就是本次改动要的效果。
+  if (following) scrollToBottom(chatScroll, 'page-chat');
+}
+// noScroll：给 repaintTail 的"人在上面翻历史、云端推来新消息"那条路用——补画但不把人拽回底部。
+// 其余四个调用点都是"我刚发了消息 / 回复刚开始"，一律保持原来的无条件跟到底，语义不动。
+function appendMessage(msg, noScroll) {
   let prevIdx = -1;
   for (let i = messages.length - 2; i >= 0; i--) { if (messages[i].role !== 'notice') { prevIdx = i; break; } }
   const prev = prevIdx >= 0 ? messages[prevIdx] : null;
@@ -6132,7 +6455,8 @@ function appendMessage(msg) {
     if (prevRow) prevRow.replaceWith(buildMsgRow(prev, mainCtx, findPrevMsg(messages, prevIdx), msg, isFirstInRunAt(messages, findPrevIdx(messages, prevIdx))));
   }
   if (msg.role !== 'user' && msg.role !== 'wake_session' && msg.toolCalls && msg.toolCalls.length) chatScroll.appendChild(buildToolNoticeRow(msg));
-  const row = buildMsgRow(msg, mainCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); chatScroll.appendChild(row); scrollToBottom(chatScroll, 'page-chat'); return row;
+  const row = buildMsgRow(msg, mainCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); chatScroll.appendChild(row);
+  if (!noScroll) scrollToBottom(chatScroll, 'page-chat'); return row;
 }
 function scrollToBottom(container, pageId) { autoFollowState[pageId] = true; requestAnimationFrame(() => { const p = document.getElementById(pageId); p.scrollTop = p.scrollHeight; }); }
 const autoFollowState = { 'page-chat': true, 'page-subchat': true };
@@ -6194,7 +6518,10 @@ function renderSubChatMessages() {
   if (subRenderStart == null) subRenderStart = Math.max(0, arr.length - MSG_PAGE_SIZE);
   subRenderStart = Math.min(subRenderStart, arr.length);
   renderMessageWindow(subchatScroll, document.getElementById('page-subchat'), arr, subCtx, subRenderStart, loadEarlierSub);
-  scrollToBottom(subchatScroll, 'page-subchat');
+  // 老代码这里是无条件 scrollToBottom，它会顺手把 autoFollowState['page-subchat'] 设成 true——
+  // 和主聊天那句 `if (following)` 不对称，于是副聊天里"往上翻着记录，云端推来一次更新就被拽回底部"，
+  // 而且拽回去之后 autoFollow 被强行打开，后续每一帧都跟着到底。改成同款：贴着底部才跟。
+  scrollToBottomSticky(subchatScroll, 'page-subchat');
 }
 function appendSubChatMessage(msg) {
   const sc = subChats.find(s => s.id === currentSubChatId);
@@ -6208,7 +6535,7 @@ function appendSubChatMessage(msg) {
     if (prevRow) prevRow.replaceWith(buildMsgRow(prev, subCtx, findPrevMsg(sc.messages, prevIdx), msg, isFirstInRunAt(sc.messages, findPrevIdx(sc.messages, prevIdx))));
   }
   if (msg.role !== 'user' && msg.role !== 'wake_session' && msg.toolCalls && msg.toolCalls.length) subchatScroll.appendChild(buildToolNoticeRow(msg));
-  const row = buildMsgRow(msg, subCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottom(subchatScroll, 'page-subchat'); return row;
+  const row = buildMsgRow(msg, subCtx, divider ? null : prev, null, prevWasFirstInRun); row.classList.add('bubble-in'); subchatScroll.appendChild(row); scrollToBottomSticky(subchatScroll, 'page-subchat'); return row;
 }
 
 /* ============================================================
@@ -6386,7 +6713,13 @@ document.getElementById('nicknameSaveBtn').addEventListener('click', () => {
     appName = v;
     safeSetItem(LS_NAME, v);
     applyGlobalNames();
-    renderAllMessages();
+    // 改个名字以前整窗重建一次，纯属浪费：昵称只出现在非 user 行的名字行上
+    // （buildMsgRow 里的 `nameEl.textContent = appName`），别的行一个像素都不动。
+    // 而且 appName 不在 msgSig 的指纹里，repaintTail 那套"比对指纹"发现不了这种变化，
+    // 所以这里得显式点名重画，不能指望增量重画顺带带上。
+    // refreshRow 对不在屏上的行本来就早退（容器里查不到旧行），不用自己判断可见性。
+    // notice / wake_session / rp_aside 三种行都不带名字行，跳过省一次重建。
+    messages.forEach(m => { if (m.role === 'ai') refreshRow(m, mainCtx); });
     pageCapsule.style.transition = 'opacity 0.15s ease';
     pageCapsule.style.opacity = '0';
     setTimeout(() => { pageCapsule.textContent = pageTitles.chat; pageCapsule.style.opacity = '1'; }, 150);
@@ -7116,8 +7449,13 @@ function makeStreamRenderer(bubbleEl, scrollFn) {
       // 另外 .thinking-text 那套查法早就是死代码（只由已无调用者的 renderSplitBubbles 写），删了。
       const span = document.createElement('span'); span.className = 'stream-chunk'; span.textContent = newPart; bubbleEl.appendChild(span); renderedLen = latestText.length;
       bubbleWaitRemove(bubbleEl);
+      scrollFn();
     }
-    scrollFn(); pendingRender = false;
+    // 这一帧一个字都没新增时（重复帧、或者整段还被 hideUnclosedMarkers 按着的那十几帧）不滚：
+    // 屏幕上没有任何变化，scrollFn 只会白读一次 scrollHeight 触发布局。scrollFn 是"贴底才滚"的
+    // 粘性版本，跳过它不动"人在上面翻历史就不被拽底"的语义（那条语义在 scrollToBottomSticky 里）。
+    // 注意这跟 advance() 的单调地板是两回事，那条一个字都不动。
+    pendingRender = false;
   }
   // 显示文本只往前走的那道地板。hideUnclosedMarkers 是启发式，随机模糊测过它偶尔仍会把
   // 已经吐出去的字符再收回去（2026-09-24，40000 条随机串里 372 处），而 flush 是 appendChild
@@ -8153,8 +8491,11 @@ async function sendChatMain(userMsg) {
       if (aidx !== -1) messages.splice(aidx, 1);
       (aiMessages || []).forEach(m => messages.push(m));
       persistMessages();
-      mainRenderStart = null;
-      renderAllMessages();
+      // 增量重画：把最后一条 AI 行换成服务端回填的正式版、把本轮新增的行追加上去。
+      // 以前这里是 `mainRenderStart = null; renderAllMessages()`——整窗重建，而"换一条 + 追加一条"
+      // 本来只需要动两行。窗口起点由 repaintTail 自己推进（贴底时收到最后 MSG_PAGE_SIZE 条，
+      // 不贴底时原地不动），所以这里不再把它置空。
+      repaintTail();
       refreshTokenEstimate();
       recordCacheUsage(usage);
       turnT.total = Date.now();
@@ -8175,9 +8516,12 @@ async function sendChatMain(userMsg) {
       turnT.total = Date.now();
       recordTurnTiming(turnT);
     }
+    // 这一轮期间被 mainGenerating 挡下的两样东西（挂起的云端快照、被闸门挡下的回前台补拉）
+    // 现在统一补跑——上面 mainGenerating 已经置 false，drain 不会再被挡回去。
+    drainDeferredSync();
   }
 }
-async function chatMainEditRequest(msg) {
+async function chatMainEditRequest(msg, attempt = 0) {
   const cfg = getConfig();
   if (!cfg.chatServiceKey) { console.warn('聊天服务密钥未配置，跳过 /chat-main/edit'); return; }
   try {
@@ -8188,17 +8532,34 @@ async function chatMainEditRequest(msg) {
       const idx = messages.findIndex(m => m.id === msg.id);
       if (idx !== -1) { messages[idx] = data.message; persistMessages(); refreshRow(messages[idx], mainCtx); }
     }
-  } catch(e) { console.warn('/chat-main/edit 失败', e); }
+  } catch(e) {
+    // 失败一次就静默 = 本地显示的是新文字、云端还是旧的，下次任一只读通道铺回来就把编辑吞掉。
+    if (attempt < 1) { setTimeout(() => chatMainEditRequest(msg, attempt + 1), 2000); return; }
+    console.warn('/chat-main/edit 重试后仍失败', e);
+    showToast('这次编辑没有同步到云端，请检查网络后重新编辑', 5000);
+  }
 }
-async function chatMainDeleteRequest(ids) {
+async function chatMainDeleteRequest(ids, attempt = 0) {
   const cfg = getConfig();
   if (!cfg.chatServiceKey) { console.warn('聊天服务密钥未配置，跳过 /chat-main/delete'); return; }
   try {
     const res = await fetch(chatMainUrl('/delete'), { method: 'POST', headers: chatMainHeaders(cfg), body: JSON.stringify({ ids }) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-  } catch(e) { console.warn('/chat-main/delete 失败', e); }
+  } catch(e) {
+    // 删除请求是 fire-and-forget 的，失败原来只 console.warn。后果比"少删一条"重：
+    // 本地墓碑 DELETED_ID_TTL_MS（120s）一过期，云端那条旧窗口就把消息原样铺回来，
+    // 用户看到的是"删了又自己回来了"。所以失败必须续期墓碑 + 重试一次 + 出声。
+    markDeletedLocally(ids);
+    if (attempt < 1) {
+      console.warn('/chat-main/delete 失败，2s 后重试一次', e);
+      setTimeout(() => chatMainDeleteRequest(ids, attempt + 1), 2000);
+      return;
+    }
+    console.warn('/chat-main/delete 重试后仍失败', e);
+    showToast('删除没有同步到云端，稍后可能重新出现，请检查网络后重试', 5000);
+  }
 }
-async function chatMainVersionRequest(msg, delta) {
+async function chatMainVersionRequest(msg, delta, attempt = 0) {
   const cfg = getConfig();
   if (!cfg.chatServiceKey) { console.warn('聊天服务密钥未配置，跳过 /chat-main/version'); return; }
   try {
@@ -8209,7 +8570,12 @@ async function chatMainVersionRequest(msg, delta) {
       const idx = messages.findIndex(m => m.id === msg.id);
       if (idx !== -1) { messages[idx] = data.message; persistMessages(); refreshRow(messages[idx], mainCtx); }
     }
-  } catch(e) { console.warn('/chat-main/version 失败', e); }
+  } catch(e) {
+    // 同上：切版本失败若静默，本地停在 B 版、云端还是 A 版，回前台补拉一铺回来就跳回 A。
+    if (attempt < 1) { setTimeout(() => chatMainVersionRequest(msg, delta, attempt + 1), 2000); return; }
+    console.warn('/chat-main/version 重试后仍失败', e);
+    showToast('版本切换没有同步到云端，请检查网络后重试', 5000);
+  }
 }
 
 /* ============================================================
@@ -8267,6 +8633,7 @@ async function callAPI(rerollTarget) {
     activeStreamMsgId = null; mainStreamBubbleEl = null; mainGenerating = false; mainAbortController = null; gen.stop();
     bubbleWaitRemove(aiBubble);   // 兜底
     updateSendBtnState(sendBtnEl, false, textInput.value.trim().length > 0 || pendingAttachments.length > 0);
+    drainDeferredSync();   // 同 sendChatMain：重放这一轮期间被挡下的快照/补拉
   }
 }
 
@@ -8867,6 +9234,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupViewportKeyboardHandling();
   setupAutoFollowTracking('page-chat');
   setupAutoFollowTracking('page-subchat');
+  setupSelectDelegation();   // 多选态的整行点击（一个委托监听器，替掉逐行注册）
   scheduleImageAutoMigration();   // 阶段 E：20s 后悄悄搬最近几张存量图（仅空闲时）
 })();
 </script>

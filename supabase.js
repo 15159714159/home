@@ -92,6 +92,7 @@ export async function upsertChat(kind, data, expectedUpdatedAt) {
 let mainChatPollTimer = null;
 let mainChatPollCallback = null;
 let lastMainChatUpdatedAt = null;
+let mainPollInFlight = false;
 
 export function subscribeMainChat(onUpdate) {
   mainChatPollCallback = onUpdate;
@@ -104,16 +105,26 @@ function stopMainChatPoll() {
   if (mainChatPollTimer) { clearInterval(mainChatPollTimer); mainChatPollTimer = null; }
   mainChatPollCallback = null;
 }
+// 去重键（lastMainChatUpdatedAt）**只在这一次投递真的被消费掉之后**才推进。
+// 以前是先推进后投递：回调侧只要在某条早退分支上 return（生成中 / 陈旧快照 / 锚点对不上），
+// 这一份快照就被永久作废了——要等到 updated_at 再次变化才会重新投递，最长能空 5s+。
+// 现在回调返回 false 表示"这次没吃掉"，键原地不动，下一个 5s tick 自动重投；
+// 页面侧还有一条 1.5s 的定点重放（index.html 的 parkCloudRow/drainPendingCloudRow），
+// 快慢两条腿互为兜底。
+// in-flight 守卫：请求 RTT 超过 5s 时上一根还没回来下一根就发了，两根可能乱序返回，
+// 把旧的快照盖在新的上面。同一时刻只允许一根在飞。
 async function pollMainChat() {
-  if (!mainChatPollCallback) return;
+  if (!mainChatPollCallback || mainPollInFlight) return;
+  mainPollInFlight = true;
   try {
     const { data, error } = await api('/chat-sync', { kind: 'main' });
     if (error || !data) return;
     if (data.updated_at && data.updated_at !== lastMainChatUpdatedAt) {
-      lastMainChatUpdatedAt = data.updated_at;
-      mainChatPollCallback(data);
+      const consumed = mainChatPollCallback(data);
+      if (consumed !== false) lastMainChatUpdatedAt = data.updated_at;
     }
   } catch {}
+  finally { mainPollInFlight = false; }
 }
 
 // === AI Config ===
