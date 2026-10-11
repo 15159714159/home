@@ -4709,8 +4709,12 @@ function processMemoryMarkers(rawText) {
 async function migrateLocalToSupabase() {
   if (localStorage.getItem(LS_MEMORY_MIGRATED)) return;
   if (!window.supabaseMemory) return;
+  // 尝试次数在拉取**之前**就 +1：迁移要发几百次请求，页面很可能在中途被系统杀掉，
+  // 那种失败走不到下面任何一条失败分支；若只数 fetchErr，被杀多少轮都不累计，下次打开永远重来。
+  // 只有完整跑到函数末尾置门闩那一行才清零（见 clearMemoryMigrateFailure）。
+  noteMemoryMigrateFailure();
   const { data: existing, error: fetchErr } = await window.supabaseMemory.getMemories(null, 1000);
-  if (fetchErr) { console.warn('迁移前拉取Supabase记忆失败，本次跳过迁移，下次加载再试', fetchErr); noteMemoryMigrateFailure(); return; }
+  if (fetchErr) { console.warn('迁移前拉取Supabase记忆失败，本次跳过迁移，下次加载再试', fetchErr); return; }
   const existingByContent = new Map((existing || []).map(m => [m.content, m]));
   // sbId 判重：本地这条已经挂过云端 id 的（哪怕正文后来被改过、content 已对不上），不再补写第二份
   const existingIds = new Set((existing || []).map(m => m.id));

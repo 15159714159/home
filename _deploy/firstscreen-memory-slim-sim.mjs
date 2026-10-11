@@ -12,6 +12,9 @@
 //   3. 失败计数，3 次失败后写 24h 退避时间戳，成功清零；
 //   4. 被杀时正在飞的那一条只靠 content 去重兜底（接受，本条只做说明不断言）；
 //   5. 本脚本同批更新（C 段两条断言），改前先红、改后全绿。
+//   6. 补丁（ao 2026-10-11 二批）：失败计数从「只在 fetchErr 分支 +1」前移到
+//      getMemories 拉取**之前** +1，完整跑到置门闩处才清零 ⇒ 页面中途被杀（迁移要发
+//      几百次请求）也算一次尝试，连续 3 次即 24h 退避。C-8 段 7 条断言对应该补丁。
 //
 // 这个脚本从 index.html **抠出真函数**跑（不是抄一份），用假的 localStorage/window/console
 // 和一个"手动 flush 的 rIC/setTimeout"，断言：
@@ -78,7 +81,7 @@ function stripComments(s) {
 function makeSandbox(opts = {}) {
   const {
     migrated = false, fails = null, backoffUntil = null,
-    localCount = 2, fetchError = false, addError = false,
+    localCount = 2, fetchError = false, addError = false, hangAtAdd = 0,
   } = opts;
 
   const store = new Map();
@@ -105,6 +108,8 @@ function makeSandbox(opts = {}) {
   const memoryRef = { value: [...base, ...extra].slice(0, Math.max(localCount, 0)) };
 
   let addSeq = 0;
+  // hangAtAdd > 0：第 N 次 addMemory 永不 resolve —— 模拟「页面在处理到第 N 条时被杀」
+  let addCalls = 0;
   const supabaseMemory = {
     async getMemories(type, limit) {
       calls.getMemories.push({ type, limit });
@@ -121,6 +126,7 @@ function makeSandbox(opts = {}) {
     async addMemory(content, type, importance, flags, source, tags) {
       calls.addMemory++; calls.addedContents.push(content);
       if (addError) return { data: null, error: { message: 'nope' } };
+      if (hangAtAdd && ++addCalls >= hangAtAdd) return new Promise(() => {});
       return { data: [{ id: 'new' + (++addSeq), content }], error: null };
     },
   };
@@ -174,6 +180,7 @@ function makeSandbox(opts = {}) {
 
   api.flushIdle = async () => { while (idleQueue.length) idleQueue.shift().cb(); await drainMicro(); };
   api.fireTimers = async () => { const list = timers.splice(0, timers.length); for (const t of list) t.cb(); await drainMicro(); };
+  api.drain = drainMicro;   // 「页面被杀」用：让挂在 await 上的 migrate 尽量往前跑，但不等它返回
   api.pendingIdle = () => idleQueue.length;
   api.pendingTimers = () => timers.length;
   api.store = store;
@@ -320,6 +327,39 @@ console.log('\n=== C. migrate 的门闩（两次）、退避、sbId 判重、落
     const { api, calls } = makeSandbox({ migrated: false });
     await api.migrate();
     ok(calls.persist >= 1, '迁移末尾仍调 persistMemory（落 IDB）');
+  }
+
+  // --- C-8 ao 2026-10-11 补丁：尝试次数「拉取前」就 +1，走完才清零 ---
+  // 目的：页面中途被杀（迁移要发几百次请求）既不计失败、门闩也不置 ⇒ 下次打开永远重来。
+  // 把记账点前移到 getMemories 之前，被杀的也算一次；只有完整走到置门闩处才清零。
+  {
+    // (1) 拉取前就 +1：只用「拉取即报错」的沙箱，看计数是否在没有走完 migrate 时已经变 1。
+    //     判据不依赖失败分支是否还在 —— 不管 fetchErr 分支有没有重复 +1，这里都必须是 1。
+    const p1 = makeSandbox({ migrated: false, fetchError: true });
+    await p1.api.migrate();
+    ok(p1.store.get('nest_memory_migrate_fails') === '1',
+       `拉取前已 +1：拉取失败后计数 = 1（不是 2；实测 ${p1.store.get('nest_memory_migrate_fails')}）`);
+    ok(!bodyM.includes('noteMemoryMigrateFailure(); return;'),
+       '原 fetchErr 分支**不再**重复 +1（那条早退分支里已无 noteMemoryMigrateFailure）');
+
+    // (2) 中途终止后计数保留：处理到第 2 条时页面被杀（addMemory 永不 resolve）。
+    //     begin 记账点若在拉取之后、结束清零之前，2 号沙箱必须累计成 3 并落 24h 退避戳。
+    const p2 = makeSandbox({ migrated: false, fails: 2, localCount: 5, hangAtAdd: 2 });
+    // 故意不 await 这个 promise（void 明说不等它）：它永远悬在「第 2 条 addMemory」上 —— 这就是「页面被杀」
+    void p2.api.migrate();
+    await p2.api.drain();
+    const until2 = Number(p2.store.get('nest_memory_migrate_backoff_until'));
+    ok(p2.store.get('nest_memory_migrate_fails') === '3',
+       `中途终止后计数保留：被杀这一次也算（2 次旧计数 + 本轮 1 = 3；实测 ${p2.store.get('nest_memory_migrate_fails')}）`);
+    ok(until2 > Date.now() + 23 * 3600 * 1000 && until2 <= Date.now() + 25 * 3600 * 1000,
+       `中途终止后计数保留：第 3 次即落 24h 退避戳（实测 ${((until2 - Date.now()) / 3600000).toFixed(2)} 小时后）`);
+    ok(p2.store.get('nest_memory_migrated_v1') === undefined, '中途终止：门闩**不**置位（下次还会（受退避约束地）重来）');
+
+    // (3) 走完清零：正常路径必须把计数与退避戳一起清掉
+    const p3 = makeSandbox({ migrated: false, fails: 2, localCount: 2 });
+    await p3.api.migrate();
+    ok(!p3.store.has('nest_memory_migrate_fails'), '走完清零：失败计数被清掉');
+    ok(p3.store.get('nest_memory_migrated_v1') === '1', '走完清零：门闩置位（这一条同时是清零的触发条件）');
   }
 }
 
