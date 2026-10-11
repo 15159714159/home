@@ -4727,7 +4727,13 @@ async function refreshMemoryFromSupabase() {
 }
 async function initSupabaseMemorySync() {
   await migrateLocalToSupabase();
-  await refreshMemoryFromSupabase();
+  // 2026-10-11：启动时不再拉取 500 条记忆正文（refreshMemoryFromSupabase 保留不删，函数定义仍在下方）。
+  // 原因：那 500 条的唯一消费者是 token 估算那条链（buildMemoryInjection→estimateContextTokens→
+  // refreshTokenEstimate），而 buildMemoryInjection 只读本地 memory 数组、不看云端字段；
+  // 导出备份取的是 IDB（exportBackupBtn 的 nest_memory），也不经过这里。
+  // 而 ombre-backend.js 的 getMemories 是 N+1（列表 + 每条一个详情请求），首屏这 500 条 ≈ 500 次
+  // 公网往返，是「打开 home 很卡」的主要成本，收益与代价完全不成比例。
+  // 需要新鲜记忆时（例如以后做记忆页）再显式调用 refreshMemoryFromSupabase 即可。
 }
 
 /* ============================================================
