@@ -4183,14 +4183,23 @@ function scheduleChatSync() {
 }
 // 切到后台也顺手把合并写落地：手机上 pagehide 不一定会来（进程被系统直接回收时就没有），
 // 而 visibilitychange(hidden) 基本都能收到，多这一道不至于让最后一次改动躺在 400ms 窗口里丢。
-document.addEventListener('visibilitychange', () => { if (document.hidden) { flushPersistMessages(); flushChatSync(); } else refreshChatsOnResume(); });
+// 阶段 3（2026-10-11）：顺手把 5s 轮询也停掉——页面在后台时既没人看，跨设备及时性也无意义，
+// 停掉等于隐藏页流量归零。写侧那两下（flushPersistMessages/flushChatSync）不动。
+// 回前台只**重启定时器**，不在这里补拉一次：下面 refreshChatsOnResume 已经会拉一次主聊天，
+// 补拉会叠成两次全量。
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { flushPersistMessages(); flushChatSync(); stopMainChatPollSafely(); }
+  else { startMainChatPollSafely(); refreshChatsOnResume(); }
+});
 // 攒着的那次合并写（见 persistMessages）必须在页面离开前落地，否则刷新/关闭正好落在 400ms 窗口里时，
 // 最后一次改动就丢了。pagehide 这条最可靠（bfcache 进出、关闭、切后台都走它）；
 // visibilitychange 那条是它被浏览器吞掉时的兜底。
 // 顺序上先 flush 本地写再 flushChatSync：后者会读 messages 生成提示文案，读到的是内存里的值，
 // 其实不依赖这次落盘，但没有理由把本地持久化排在网络请求后面。
 window.addEventListener('pagehide', () => { flushPersistMessages(); flushChatSync(); });
-window.addEventListener('pageshow', refreshChatsOnResume);
+// bfcache 唤醒（pageshow）同 visibilitychange(可见) 一样只做两件事：重启 5s 轮询 + 让
+// refreshChatsOnResume 拉那一次。不额外补拉，理由同上。
+window.addEventListener('pageshow', () => { startMainChatPollSafely(); refreshChatsOnResume(); });
 // 事故复盘5：长时间挂起的标签页被浏览器唤醒（bfcache恢复）不会重跑 DOMContentLoaded，initChatSync()
 // 也就不会再执行，画面会一直停留在唤醒前内存里的旧数据上，看起来像"没同步"。所以补一个"回到前台就拉一次云端"
 // 的钩子；refreshSubChatsFromSupabase 内部已经会拿 localTouchedAt 跟云端 updated_at 比较，本地更新时会
@@ -4211,11 +4220,26 @@ async function refreshChatsOnResume() {
   resumePending = false;
   chatSyncRefreshing = true;
   try {
-    const { data: mainRow } = await window.supabaseChats.getChat('main');
+    // 阶段 3（2026-10-11）：这一路是"定时轮询/回前台刷新"两路里的一路，允许带 since 走条件请求。
+    // getChat 内部只在 since 是非空字符串时才真的带上，所以其他调用点行为不变；
+    // since 的来源是 supabase.js 里那个去重键——它只在"这份快照真的被消费掉"之后才推进，
+    // 拿不到就用空串，走全量（= 改动前行为）。
+    // 取键走 getMainChatVersionSafely()：老 supabase.js 没这个导出时返回空串，
+    // 不让一个 TypeError 从这个没有 catch 的 try 里漏出去把后面的副聊天刷新一起带走。
+    const { data: mainRow } = await window.supabaseChats.getChat('main', { since: getMainChatVersionSafely() });
     // 内部 filterDeletedLocally 会挡住"云端还没落地这次删除"的旧快照。
     // 它自己已经负责主聊天的重画（有变化才画），所以这里不再叠一次 onChatSyncDone() 的整窗重建——
     // 以前那两下是连着来的，白画一整窗 30 行。
-    if (mainRow) applyCloudMainUpdate(mainRow);
+    // 阶段 3（2026-10-11）：服务端说"没变"（收到 data.unchanged===true）时，只跳过「主聊天应用」这一段。
+    // **绝不能 return 整个函数**——下面 refreshSubChatsFromSupabase 与副聊天重画必须照常跑，
+    // 否则切回前台后副聊天就再也不会刷新了（subchats 没有自己的轮询）。
+    // 走 else-if 而不是 if/else：mainRow 为 null（拉取失败/降级）时两条都不进，
+    // applyCloudMainUpdate 本来也会对 null 直接 return true，行为与改动前一致。
+    if (mainRow && mainRow.unchanged === true) {
+      console.warn('主聊天条件请求命中：服务端未变化，跳过主聊天应用（仍继续刷新副聊天）');
+    } else if (mainRow) {
+      applyCloudMainUpdate(mainRow);
+    }
     await refreshSubChatsFromSupabase();
     if (currentSubChatId) { subRenderStart = null; renderSubChatMessages(); }
     renderSubChatSidebarList();
@@ -4729,7 +4753,14 @@ async function initChatSync(attempt = 0) {
   try {
     const { data: mainRow, error } = await window.supabaseChats.getChat('main');
     if (error) { console.warn('Supabase聊天记录状态检查失败，稍后重试', error); retry(); return; }
-    if (mainRow && Array.isArray(mainRow.data)) { messages = mergeCloudTailIntoLocal(messages, mainRow.data); messages = filterDeletedLocally(messages); persistMessagesNow(); }
+    if (mainRow && Array.isArray(mainRow.data)) {
+      // 阶段 3：把「合并前本机序列」和「合并结果」显式留下来，只喂给紧随其后的播种检查。
+      // 这两句不改变 initChatSync 的任何行为——合并、过滤、落盘的顺序与赋值对象与改动前逐字一致。
+      const mainSeqBefore = messages.map(m => m.id);
+      const mergedMain = mergeCloudTailIntoLocal(messages, mainRow.data);
+      messages = mergedMain; messages = filterDeletedLocally(messages); persistMessagesNow();
+      seedMainChatVersionOnce(mainRow, mergedMain, mainSeqBefore);
+    }
     subscribeMainChatOnce();
     await refreshSubChatsFromSupabase();
     chatSyncReady = true;
@@ -4738,6 +4769,73 @@ async function initChatSync(attempt = 0) {
     // 初始化期间（chatSyncReady 还是 false）切回前台会被闸门挡下，这里补跑一次
     if (resumePending) drainDeferredSync();
   } catch(e) { console.warn('Supabase聊天记录同步初始化出错，稍后重试', e); retry(); }
+}
+/* ============================================================
+阶段 3：主聊天轮询的启停与首屏播种（2026-10-11 流量修复）
+============================================================ */
+// 启停都做成"先看 window.supabaseChats 有没有这对导出"的薄封装：老页面/模块还没挂上时
+// （或缓存里的旧 supabase.js）就整体 no-op，不允许因为多调一个不存在的方法把
+// visibilitychange 这条已经工作了很久的写侧通道带崩。
+function startMainChatPollSafely() {
+  const c = window.supabaseChats;
+  if (!c || typeof c.startMainChatPoll !== 'function') return;
+  // immediate:false —— 回前台这条路上 refreshChatsOnResume 已经会拉一次主聊天，
+  // 这里再立刻拉一次就是两根并发请求（内容刚变时两根都走全量），明确不要。
+  c.startMainChatPoll({ immediate: false });
+}
+function stopMainChatPollSafely() {
+  const c = window.supabaseChats;
+  if (!c || typeof c.stopMainChatPoll !== 'function') return;
+  c.stopMainChatPoll();
+}
+// 取去重键也走薄封装。supabase.js 是 <script type="module">，浏览器会按 HTTP 缓存留着旧的那一份，
+// 于是"新 index.html + 旧 supabase.js"能共存一小段时间（长则几分钟）。老版本没有这几个新导出，
+// 直呼就是 TypeError；而 :4227 那一句在 refreshChatsOnResume 的 try 里、那个 try 没有 catch，
+// 抛出去会连后面的副聊天刷新一起跳过——正好毁掉这一路唯一的副聊天刷新机会。
+// 拿不到就返回空串：getChat 内部只在 since 非空时才是条件请求，空串 = 不带 = 改动前行为。
+function getMainChatVersionSafely() {
+  const c = window.supabaseChats;
+  if (!c || typeof c.getMainChatVersion !== 'function') return '';
+  try { return c.getMainChatVersion() || ''; } catch(e) { return ''; }
+}
+// 首屏播种去重键：initChatSync 那一次 getChat('main') 拿到的 mainRow 就是"本机已经合并进内存的那一份"，
+// 把它的 updated_at 播进 supabase.js 的 lastMainChatUpdatedAt，之后第一根 5s 轮询就能带 since 走条件请求，
+// 不必再多下一份 10 MB。
+//
+// 播种前必须过两道保护（这两道是历史上 4 起数据丢失事故留下的，不能因为省一次全量就绕开）：
+//   ① mergeCloudTailIntoLocal 没返回 null —— 返回 null 说明云端窗口与本地历史完全无交集、
+//      那一份**压根没被合并进来**，此时播种等于宣布"我手上就是这个版本"，云端真正的内容会被短路挡在门外。
+//   ② !cloudSnapshotIsStale —— 云端这份比本地短，说明它是陈旧快照或本地刚发还没落库，
+//      播种会把这份短快照的版本号认成"已消费"，下一份更长的快照要等 updated_at 再次变化才回来。
+// 主聊天只由后端写、前端在这里是纯只读，所以"本地比云端长"在主聊天路径上不会出现，
+// ② 实际是给 ④ 上一道保险；不满足就不播，保持 null，首轮轮询照旧走全量（= 现状，零新风险）。
+// 任何一步抛异常、任何一项不过、updated_at 不是非空字符串 → 一律不播，静默退回全量。
+//
+// 两道检查都**复用原函数本身**，不改它们的逻辑，也不改调用顺序：
+//   ① 直接看 initChatSync 那一次的合并结果（合不成就是 null，与 applyCloudMainUpdate 同一判据）；
+//   ② cloudSnapshotIsStale 比的是「合并结果 vs 合并前的本机序列」——正是 applyCloudMainUpdate
+//      里 nextSeq/localSeq 的关系，不拿合并结果跟它自己比（那恒为 false，等于没检查）。
+function seedMainChatVersionOnce(mainRow, mergedMain, seqBefore) {
+  try {
+    const c = window.supabaseChats;
+    if (!c || typeof c.seedMainChatVersion !== 'function') return;
+    if (!mainRow || !Array.isArray(mainRow.data)) return;
+    if (!mainRow.updated_at) return;
+    // mainGenerating 在首屏必为假（这时还没有任何回合在跑）；万一不是，说明本地正在流式，
+    // 这一份快照的应用本来就会被 applyCloudMainUpdate 分支处理，不在这里抢答。
+    if (mainGenerating) return;
+    if (mergedMain === null || !Array.isArray(mergedMain)) {
+      console.warn('首屏未播种主聊天版本：云端窗口与本地历史无交集（该分支本就不合并）');
+      return;
+    }
+    if (cloudSnapshotIsStale(mergedMain.map(m => m.id), seqBefore)) {
+      console.warn('首屏未播种主聊天版本：云端快照比本地短');
+      return;
+    }
+    c.seedMainChatVersion(mainRow.updated_at);
+  } catch(e) {
+    console.warn('首屏播种主聊天版本失败（不影响正确性，首轮轮询走全量）', e);
+  }
 }
 function subscribeMainChatOnce() {
   if (mainChatSubscribed || !window.supabaseChats || !window.supabaseChats.subscribeMainChat) return;

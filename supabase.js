@@ -80,8 +80,16 @@ export async function addComment(diaryId, comment) {
 const CLIENT_ID = (navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop') + '-' +
   Math.random().toString(36).slice(2, 8) + '-' + new Date().toISOString().slice(5, 16);
 
-export async function getChat(kind) {
-  return api('/chat-sync', { kind });
+// 阶段 3（2026-10-11）：条件请求。opts.since 显式可选，**默认不带**——
+// 只有定时轮询与回前台刷新两路会传，其余调用点（首屏、409 冲突分支、任何用来刷新
+// expectedUpdatedAt 的拉取）连调都不用改，请求体与改动前逐字节一致。
+// 服务端命中时只回 { unchanged:true, updated_at }（几十字节），**不带 data.data**；
+// 所以调用方必须能容忍 data 不是消息数组——凡是需要真消息体的地方一律不许传 since。
+export async function getChat(kind, opts) {
+  const body = { kind };
+  const since = opts && typeof opts.since === 'string' ? opts.since.trim() : '';
+  if (since) body.since = since;
+  return api('/chat-sync', body);
 }
 export async function upsertChat(kind, data, expectedUpdatedAt) {
   const res = await api('/chat-sync', { kind, data, expectedUpdatedAt });
@@ -96,14 +104,48 @@ let mainPollInFlight = false;
 
 export function subscribeMainChat(onUpdate) {
   mainChatPollCallback = onUpdate;
-  if (mainChatPollTimer) return { unsubscribe: () => stopMainChatPoll() };
-  pollMainChat();
-  mainChatPollTimer = setInterval(pollMainChat, 5000);
-  return { unsubscribe: () => stopMainChatPoll() };
+  startMainChatPoll();
+  return { unsubscribe: () => unsubscribeMainChatPoll() };
 }
-function stopMainChatPoll() {
+// 阶段 3（2026-10-11）：把定时器收进一对显式启停，给 index.html 的 visibilitychange/pageshow 用。
+// 定时器句柄已经有现成的（mainChatPollTimer），不新造变量、不改别的结构。
+// 关键约束：**已有定时器时直接 return，不得重复创建**——重复创建会让每次切前台多堆一根 5s 定时器，
+// 请求数翻倍。回前台只重启定时器，**不在这里补拉一次**：refreshChatsOnResume 已经会拉一次主聊天，
+// 补拉会叠成两次全量。
+export function startMainChatPoll(opts) {
+  if (mainChatPollTimer) return;
+  if (!mainChatPollCallback) return;
+  // 立刻拉一次只在「订阅首启」那条路上做（subscribeMainChat 调它时不传参）——那时没有任何
+  // 别的通道在拉，不拉就要等满一个 5s tick，画面白等 5 秒。
+  // 「回前台 / bfcache 唤醒」那条路显式传 { immediate:false }：同一时刻 refreshChatsOnResume
+  // 已经会拉一次主聊天，这里再补一次就是两根并发请求——内容刚变时两根都会走全量（各 10MB），
+  // 比不修还糟，正是 ao 明确要避免的"叠成两次全量"。
+  if (!opts || opts.immediate !== false) pollMainChat();
+  mainChatPollTimer = setInterval(pollMainChat, 5000);
+}
+// 只停定时器与在途守卫的重复建，**不清回调**：回调是订阅方（index.html）注册的，停表不等于退订，
+// 回前台 startMainChatPoll 还要靠它继续投递。在飞的请求不用管，pollMainChat 的 finally 会释放。
+export function stopMainChatPoll() {
   if (mainChatPollTimer) { clearInterval(mainChatPollTimer); mainChatPollTimer = null; }
+}
+// 退订专用（subscribeMainChat 返回的 unsubscribe 用）。与 stopMainChatPoll 分开是因为两者语义不同：
+// 一个是"暂停取数"，一个是"没人要了"。
+function unsubscribeMainChatPoll() {
+  stopMainChatPoll();
   mainChatPollCallback = null;
+}
+// 阶段 3：首屏播种去重键。initChatSync 那一次 getChat('main') 不带 since（老行为，字节数与改动前一致），
+// 拿到的 updated_at 就是"本机已经消费掉的那一份版本"。不播的话，开页面后第一根轮询还得多下一整份 10 MB。
+// 只接受非空字符串：拿不到就保持 null，轮询照旧走全量（= 现状，没有新风险）。
+export function seedMainChatVersion(v) {
+  if (typeof v === 'string' && v) lastMainChatUpdatedAt = v;
+}
+// 只读出口，给 index.html 的 refreshChatsOnResume 取当前去重键用（它自己要发那一根条件请求）。
+// 归一成"非空字符串或空串"：调用方拿到空串就等于不带 since，走全量，与改动前一致。
+// 不提供 setter——要写只能走 seedMainChatVersion（首屏播种）或轮询内部推进，
+// 免得别处随手塞一个本地生成的时间戳进来把别的设备的更新误判成"没变"。
+export function getMainChatVersion() {
+  return typeof lastMainChatUpdatedAt === 'string' ? lastMainChatUpdatedAt : '';
 }
 // 去重键（lastMainChatUpdatedAt）**只在这一次投递真的被消费掉之后**才推进。
 // 以前是先推进后投递：回调侧只要在某条早退分支上 return（生成中 / 陈旧快照 / 锚点对不上），
@@ -117,8 +159,15 @@ async function pollMainChat() {
   if (!mainChatPollCallback || mainPollInFlight) return;
   mainPollInFlight = true;
   try {
-    const { data, error } = await api('/chat-sync', { kind: 'main' });
+    // 阶段 3（2026-10-11）：带上本机已消费的版本号走条件请求。getChat 内部只在
+    // lastMainChatUpdatedAt 是非空字符串时才会真的把 since 放进请求体，所以首轮（null）
+    // 与任何异常情形依旧是不带 since 的全量，向后兼容。
+    const { data, error } = await getChat('main', { since: lastMainChatUpdatedAt });
     if (error || !data) return;
+    // 服务端说"没变，就是你手上那一版"→ 什么都不做：不推进去重键、不重画、不碰本地消息。
+    // 严格 === true：老服务端 / 不带 since 的响应里没有这个字段，undefined 会落到下面原有逻辑，
+    // 与改动前逐字节一致。
+    if (data.unchanged === true) return;
     if (data.updated_at && data.updated_at !== lastMainChatUpdatedAt) {
       const consumed = mainChatPollCallback(data);
       if (consumed !== false) lastMainChatUpdatedAt = data.updated_at;
@@ -172,7 +221,7 @@ export async function claimDueChecklistAlarms(nowMs) {
 // 主脚本是非 module 的经典 <script>，无法 import 本文件；挂到 window 上供其调用
 window.supabaseMemory = { addMemory, getMemories, searchMemories, updateMemory, deleteMemory, updateDecay };
 window.supabaseDiary = { addDiary, getDiaries, addComment };
-window.supabaseChats = { getChat, upsertChat, subscribeMainChat };
+window.supabaseChats = { getChat, upsertChat, subscribeMainChat, startMainChatPoll, stopMainChatPoll, seedMainChatVersion, getMainChatVersion };
 window.supabaseChecklist = { getChecklist, addChecklistItem, updateChecklistItem, deleteChecklistItem, claimDueChecklistAlarms };
 window.supabaseAiConfig = { upsertAiConfig };
 window.supabaseMood = { getMood, upsertMood };
