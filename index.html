@@ -4589,6 +4589,48 @@ const MEM_TYPE_TO_SUPABASE = { you: '侧写', us: '共鸣', study: '学业', nes
 // 仅作为展示分类的合理默认值，不影响已存在本地记忆的原始type
 const SUPABASE_TYPE_TO_MEM = { '侧写': 'you', '共鸣': 'us', '学业': 'study', '造巢': 'nest', '自我': 'me' };
 const LS_MEMORY_MIGRATED = 'nest_memory_migrated_v1';
+// A2（2026-10-11 ao 拍板五点）：迁移挪出首屏后的耐久性措施。
+// 迁移要拉 1000 条（N+1，约 1000 次公网往返），一旦失败而门闩又不置位，
+// 每次开页面都会重来一遍 —— 所以失败要计数、连续失败要停手、成功要清零。
+const LS_MEMORY_MIGRATE_FAILS = 'nest_memory_migrate_fails';
+const LS_MEMORY_MIGRATE_BACKOFF_UNTIL = 'nest_memory_migrate_backoff_until';
+const MEMORY_MIGRATE_BACKOFF_MS = 24 * 60 * 60 * 1000;
+const MEMORY_MIGRATE_FAIL_THRESHOLD = 3;
+const MEMORY_MIGRATE_PERSIST_EVERY = 10;
+function memoryMigrateFails() {
+  return Number(localStorage.getItem(LS_MEMORY_MIGRATE_FAILS) || 0);
+}
+function noteMemoryMigrateFailure() {
+  const n = memoryMigrateFails() + 1;
+  localStorage.setItem(LS_MEMORY_MIGRATE_FAILS, String(n));
+  if (n >= MEMORY_MIGRATE_FAIL_THRESHOLD) {
+    localStorage.setItem(LS_MEMORY_MIGRATE_BACKOFF_UNTIL, String(Date.now() + MEMORY_MIGRATE_BACKOFF_MS));
+    console.warn(`记忆迁移已连续失败 ${n} 次，24 小时内不再重试（期间开页面直接跳过迁移拉取）`);
+  }
+}
+function clearMemoryMigrateFailure() {
+  localStorage.removeItem(LS_MEMORY_MIGRATE_FAILS);
+  localStorage.removeItem(LS_MEMORY_MIGRATE_BACKOFF_UNTIL);
+}
+function memoryMigrateInBackoff() {
+  return Number(localStorage.getItem(LS_MEMORY_MIGRATE_BACKOFF_UNTIL) || 0) > Date.now();
+}
+// 把迁移排到空闲时段（首屏不再 await 它）：rIC 优先，setTimeout(3000) 兜底，
+// 两条路共用一个 done 闩 —— 谁先到谁跑，另一个空转。门闩（LS_MEMORY_MIGRATED）
+// 判两次：排之前判一次（老用户常态，连表都不排），回调里再判一次（排队期间别处跑完了）。
+function scheduleMemoryMigration() {
+  if (localStorage.getItem(LS_MEMORY_MIGRATED)) return;
+  if (memoryMigrateInBackoff()) return;
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    if (localStorage.getItem(LS_MEMORY_MIGRATED)) return;
+    migrateLocalToSupabase();
+  };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 3000 });
+  setTimeout(run, 3000);
+}
 function syncMemoryAddToSupabase(entry) {
   if (!window.supabaseMemory) return;
   const sbType = MEM_TYPE_TO_SUPABASE[entry.type];
@@ -4668,26 +4710,40 @@ async function migrateLocalToSupabase() {
   if (localStorage.getItem(LS_MEMORY_MIGRATED)) return;
   if (!window.supabaseMemory) return;
   const { data: existing, error: fetchErr } = await window.supabaseMemory.getMemories(null, 1000);
-  if (fetchErr) { console.warn('迁移前拉取Supabase记忆失败，本次跳过迁移，下次加载再试', fetchErr); return; }
+  if (fetchErr) { console.warn('迁移前拉取Supabase记忆失败，本次跳过迁移，下次加载再试', fetchErr); noteMemoryMigrateFailure(); return; }
   const existingByContent = new Map((existing || []).map(m => [m.content, m]));
-  let written = 0, skipped = 0;
+  // sbId 判重：本地这条已经挂过云端 id 的（哪怕正文后来被改过、content 已对不上），不再补写第二份
+  const existingIds = new Set((existing || []).map(m => m.id));
+  let written = 0, skipped = 0, processed = 0, sincePersist = 0;
   for (const m of memory) {
-    const dup = existingByContent.get(m.content);
-    if (dup) { m.sbId = m.sbId || dup.id; skipped++; continue; }
-    const sbType = MEM_TYPE_TO_SUPABASE[m.type] || '侧写';
-    try {
-      const flags = { protected: m.protected, highlight: m.highlight, feel: m.feel, noise: m.noise };
-      const { data, error } = await window.supabaseMemory.addMemory(m.content, sbType, m.importance, flags, m.source, m.tags);
-      if (error) { console.warn('迁移记忆写入失败', error, m); skipped++; continue; }
-      if (data && data[0]) {
-        m.sbId = data[0].id; existingByContent.set(m.content, data[0]);
-        if (window.memoryEmbedding) window.memoryEmbedding.storeWithEmbedding(m.sbId, m.content);
+    processed++;
+    if (m.sbId && existingIds.has(m.sbId)) { skipped++; }
+    else {
+      const dup = existingByContent.get(m.content);
+      if (dup) { m.sbId = m.sbId || dup.id; skipped++; }
+      else {
+        const sbType = MEM_TYPE_TO_SUPABASE[m.type] || '侧写';
+        try {
+          const flags = { protected: m.protected, highlight: m.highlight, feel: m.feel, noise: m.noise };
+          const { data, error } = await window.supabaseMemory.addMemory(m.content, sbType, m.importance, flags, m.source, m.tags);
+          if (error) { console.warn('迁移记忆写入失败', error, m); skipped++; }
+          else {
+            if (data && data[0]) {
+              m.sbId = data[0].id; existingByContent.set(m.content, data[0]); existingIds.add(data[0].id);
+              if (window.memoryEmbedding) window.memoryEmbedding.storeWithEmbedding(m.sbId, m.content);
+            }
+            written++;
+          }
+        } catch(e) { console.warn('迁移记忆写入出错', e, m); skipped++; }
       }
-      written++;
-    } catch(e) { console.warn('迁移记忆写入出错', e, m); skipped++; }
+    }
+    // 每 10 条落一次盘：迁移要跑上千条网络往返，逐条落盘会让 IDB 写入成为新瓶颈；
+    // 而完全不落盘又会在中途被杀时丢掉全部 sbId（下次要重写一遍）。
+    if (processed - sincePersist >= MEMORY_MIGRATE_PERSIST_EVERY) { persistMemory(); sincePersist = processed; }
   }
-  persistMemory();
+  if (processed === 0 || sincePersist < processed) persistMemory();
   localStorage.setItem(LS_MEMORY_MIGRATED, '1');
+  clearMemoryMigrateFailure();
   console.log(`记忆迁移完成：写入${written}条，跳过${skipped}条`);
 }
 function supabaseRowToMemoryItem(row) {
@@ -4726,7 +4782,7 @@ async function refreshMemoryFromSupabase() {
   } catch(e) { console.warn('Supabase记忆拉取出错，使用本地缓存', e); }
 }
 async function initSupabaseMemorySync() {
-  await migrateLocalToSupabase();
+  scheduleMemoryMigration();
   // 2026-10-11：启动时不再拉取 500 条记忆正文（refreshMemoryFromSupabase 保留不删，函数定义仍在下方）。
   // 原因：那 500 条的唯一消费者是 token 估算那条链（buildMemoryInjection→estimateContextTokens→
   // refreshTokenEstimate），而 buildMemoryInjection 只读本地 memory 数组、不看云端字段；
