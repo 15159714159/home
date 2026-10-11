@@ -4842,7 +4842,21 @@ function subscribeMainChatOnce() {
   mainChatSubscribed = true;
   // 回调返回值语义：true=这份快照被吃掉了，false=没吃掉（快照已被 park，等着重放）。
   // supabase.js 的轮询据此决定要不要推进去重键——返回 false 它就不推进，下个 tick 会重投。
-  window.supabaseChats.subscribeMainChat(row => applyCloudMainUpdate(row));
+  //
+  // 期 1 ⑨（2026-10-11）：第二个参数是 supabase.js 新增的可选判定函数——「本 tick 要不要跳过」。
+  // 回合进行中返回 true，那边就一个字节都不发，直接省掉整轮里每 5 秒一根的 10 MB 整包
+  // （那些包必然被 park、必然用不上，还跟流式抢带宽）。回合结束后键没推进，第一根 tick
+  // 照旧带旧 since 拿全量并消费，不丢更新。
+  // 走 Safely 包装：判定函数本身包一层 try/catch，任何异常一律返回 false（= 不跳过），
+  // 这是省流量优化，不允许它把一条只读通道弄停。supabase.js 那边也做了非函数即忽略的处理，
+  // 所以「新 index.html + 缓存里的旧 supabase.js」这个共存窗口里，多传的这个实参被忽略，
+  // 行为与改动前逐字一致（旧行为），不会抛 TypeError。
+  window.supabaseChats.subscribeMainChat(row => applyCloudMainUpdate(row), shouldSkipMainChatPollSafely);
+}
+// 「当前是不是有回合在跑」——⑨ 的判定入口，给 supabase.js 的 pollMainChat 用。
+// 只读 mainGenerating，不做任何别的事；抛异常一律返回 false（不跳过 = 旧行为）。
+function shouldSkipMainChatPollSafely() {
+  try { return !!mainGenerating; } catch(e) { return false; }
 }
 
 /* ============================================================
@@ -4856,6 +4870,8 @@ function subscribeMainChatOnce() {
 //
 // 现在统一改成：不消费就 park 进槽位，1.5s 后自己重放一次；另外由"回合结束(finally)"和
 // "回到前台"两个时机各补一次 drain。drain 是幂等的，重复调用无副作用。
+// 期 1 ②（2026-10-11）：重放时若仍在生成中，原来会"清掉定时器就早退"，槽位留在那儿但没人再来放，
+// 等于永久搁置；现在改成重新排一根续期（见 drainPendingCloudRow），并带 5 分钟上限。
 // 槽位只留最近一份：drain 时会重新走一遍 applyCloudMainUpdate 的合并逻辑，而合并本身
 // 就是"把云端尾巴接到本地"的幂等操作，所以丢掉中间某一份不影响最终收敛。
 let pendingCloudRow = null;
@@ -4866,11 +4882,28 @@ function parkCloudRow(row, why) {
   pendingCloudRow = row;
   clearTimeout(pendingCloudTimer);
   if (why) console.warn('云端主聊天快照本次未消费，已挂起重放：', why);
-  pendingCloudTimer = setTimeout(drainPendingCloudRow, 1500);
+  // 期 1 ②：每次 park 都从满额上限重新计（上一根续期链已经作废，见上面的 clearTimeout）。
+  pendingCloudTimer = setTimeout(drainPendingCloudRow, PENDING_DRAIN_RETRY_MS);
 }
-function drainPendingCloudRow() {
+const PENDING_DRAIN_RETRY_MS = 1500;      // park 之后多久重放一次（原值，未改）
+const PENDING_DRAIN_MAX_RETRIES = 200;    // 期 1 ②：最多连续续期多少次 —— 200 × 1.5s = 300s = 5 分钟
+function drainPendingCloudRow(retriesLeft) {
   clearTimeout(pendingCloudTimer); pendingCloudTimer = null;
-  if (mainGenerating) return;                // 还没轮到，保留在槽位里
+  // 期 1 ②（2026-10-11）：早退时必须**重新排一根定时器**，否则槽位留着、定时器已灭，没人再来重放，
+  // 这份快照就永久搁置在槽里（正是"刷新才出现"的那条路）。原来的写法是第一行清定时器、
+  // 第二行判标志，早退后什么都不剩。
+  if (mainGenerating) {
+    // 带上限：mainGenerating 万一卡住不复位，不允许无限空转重排，到顶就放弃自动续期。
+    // **到顶也不清空槽位**——快照留着，交由回合结束的 drainDeferredSync（以及回到前台的
+    // drainDeferredSync）兜底重放，只是不再自己排表。丢内容比多转几次严重得多。
+    const left = (typeof retriesLeft === 'number' ? retriesLeft : PENDING_DRAIN_MAX_RETRIES) - 1;
+    if (left <= 0) {
+      console.warn('云端主聊天快照重放续期到顶（累计约 5 分钟仍在生成中），已停止自动续期，快照保留在槽位等回合结束补放');
+      return;
+    }
+    pendingCloudTimer = setTimeout(() => drainPendingCloudRow(left), PENDING_DRAIN_RETRY_MS);
+    return;
+  }
   const row = pendingCloudRow; pendingCloudRow = null;
   if (!row) return;
   applyCloudMainUpdate(row);

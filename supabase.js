@@ -101,9 +101,15 @@ let mainChatPollTimer = null;
 let mainChatPollCallback = null;
 let lastMainChatUpdatedAt = null;
 let mainPollInFlight = false;
+// 期 1 ⑨（2026-10-11）：回合进行中「本 tick 不发请求」的判定函数，由订阅方（index.html）注入。
+// 保持 null 就是改动前的行为——不跳过。模块内不预设任何默认判定，免得在没有"回合"概念的场景里误跳。
+let mainChatShouldSkipPoll = null;
 
-export function subscribeMainChat(onUpdate) {
+export function subscribeMainChat(onUpdate, shouldSkipPoll) {
   mainChatPollCallback = onUpdate;
+  // 第二个参数显式可选：老调用点（只传一个回调）行为不变；老 supabase.js 碰到多传的实参也只是
+  // 忽略它，不会抛 TypeError，所以这个参数不需要 Safely 包装（要包装的是页面侧那个判定函数）。
+  mainChatShouldSkipPoll = (typeof shouldSkipPoll === 'function') ? shouldSkipPoll : null;
   startMainChatPoll();
   return { unsubscribe: () => unsubscribeMainChatPoll() };
 }
@@ -133,6 +139,7 @@ export function stopMainChatPoll() {
 function unsubscribeMainChatPoll() {
   stopMainChatPoll();
   mainChatPollCallback = null;
+  mainChatShouldSkipPoll = null;
 }
 // 阶段 3：首屏播种去重键。initChatSync 那一次 getChat('main') 不带 since（老行为，字节数与改动前一致），
 // 拿到的 updated_at 就是"本机已经消费掉的那一份版本"。不播的话，开页面后第一根轮询还得多下一整份 10 MB。
@@ -157,6 +164,20 @@ export function getMainChatVersion() {
 // 把旧的快照盖在新的上面。同一时刻只允许一根在飞。
 async function pollMainChat() {
   if (!mainChatPollCallback || mainPollInFlight) return;
+  // 期 1 ⑨（2026-10-11）：回合进行中直接跳过本 tick，**一个字节都不发**。
+  // 道理：回合期间服务端每写一次主聊天，updated_at 就往前走一步，而本机的去重键因为快照被
+  // park（applyCloudMainUpdate 返回 false）原地不动 → 每一根 5s tick 都带旧 since → 服务端
+  // 每次都回整份 10 MB → 又 park → 键还是不动。整个回合每 5 秒白下 10 MB，还跟流式抢带宽。
+  // 回合结束后这些内容由 done 分支重画 + park 槽重放补齐，中间这几份是纯浪费。
+  // 跳过时**不推进去重键**（键语义不变：只表示"这一版被消费掉了"），所以回合一结束，
+  // 第一根 tick 必然带旧 since → 服务端必然回全量 → 被正常消费并推进键，不丢更新。
+  // 判定失败/没注入/抛异常一律按"不跳过"处理：这是省流量优化，绝不能因为判定函数出问题
+  // 把同步整个停掉（那就是把一条只读通道静默关死）。
+  if (mainChatShouldSkipPoll) {
+    let skip = false;
+    try { skip = !!mainChatShouldSkipPoll(); } catch (e) { skip = false; }
+    if (skip) return;
+  }
   mainPollInFlight = true;
   try {
     // 阶段 3（2026-10-11）：带上本机已消费的版本号走条件请求。getChat 内部只在
