@@ -85,10 +85,17 @@ const CLIENT_ID = (navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'
 // expectedUpdatedAt 的拉取）连调都不用改，请求体与改动前逐字节一致。
 // 服务端命中时只回 { unchanged:true, updated_at }（几十字节），**不带 data.data**；
 // 所以调用方必须能容忍 data 不是消息数组——凡是需要真消息体的地方一律不许传 since。
+// 尾窗（2026-10-12，服务端 69125c7）：opts.tailCount=K 时服务端只回最后 K 条 + partial:true + total。
+// **只在 since 非空时才带**——没有版本号的拉取（首屏、409 冲突分支、失败重试）必须是全量对账；
+// K 必须是 1..200 的整数（和服务端判据一致，越界我们这边就不发）。老服务端忽略这个字段 = 全量。
 export async function getChat(kind, opts) {
   const body = { kind };
   const since = opts && typeof opts.since === 'string' ? opts.since.trim() : '';
-  if (since) body.since = since;
+  if (since) {
+    body.since = since;
+    const k = opts.tailCount;
+    if (kind === 'main' && Number.isInteger(k) && k >= 1 && k <= 200) body.tailCount = k;
+  }
   return api('/chat-sync', body);
 }
 export async function upsertChat(kind, data, expectedUpdatedAt) {
@@ -104,9 +111,13 @@ let mainPollInFlight = false;
 // 期 1 ⑨（2026-10-11）：回合进行中「本 tick 不发请求」的判定函数，由订阅方（index.html）注入。
 // 保持 null 就是改动前的行为——不跳过。模块内不预设任何默认判定，免得在没有"回合"概念的场景里误跳。
 let mainChatShouldSkipPoll = null;
+// 尾窗大小：由订阅方 opt-in（第三参），默认 0 = 不带 = 改动前行为。
+// 这样「新 supabase.js + 缓存里的旧 index.html」不会在页面还不会处理 partial 时就收到 partial。
+let mainChatTailCount = 0;
 
-export function subscribeMainChat(onUpdate, shouldSkipPoll) {
+export function subscribeMainChat(onUpdate, shouldSkipPoll, opts) {
   mainChatPollCallback = onUpdate;
+  mainChatTailCount = (opts && Number.isInteger(opts.tailCount) && opts.tailCount >= 1 && opts.tailCount <= 200) ? opts.tailCount : 0;
   // 第二个参数显式可选：老调用点（只传一个回调）行为不变；老 supabase.js 碰到多传的实参也只是
   // 忽略它，不会抛 TypeError，所以这个参数不需要 Safely 包装（要包装的是页面侧那个判定函数）。
   mainChatShouldSkipPoll = (typeof shouldSkipPoll === 'function') ? shouldSkipPoll : null;
@@ -140,6 +151,7 @@ function unsubscribeMainChatPoll() {
   stopMainChatPoll();
   mainChatPollCallback = null;
   mainChatShouldSkipPoll = null;
+  mainChatTailCount = 0;
 }
 // 阶段 3：首屏播种去重键。initChatSync 那一次 getChat('main') 不带 since（老行为，字节数与改动前一致），
 // 拿到的 updated_at 就是"本机已经消费掉的那一份版本"。不播的话，开页面后第一根轮询还得多下一整份 10 MB。
@@ -183,7 +195,7 @@ async function pollMainChat() {
     // 阶段 3（2026-10-11）：带上本机已消费的版本号走条件请求。getChat 内部只在
     // lastMainChatUpdatedAt 是非空字符串时才会真的把 since 放进请求体，所以首轮（null）
     // 与任何异常情形依旧是不带 since 的全量，向后兼容。
-    const { data, error } = await getChat('main', { since: lastMainChatUpdatedAt });
+    const { data, error } = await getChat('main', { since: lastMainChatUpdatedAt, tailCount: mainChatTailCount });
     if (error || !data) return;
     // 服务端说"没变，就是你手上那一版"→ 什么都不做：不推进去重键、不重画、不碰本地消息。
     // 严格 === true：老服务端 / 不带 since 的响应里没有这个字段，undefined 会落到下面原有逻辑，

@@ -4226,7 +4226,7 @@ async function refreshChatsOnResume() {
     // 拿不到就用空串，走全量（= 改动前行为）。
     // 取键走 getMainChatVersionSafely()：老 supabase.js 没这个导出时返回空串，
     // 不让一个 TypeError 从这个没有 catch 的 try 里漏出去把后面的副聊天刷新一起带走。
-    const { data: mainRow } = await window.supabaseChats.getChat('main', { since: getMainChatVersionSafely() });
+    const { data: mainRow } = await window.supabaseChats.getChat('main', { since: getMainChatVersionSafely(), tailCount: MAIN_TAIL_COUNT });
     // 内部 filterDeletedLocally 会挡住"云端还没落地这次删除"的旧快照。
     // 它自己已经负责主聊天的重画（有变化才画），所以这里不再叠一次 onChatSyncDone() 的整窗重建——
     // 以前那两下是连着来的，白画一整窗 30 行。
@@ -4917,7 +4917,33 @@ function subscribeMainChatOnce() {
   // 这是省流量优化，不允许它把一条只读通道弄停。supabase.js 那边也做了非函数即忽略的处理，
   // 所以「新 index.html + 缓存里的旧 supabase.js」这个共存窗口里，多传的这个实参被忽略，
   // 行为与改动前逐字一致（旧行为），不会抛 TypeError。
-  window.supabaseChats.subscribeMainChat(row => applyCloudMainUpdate(row), shouldSkipMainChatPollSafely);
+  window.supabaseChats.subscribeMainChat(row => applyCloudMainUpdate(row), shouldSkipMainChatPollSafely, { tailCount: MAIN_TAIL_COUNT });
+}
+// 尾窗（2026-10-12，服务端 69125c7）：定时轮询与回前台刷新只要最后 MAIN_TAIL_COUNT 条。
+// 首屏 initChatSync / refreshSubChatsFromSupabase / 任何 409 冲突分支的拉取一律不带——
+// 首屏全量 = 每次打开页面的完整对账，别处对窗外旧条的编辑/删除靠它收敛。
+const MAIN_TAIL_COUNT = 100;
+// 尾窗行的锚点（窗口第一条）在本地找不到：窗口比"本机落后的条数"短（别处一口气多了 >100 条）、
+// 或锚点在本地被删了。此时**不许**走 mergeCloudTailIntoLocal 的「按本地末条重新对齐」回退——
+// 那条回退是为全量快照写的，拿 100 条窗口去对会把窗口里已有的几条重复拼进去。
+// 改成无 tailCount 全量拉一次再走原有路径；全量行不带 partial，所以不会再进这个分支。
+let mainFullPullInFlight = false;
+async function pullFullMainAfterPartialMiss() {
+  if (mainFullPullInFlight) return;
+  const c = window.supabaseChats;
+  if (!c || typeof c.getChat !== 'function') return;
+  mainFullPullInFlight = true;
+  try {
+    console.warn('尾窗锚点在本地缺失，改拉一次全量主聊天');
+    const { data: full, error } = await c.getChat('main');
+    if (error || !full || !Array.isArray(full.data)) return;
+    const consumed = applyCloudMainUpdate(full);
+    // 吃掉了才推进去重键：下一根轮询就能带 since 命中 unchanged。没吃掉（回合中被 park 等）键不动，
+    // 之后第一根 tick 会重新来过——多一次全量，不丢内容。
+    if (consumed !== false && full.updated_at && typeof c.seedMainChatVersion === 'function') c.seedMainChatVersion(full.updated_at);
+  } catch (e) {
+    console.warn('尾窗锚点缺失后的全量拉取失败（下一根轮询会重试）', e);
+  } finally { mainFullPullInFlight = false; }
 }
 // 「当前是不是有回合在跑」——⑨ 的判定入口，给 supabase.js 的 pollMainChat 用。
 // 只读 mainGenerating，不做任何别的事；抛异常一律返回 false（不跳过 = 旧行为）。
@@ -5066,6 +5092,12 @@ function applyCloudMainUpdate(row) {
   // 但**不能就这么丢掉**：回合结束后 done 分支虽然会重画，可服务端阶段三落库的那一份
   // 未必赶得上——它要等下一轮轮询（最长 5s）才回来。所以 park 进槽位，1.5s 后重放。
   if (mainGenerating) { parkCloudRow(row, '本轮正在流式生成'); return false; }
+  // 尾窗行（partial:true）：锚点不在本地 → 转全量拉取，本份不消费（返回 false = 键不推进）、也不 park
+  // （park 了重放只会再撞一次同样的缺失）。缺 partial 字段 = 老服务端/全量行，原路径一字不变。
+  if (row.partial === true && !(row.data.length > 0 && messages.some(m => m.id === row.data[0].id))) {
+    pullFullMainAfterPartialMiss();
+    return false;
+  }
   let nextMessages = mergeCloudTailIntoLocal(messages, row.data);
   if (nextMessages === null) { parkCloudRow(row, '与本地历史无交集'); return false; }
   if (activeStreamMsgId) {
